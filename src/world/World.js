@@ -56,6 +56,7 @@ export default class World {
       nearest?.setActive(true)
       this.activeKiosk = nearest
       this.hud?.setPrompt(nearest ? nearest.project.title : null)
+      if (nearest) this.experience.audio?.nearKiosk()
     }
   }
 

@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { MATERIALS } from './Materials.js'
+import { MATERIALS, accentFor } from './Materials.js'
 import { loadProjectTexture } from './textures.js'
 import { triggerPointFor, TRIGGER_RADIUS } from './layout.js'
 
@@ -21,7 +21,7 @@ export default class ProjectKiosk {
     scene.add(this.group)
 
     const wall = MATERIALS.wall()
-    const accent = MATERIALS.accent()
+    const accent = MATERIALS.accent(accentFor(project.wing))
 
     const plinth = new THREE.Mesh(new THREE.BoxGeometry(PLINTH.w, PLINTH.h, PLINTH.d), wall)
     plinth.position.y = PLINTH.h / 2

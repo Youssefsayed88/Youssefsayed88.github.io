@@ -1,21 +1,40 @@
-import Physics from './physics/Physics.js'
-import Experience from './core/Experience.js'
-
 const canvas = document.querySelector('canvas.webgl')
+const loader = document.getElementById('loader')
 
 // No WebGL? Send them straight to the readable version.
 function webglAvailable() {
   try {
-    return !!document.createElement('canvas').getContext('webgl2')
+    const probe = document.createElement('canvas')
+    return !!(probe.getContext('webgl2') || probe.getContext('webgl'))
   } catch {
     return false
   }
 }
 
+function fail(message) {
+  if (!loader) return
+  loader.querySelector('.loader__text').textContent = message
+  loader.querySelector('.loader__bar').remove()
+}
+
 if (!webglAvailable()) {
   window.location.replace('./classic.html')
 } else {
-  // Rapier ships as WASM and must finish initialising before any world exists.
-  await Physics.init()
-  window.experience = new Experience(canvas)
+  try {
+    // Dynamic so the loading screen paints before Three.js and the 2MB Rapier
+    // WASM are fetched, instead of after.
+    const { default: Experience } = await import('./core/Experience.js')
+
+    window.experience = new Experience(canvas)
+
+    // Hold the loader until a frame has actually been drawn, so it never
+    // reveals an empty canvas.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      loader?.classList.add('is-done')
+      setTimeout(() => loader?.remove(), 600)
+    }))
+  } catch (error) {
+    console.error('[showroom] failed to start', error)
+    fail('Could not start the 3D showroom.')
+  }
 }

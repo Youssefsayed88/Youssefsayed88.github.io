@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { BACKGROUND } from '../world/Materials.js'
 
 export default class Renderer {
   constructor(experience) {
@@ -14,7 +15,7 @@ export default class Renderer {
     })
     // No shadow maps anywhere: the whole art direction is matcap-based.
     this.instance.shadowMap.enabled = false
-    this.instance.setClearColor('#1d1f2b')
+    this.instance.setClearColor(BACKGROUND)
     this.resize()
   }
 

@@ -3,6 +3,8 @@
 //
 //   node physics-smoke.mjs
 //
+// Uses -compat here (not the app's plain build): Node cannot run Vite's WASM-ESM
+// transform. Both packages are 0.20.0, so the API under test is identical.
 import RAPIER from '@dimforge/rapier3d-compat'
 import {
   buildLayout, SPAWN, CORRIDOR, WINGS, ROOM,
@@ -22,7 +24,8 @@ const REST_Y = 0 + HALF_HEIGHT + RADIUS   // floor top is y = 0
 const world = new RAPIER.World({ x: 0, y: -20, z: 0 })
 
 const layout = buildLayout()
-for (const { position, size } of layout) {
+for (const { position, size, collide } of layout) {
+  if (collide === false) continue
   const body = world.createRigidBody(
     RAPIER.RigidBodyDesc.fixed().setTranslation(position.x, position.y, position.z),
   )

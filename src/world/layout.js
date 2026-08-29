@@ -23,8 +23,11 @@ export const WINGS = WING_DATA.map((wing, i) => ({
 
 export const SPAWN = { x: 0, y: 1.5, z: CORRIDOR.z }
 
-const box = (kind, x, y, z, sx, sy, sz) => ({
+export const CEILING_H = ROOM.height
+
+const box = (kind, x, y, z, sx, sy, sz, collide = true) => ({
   kind,
+  collide,
   position: { x, y, z },
   size: { x: sx, y: sy, z: sz },
 })
@@ -137,11 +140,92 @@ export function kioskPlacements(wing, count) {
   return placements
 }
 
-// Decorative floor strips pointing into each room — no collision.
-export function wayfindingStrips() {
+// Ceilings close the rooms in so they read as interior architecture rather than
+// open boxes. No colliders — the player cannot jump 6m, so they would be dead weight.
+export function ceilings() {
+  const boxes = [box('ceiling', 0, CEILING_H, CORRIDOR.z, CORRIDOR.length, 0.5, CORRIDOR.width, false)]
+  for (const wing of WINGS) {
+    boxes.push(box('ceiling', wing.x, CEILING_H, ROOM.z, ROOM.width, 0.5, ROOM.depth, false))
+  }
+  return boxes
+}
+
+// Non-colliding dressing. `accent: true` means the piece takes its wing's hue,
+// so colour carries the wayfinding: floor strip, doorway frame, ceiling light.
+export function decorations() {
   const northZ = CORRIDOR.z - CORRIDOR.width / 2
-  return WINGS.map((wing) => ({
-    position: { x: wing.x, y: 0.03, z: northZ - 3.5 },
-    size: { x: 1.2, y: 0.06, z: 6 },
+  const items = []
+
+  // Corridor ceiling light running the full length.
+  items.push({
+    kind: 'light', wingId: null,
+    position: { x: 0, y: CEILING_H - 0.32, z: CORRIDOR.z },
+    size: { x: CORRIDOR.length - 2, y: 0.12, z: 0.5 },
+  })
+
+  // Baseboard along the corridor's south wall.
+  items.push({
+    kind: 'trim', wingId: null,
+    position: { x: 0, y: 0.16, z: CORRIDOR.z + CORRIDOR.width / 2 - 0.35 },
+    size: { x: CORRIDOR.length, y: 0.32, z: 0.12 },
+  })
+
+  for (const wing of WINGS) {
+    // Floor strip leading from the corridor into the room.
+    items.push({
+      kind: 'accent', wingId: wing.id,
+      position: { x: wing.x, y: 0.04, z: northZ - 3.0 },
+      size: { x: 1.1, y: 0.08, z: 6.5 },
+    })
+    // Doorway uprights, in the wing colour.
+    for (const side of [-1, 1]) {
+      items.push({
+        kind: 'accent', wingId: wing.id,
+        position: { x: wing.x + side * (DOOR_W / 2 + 0.12), y: (ROOM.height - 1.5) / 2, z: northZ },
+        size: { x: 0.16, y: ROOM.height - 1.5, z: 0.72 },
+      })
+    }
+    // Ceiling light ring over the room.
+    for (const side of [-1, 1]) {
+      items.push({
+        kind: 'light', wingId: null,
+        position: { x: wing.x + side * 5.5, y: CEILING_H - 0.32, z: ROOM.z },
+        size: { x: 0.5, y: 0.12, z: ROOM.depth - 4 },
+      })
+    }
+    // Low dais in the middle of the room to break up the floor plane.
+    items.push({
+      kind: 'trim', wingId: null,
+      position: { x: wing.x, y: 0.06, z: ROOM.z },
+      size: { x: 7, y: 0.12, z: 7 },
+    })
+  }
+
+  return items
+}
+
+// Signs above each doorway, plus the owner's name at the corridor's west end.
+export function signs(ownerName, ownerTitle) {
+  const northZ = CORRIDOR.z - CORRIDOR.width / 2
+  const placed = WINGS.map((wing) => ({
+    id: `wing:${wing.id}`,
+    lines: [wing.label],
+    wingId: wing.id,
+    width: DOOR_W,
+    height: 0.9,
+    position: { x: wing.x, y: ROOM.height - 0.75, z: northZ + 0.35 },
+    rotationY: Math.PI,   // faces back down the corridor, toward the player
   }))
+
+  placed.push({
+    id: 'owner',
+    lines: [ownerName, ownerTitle],
+    wingId: null,
+    width: 7,
+    height: 2.2,
+    position: { x: -CORRIDOR.length / 2 + 0.35, y: 2.6, z: CORRIDOR.z },
+    rotationY: Math.PI / 2,
+  })
+
+  return placed
 }

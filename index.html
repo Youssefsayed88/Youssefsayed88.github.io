@@ -3,11 +3,31 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Youssef Mohamed — Showroom</title>
+  <title>Youssef Mohamed — Unity Game Developer</title>
+  <meta name="description" content="An explorable 3D showroom of Unity, XR and digital-twin work by Youssef Mohamed, Unity Game Developer in Cairo.">
+  <meta name="theme-color" content="#12151f">
+
+  <meta property="og:title" content="Youssef Mohamed — Unity Game Developer">
+  <meta property="og:description" content="Walk through an interactive showroom of shipped games, XR training and digital-twin projects.">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- No canonical to classic.html: Vite resolves link hrefs as assets and would
+       emit a second copy of the page. Crawlers reach it via the visible link
+       below, and it carries its own title/description/OG tags. -->
+
   <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
   <canvas class="webgl"></canvas>
+
+  <div class="loader" id="loader">
+    <div class="loader__inner">
+      <div class="loader__bar"><span></span></div>
+      <p class="loader__text">Building the showroom…</p>
+      <a class="loader__skip" href="./classic.html">or read the plain version</a>
+    </div>
+  </div>
 
   <div class="hud">
     <div class="hud__room" id="room-label">Corridor</div>
@@ -17,7 +37,10 @@
     </div>
   </div>
 
-  <a class="skip-link" href="./classic.html">Skip the game &rarr;</a>
+  <div class="controls">
+    <button class="controls__btn" id="mute" type="button" aria-pressed="true">Sound on</button>
+    <a class="controls__btn" href="./classic.html">Skip the game &rarr;</a>
+  </div>
 
   <div class="modal" id="modal" hidden>
     <div class="modal__backdrop"></div>
@@ -27,6 +50,12 @@
       <div class="modal__body"></div>
     </div>
   </div>
+
+  <noscript>
+    <div class="noscript">
+      This showroom needs JavaScript. <a href="./classic.html">Read the plain version instead.</a>
+    </div>
+  </noscript>
 
   <script type="module" src="/src/main.js"></script>
 </body>

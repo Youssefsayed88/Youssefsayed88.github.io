@@ -1,8 +1,15 @@
-import RAPIER from '@dimforge/rapier3d-compat'
+import RAPIER from '@dimforge/rapier3d'
 
-// Rapier is stepped on a fixed timestep and decoupled from the render rate.
+// Rapier is stepped once per frame and decoupled from the render rate.
+//
+// This uses @dimforge/rapier3d, not -compat: the compat build inlines a 2MB
+// WASM binary as base64, which inflates it ~33% and buries it inside the JS
+// bundle. The plain build ships the .wasm as its own file — smaller, cacheable
+// on its own, and downloadable in parallel with the JS.
 export default class Physics {
-  static async init() { await RAPIER.init() }
+  // Kept as a hook so callers do not need to know how the WASM arrives. The
+  // ESM build instantiates at import time, so by here it is already live.
+  static async init() {}
 
   constructor() {
     this.RAPIER = RAPIER
