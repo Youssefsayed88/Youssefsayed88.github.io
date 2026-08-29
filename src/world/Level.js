@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { MATERIALS, accentFor } from './Materials.js'
-import { buildLayout, ceilings, decorations, signs } from './layout.js'
+import { buildLayout, decorations, signs } from './layout.js'
 import { createSign } from './Sign.js'
 import { OWNER } from '../data/projects.js'
 
@@ -31,9 +31,6 @@ export default class Level {
       add(item.kind, MATERIALS[item.kind](), item)
       if (item.collide !== false) this.physics.addStaticBox(item.position, item.size)
     }
-
-    // Ceilings: rendered only.
-    for (const item of ceilings()) add('ceiling', MATERIALS.ceiling(), item)
 
     // Dressing, keyed so each wing's accent gets its own merged bucket.
     for (const item of decorations()) {

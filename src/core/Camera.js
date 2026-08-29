@@ -1,14 +1,15 @@
 import * as THREE from 'three'
 
-const MIN_DISTANCE = 1.4
+const MIN_DISTANCE = 3
 const WALL_MARGIN = 0.35
 
-// Third-person orbit rig that trails the player with damping, and pulls in when
-// level geometry would otherwise come between the camera and the player.
+// Top-down rig: the camera sits high and looks down at the player, orbiting on
+// yaw so you can still read kiosks on any wall.
 //
-// This is not optional here: the corridor is 9 units wide and the rig sits 8.5
-// units back, so without occlusion handling the camera ends up outside the wall
-// looking at its back face.
+// Pitch deliberately stops short of straight down. Every screen in this level is
+// a vertical plane, and at 90 degrees they would all be edge-on and invisible —
+// the kiosks are the point of the room, so the view stays angled enough to read
+// them. Kiosk panels are also tilted back to meet this camera halfway.
 export default class Camera {
   constructor(experience) {
     this.experience = experience
@@ -16,9 +17,9 @@ export default class Camera {
     this.scene = experience.scene
 
     this.yaw = 0
-    this.pitch = 0.32
-    this.distance = 8.5
-    this.height = 1.25
+    this.pitch = 0.95            // ~54 degrees above the horizon
+    this.distance = 17
+    this.height = 0.9
     this.sensitivity = 0.0045
 
     this.target = new THREE.Vector3()
@@ -33,7 +34,10 @@ export default class Camera {
 
   applyLook(look) {
     this.yaw -= look.x * this.sensitivity
-    this.pitch = THREE.MathUtils.clamp(this.pitch + look.y * this.sensitivity, -0.15, 1.1)
+    // Clamped to a top-down band. The lower bound keeps it from dropping back
+    // into a third-person view; the upper stops it going fully overhead, where
+    // every vertical kiosk screen would vanish edge-on.
+    this.pitch = THREE.MathUtils.clamp(this.pitch + look.y * this.sensitivity, 0.62, 1.32)
   }
 
   // Distance the camera can sit back before geometry blocks the view.

@@ -86,7 +86,6 @@ export const DEFAULT_ACCENT = '#22c3e6'
 const SPECS = {
   floor:   { base: '#4a5372', rim: '#69739a', ambient: 0.58, key: 0.50, shininess: 40, specGain: 0.18 },
   wall:    { base: '#5a6486', rim: '#818cb4', ambient: 0.56, key: 0.58 },
-  ceiling: { base: '#39405c', rim: '#525b7e', ambient: 0.50, key: 0.38, specGain: 0.06 },
   trim:    { base: '#8d97ba', rim: '#b6bfda', ambient: 0.55, key: 0.60, specGain: 0.34 },
   // Only a little lighter than the floor — enough to read as a platform.
   dais:    { base: '#565f80', rim: '#767fa4', ambient: 0.56, key: 0.48, specGain: 0.12 },
@@ -105,7 +104,6 @@ function material(name, spec) {
 export const MATERIALS = {
   floor: () => material('floor', SPECS.floor),
   wall: () => material('wall', SPECS.wall),
-  ceiling: () => material('ceiling', SPECS.ceiling),
   trim: () => material('trim', SPECS.trim),
   dais: () => material('dais', SPECS.dais),
   player: () => material('player', SPECS.player),

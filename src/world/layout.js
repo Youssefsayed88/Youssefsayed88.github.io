@@ -23,8 +23,6 @@ export const WINGS = WING_DATA.map((wing, i) => ({
 
 export const SPAWN = { x: 0, y: 1.5, z: CORRIDOR.z }
 
-export const CEILING_H = ROOM.height
-
 const box = (kind, x, y, z, sx, sy, sz, collide = true) => ({
   kind,
   collide,
@@ -140,27 +138,19 @@ export function kioskPlacements(wing, count) {
   return placements
 }
 
-// Ceilings close the rooms in so they read as interior architecture rather than
-// open boxes. No colliders — the player cannot jump 6m, so they would be dead weight.
-export function ceilings() {
-  const boxes = [box('ceiling', 0, CEILING_H, CORRIDOR.z, CORRIDOR.length, 0.5, CORRIDOR.width, false)]
-  for (const wing of WINGS) {
-    boxes.push(box('ceiling', wing.x, CEILING_H, ROOM.z, ROOM.width, 0.5, ROOM.depth, false))
-  }
-  return boxes
-}
-
 // Non-colliding dressing. `accent: true` means the piece takes its wing's hue,
 // so colour carries the wayfinding: floor strip, doorway frame, ceiling light.
 export function decorations() {
   const northZ = CORRIDOR.z - CORRIDOR.width / 2
   const items = []
 
-  // Corridor ceiling light running the full length.
+  // Light strips are inset into the FLOOR, not hung from a ceiling. With the
+  // roof off for the top-down camera, anything overhead would just float
+  // between the lens and the room it is meant to light.
   items.push({
     kind: 'light', wingId: null,
-    position: { x: 0, y: CEILING_H - 0.32, z: CORRIDOR.z },
-    size: { x: CORRIDOR.length - 2, y: 0.12, z: 0.5 },
+    position: { x: 0, y: 0.04, z: CORRIDOR.z },
+    size: { x: CORRIDOR.length - 2, y: 0.08, z: 0.35 },
   })
 
   // Baseboard along the corridor's south wall.
@@ -185,12 +175,12 @@ export function decorations() {
         size: { x: 0.16, y: ROOM.height - 1.5, z: 0.72 },
       })
     }
-    // Ceiling light ring over the room.
+    // Floor light strips flanking the dais.
     for (const side of [-1, 1]) {
       items.push({
         kind: 'light', wingId: null,
-        position: { x: wing.x + side * 5.5, y: CEILING_H - 0.32, z: ROOM.z },
-        size: { x: 0.5, y: 0.12, z: ROOM.depth - 4 },
+        position: { x: wing.x + side * 5.5, y: 0.04, z: ROOM.z },
+        size: { x: 0.35, y: 0.08, z: ROOM.depth - 4 },
       })
     }
     // Low dais to break up the floor plane. Uses 'dais', not 'trim': trim is
