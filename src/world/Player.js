@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { MATERIALS } from './Materials.js'
+import { moveVector } from './movement.js'
 
 const RADIUS = 0.4
 const HALF_HEIGHT = 0.5        // half of the cylindrical section
@@ -47,10 +48,9 @@ export default class Player {
 
   update(delta, axis, wantsJump, cameraYaw) {
     // Rotate movement intent into camera space.
-    const sin = Math.sin(cameraYaw)
-    const cos = Math.cos(cameraYaw)
-    const dx = (axis.x * cos - axis.z * sin) * SPEED * delta
-    const dz = (axis.x * -sin - axis.z * cos) * SPEED * delta
+    const move = moveVector(axis, cameraYaw)
+    const dx = move.x * SPEED * delta
+    const dz = move.z * SPEED * delta
 
     if (this.grounded) {
       this.verticalVelocity = wantsJump ? JUMP : -1   // small stick-down force

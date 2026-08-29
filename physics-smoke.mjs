@@ -9,6 +9,7 @@ import {
   kioskPlacements, triggerPointFor, TRIGGER_RADIUS,
 } from './src/world/layout.js'
 import { byWing } from './src/data/projects.js'
+import { moveVector, cameraOffset } from './src/world/movement.js'
 
 await RAPIER.init()
 
@@ -45,6 +46,13 @@ function spawnCharacter(x = SPAWN.x, z = SPAWN.z) {
   return { body, collider, controller }
 }
 
+// Characters collide with each other, so a leftover body from an earlier check
+// blocks the next one that spawns on the same tile. Every test must clean up.
+function despawn(actor) {
+  world.removeCharacterController(actor.controller)
+  world.removeRigidBody(actor.body)
+}
+
 // Walks a character for `frames` along a per-frame direction, returns the trace.
 function walk(actor, frames, dirFn) {
   const delta = 1 / 60
@@ -76,7 +84,9 @@ function walk(actor, frames, dirFn) {
   }
 
   const p = actor.body.translation()
-  return { x: +p.x.toFixed(2), y: +p.y.toFixed(3), z: +p.z.toFixed(2), grounded, minY: +minY.toFixed(3) }
+  const result = { x: +p.x.toFixed(2), y: +p.y.toFixed(3), z: +p.z.toFixed(2), grounded, minY: +minY.toFixed(3) }
+  despawn(actor)
+  return result
 }
 
 const results = []
@@ -128,6 +138,44 @@ for (const wing of WINGS) {
     `ended x=${r.x}, cap at ${CORRIDOR.length / 2}, lowest y=${r.minY}`)
 }
 
+// 4b. Camera-relative movement. W must walk AWAY from the camera at every yaw —
+//     the bug this guards against had forward and back swapped.
+{
+  const yaws = [0, Math.PI / 4, Math.PI / 2, Math.PI, -Math.PI / 3, 2.7]
+  const dot = (a, b) => a.x * b.x + a.z * b.z
+  const near = (a, b) => Math.abs(a - b) < 1e-9
+
+  const bad = []
+  for (const yaw of yaws) {
+    const toCamera = cameraOffset(yaw)
+    const w = moveVector({ x: 0, z: -1 }, yaw)   // forward
+    const s = moveVector({ x: 0, z: 1 }, yaw)    // back
+    const d = moveVector({ x: 1, z: 0 }, yaw)    // strafe right
+
+    if (!near(dot(w, toCamera), -1)) bad.push(`yaw ${yaw.toFixed(2)}: W dot toCamera = ${dot(w, toCamera).toFixed(3)}, want -1`)
+    if (!near(dot(s, toCamera), 1)) bad.push(`yaw ${yaw.toFixed(2)}: S dot toCamera = ${dot(s, toCamera).toFixed(3)}, want +1`)
+    if (!near(dot(d, toCamera), 0)) bad.push(`yaw ${yaw.toFixed(2)}: D not perpendicular (${dot(d, toCamera).toFixed(3)})`)
+    if (!near(Math.hypot(w.x, w.z), 1)) bad.push(`yaw ${yaw.toFixed(2)}: W not unit length`)
+  }
+
+  check('W walks away from the camera, S toward it, D perpendicular',
+    bad.length === 0,
+    bad.length ? bad.join('; ') : `verified at ${yaws.length} camera angles`)
+}
+
+// 4c. The same thing physically: at yaw 0 the camera sits at +z, so W must
+//     decrease the player's z and S must increase it.
+{
+  const forward = spawnCharacter()
+  const rf = walk(forward, 90, () => moveVector({ x: 0, z: -1 }, 0))
+  const back = spawnCharacter()
+  const rb = walk(back, 90, () => moveVector({ x: 0, z: 1 }, 0))
+
+  check('pressing W moves the player forward, S moves them back',
+    rf.z < SPAWN.z - 1 && rb.z > SPAWN.z + 1,
+    `from z=${SPAWN.z}: W -> z=${rf.z}, S -> z=${rb.z}`)
+}
+
 // 5. Every kiosk must sit inside its room and be physically reachable.
 //    Geometry first (cheap, catches a bad placement formula), then an actual
 //    walk from the room centre to each hotspot.
@@ -165,15 +213,14 @@ for (const wing of WINGS) {
     const target = triggerPointFor(placement)
     // Start in the middle of the room and steer straight at the hotspot.
     const a = spawnCharacter(wing.x, ROOM.z)
-    walk(a, 260, () => {
+    const r = walk(a, 260, () => {
       const p = a.body.translation()
       const dx = target.x - p.x
       const dz = target.z - p.z
       const len = Math.hypot(dx, dz) || 1
       return { x: dx / len, z: dz / len }
     })
-    const p = a.body.translation()
-    const d = Math.hypot(target.x - p.x, target.z - p.z)
+    const d = Math.hypot(target.x - r.x, target.z - r.z)
     if (d > TRIGGER_RADIUS) unreachable.push(`${wingProjects[i].title} (${d.toFixed(2)}m short)`)
   }
 

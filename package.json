@@ -3,9 +3,13 @@
   "version": "1.0.0",
   "description": "",
   "scripts": {
+    "classic": "node scripts/build-classic.mjs",
+    "predev": "npm run classic",
     "dev": "vite",
+    "prebuild": "npm run classic",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node physics-smoke.mjs"
   },
   "keywords": [],
   "author": "",
