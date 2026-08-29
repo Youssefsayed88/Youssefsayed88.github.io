@@ -11,13 +11,12 @@ import {
   kioskPlacements, triggerPointFor, TRIGGER_RADIUS,
 } from './src/world/layout.js'
 import { byWing } from './src/data/projects.js'
-import { moveVector, cameraOffset } from './src/world/movement.js'
+import { moveVector, cameraOffset, SPEED } from './src/world/movement.js'
 
 await RAPIER.init()
 
 const RADIUS = 0.4
 const HALF_HEIGHT = 0.5
-const SPEED = 6
 const GRAVITY = -20
 const REST_Y = 0 + HALF_HEIGHT + RADIUS   // floor top is y = 0
 

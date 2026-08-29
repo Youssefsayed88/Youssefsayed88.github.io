@@ -4,6 +4,11 @@
 // forward direction — away from the camera, into the screen — is the NEGATION
 // of that offset. Getting this backwards is what made W walk backwards.
 
+// Walk speed in metres/second. Lives here rather than in Player.js so
+// physics-smoke.mjs exercises the real value instead of a copy of it.
+// The corridor is ~104 long, so this sets how long crossing it feels.
+export const SPEED = 8
+
 // Unit vector from the player toward the camera, on the ground plane.
 export function cameraOffset(yaw) {
   return { x: Math.sin(yaw), z: Math.cos(yaw) }

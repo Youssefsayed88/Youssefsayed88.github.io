@@ -1,10 +1,9 @@
 import * as THREE from 'three'
 import { MATERIALS } from './Materials.js'
-import { moveVector } from './movement.js'
+import { moveVector, SPEED } from './movement.js'
 
 const RADIUS = 0.4
 const HALF_HEIGHT = 0.5        // half of the cylindrical section
-const SPEED = 6
 const GRAVITY = -20
 const JUMP = 7.5
 
