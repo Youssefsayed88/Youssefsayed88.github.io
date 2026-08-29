@@ -222,8 +222,6 @@ permanent git history.
 
 ## 6. Known debt
 
-- **`lil-gui` is installed but unused** — a debug panel was planned and never built.
-  Remove it or wire it.
 - **`@dimforge/rapier3d-compat` is a second copy of Rapier**, kept in devDependencies
   because Node cannot run Vite's WASM-ESM transform for the test. Both are 0.20.0.
 - **ffmpeg on this machine is from 2013.** It works, but a modern build gives better
