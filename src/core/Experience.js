@@ -33,8 +33,9 @@ export default class Experience {
     const delta = this.time.delta
 
     this.camera.applyLook(this.input.consumeLook())
-    this.physics.update(delta)
+    // Order matters: the character queues its move, THEN the world steps.
     this.world.update(delta, this.input, this.camera)
+    this.physics.update(delta)
     this.camera.update(this.world.player.position, delta)
     this.renderer.update()
   }

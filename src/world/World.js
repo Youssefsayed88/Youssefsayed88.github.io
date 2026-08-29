@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import Level, { WINGS } from './Level.js'
+import Level, { WINGS, SPAWN } from './Level.js'
 import Player from './Player.js'
 
 export default class World {
@@ -9,7 +9,11 @@ export default class World {
     this.physics = experience.physics
 
     this.level = new Level(this.scene, this.physics)
-    this.player = new Player(this.scene, this.physics)
+    this.player = new Player(
+      this.scene,
+      this.physics,
+      new THREE.Vector3(SPAWN.x, SPAWN.y, SPAWN.z),
+    )
 
     this.roomLabel = document.getElementById('room-label')
     this.currentRoom = null
@@ -23,12 +27,14 @@ export default class World {
   // Cheap proximity check — replaced by real trigger volumes in M2.
   updateRoomLabel() {
     const p = this.player.position
-    let room = 'Lobby'
-    if (p.z < 2) {
+    let room = 'Corridor'
+
+    if (p.z < SPAWN.z - 4.5) {
       const near = WINGS.reduce((a, w) =>
         Math.abs(w.x - p.x) < Math.abs(a.x - p.x) ? w : a)
       if (Math.abs(near.x - p.x) < 11) room = near.label
     }
+
     if (room !== this.currentRoom) {
       this.currentRoom = room
       if (this.roomLabel) this.roomLabel.textContent = room

@@ -8,7 +8,6 @@ export default class Physics {
     this.RAPIER = RAPIER
     this.world = new RAPIER.World({ x: 0, y: -20, z: 0 })
     this.world.timestep = 1 / 60
-    this.accumulator = 0
   }
 
   // A static piece of level geometry: fixed body + cuboid collider.
@@ -23,14 +22,15 @@ export default class Physics {
     return body
   }
 
+  // Stepped once per frame, AFTER the character has queued its kinematic move.
+  //
+  // An accumulator loop desyncs a kinematic character: on a frame that does not
+  // step, setNextKinematicTranslation never applies, so the next
+  // computeColliderMovement queries a stale collider position and the character
+  // drifts. One step per frame keeps the controller and the world in lockstep.
+  // Revisit if dynamic props are ever added to the level.
   update(delta) {
-    this.accumulator += delta
-    // Cap the catch-up work so a long frame cannot spiral.
-    let steps = 0
-    while (this.accumulator >= this.world.timestep && steps < 5) {
-      this.world.step()
-      this.accumulator -= this.world.timestep
-      steps++
-    }
+    this.world.timestep = Math.min(delta, 1 / 30)
+    this.world.step()
   }
 }

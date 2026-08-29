@@ -8,7 +8,7 @@ const GRAVITY = -20
 const JUMP = 7.5
 
 export default class Player {
-  constructor(scene, physics, spawn = new THREE.Vector3(0, 2, 12)) {
+  constructor(scene, physics, spawn = new THREE.Vector3(0, 1.5, 7)) {
     const { RAPIER, world } = physics
     this.physics = physics
 
