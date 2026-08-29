@@ -4,7 +4,11 @@
 //   node physics-smoke.mjs
 //
 import RAPIER from '@dimforge/rapier3d-compat'
-import { buildLayout, SPAWN, CORRIDOR, WINGS, ROOM } from './src/world/layout.js'
+import {
+  buildLayout, SPAWN, CORRIDOR, WINGS, ROOM,
+  kioskPlacements, triggerPointFor, TRIGGER_RADIUS,
+} from './src/world/layout.js'
+import { byWing } from './src/data/projects.js'
 
 await RAPIER.init()
 
@@ -27,9 +31,9 @@ for (const { position, size } of layout) {
   )
 }
 
-function spawnCharacter(x = SPAWN.x) {
+function spawnCharacter(x = SPAWN.x, z = SPAWN.z) {
   const body = world.createRigidBody(
-    RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(x, SPAWN.y, SPAWN.z),
+    RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(x, SPAWN.y, z),
   )
   const collider = world.createCollider(RAPIER.ColliderDesc.capsule(HALF_HEIGHT, RADIUS), body)
   const controller = world.createCharacterController(0.02)
@@ -122,6 +126,60 @@ for (const wing of WINGS) {
   check('stopped by the corridor end cap',
     r.minY > 0.5 && r.x < CORRIDOR.length / 2,
     `ended x=${r.x}, cap at ${CORRIDOR.length / 2}, lowest y=${r.minY}`)
+}
+
+// 5. Every kiosk must sit inside its room and be physically reachable.
+//    Geometry first (cheap, catches a bad placement formula), then an actual
+//    walk from the room centre to each hotspot.
+{
+  const margin = 0.6
+  let allInside = true
+  const strays = []
+
+  for (const wing of WINGS) {
+    const wingProjects = byWing(wing.id)
+    for (const [i, placement] of kioskPlacements(wing, wingProjects.length).entries()) {
+      const t = triggerPointFor(placement)
+      const inside =
+        t.x > wing.x - ROOM.width / 2 + margin &&
+        t.x < wing.x + ROOM.width / 2 - margin &&
+        t.z > ROOM.z - ROOM.depth / 2 + margin &&
+        t.z < ROOM.z + ROOM.depth / 2 - margin
+      if (!inside) {
+        allInside = false
+        strays.push(`${wingProjects[i].title} @ (${t.x.toFixed(1)}, ${t.z.toFixed(1)})`)
+      }
+    }
+  }
+  check('every kiosk hotspot is inside its room',
+    allInside,
+    allInside ? `all hotspots within room bounds` : `outside: ${strays.join('; ')}`)
+}
+
+for (const wing of WINGS) {
+  const wingProjects = byWing(wing.id)
+  const placements = kioskPlacements(wing, wingProjects.length)
+  const unreachable = []
+
+  for (const [i, placement] of placements.entries()) {
+    const target = triggerPointFor(placement)
+    // Start in the middle of the room and steer straight at the hotspot.
+    const a = spawnCharacter(wing.x, ROOM.z)
+    walk(a, 260, () => {
+      const p = a.body.translation()
+      const dx = target.x - p.x
+      const dz = target.z - p.z
+      const len = Math.hypot(dx, dz) || 1
+      return { x: dx / len, z: dz / len }
+    })
+    const p = a.body.translation()
+    const d = Math.hypot(target.x - p.x, target.z - p.z)
+    if (d > TRIGGER_RADIUS) unreachable.push(`${wingProjects[i].title} (${d.toFixed(2)}m short)`)
+  }
+
+  check(`all ${wingProjects.length} "${wing.label}" kiosks are reachable on foot`,
+    unreachable.length === 0,
+    unreachable.length ? `unreachable: ${unreachable.join('; ')}` : `all within ${TRIGGER_RADIUS}m trigger radius`)
 }
 
 const failed = results.filter((r) => !r.pass)

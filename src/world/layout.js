@@ -79,6 +79,64 @@ export function buildLayout() {
   return boxes
 }
 
+// How close the player must get, and how far the hotspot sits into the room.
+// Here rather than in ProjectKiosk.js so the headless test can use them.
+export const TRIGGER_RADIUS = 2.8
+export const TRIGGER_OFFSET = 1.4
+
+// World-space point the player has to reach for a given kiosk placement.
+export function triggerPointFor(placement) {
+  return {
+    x: placement.position.x + Math.sin(placement.rotationY) * TRIGGER_OFFSET,
+    y: 0.9,
+    z: placement.position.z + Math.cos(placement.rotationY) * TRIGGER_OFFSET,
+  }
+}
+
+// Distributes N kiosks evenly along a U around the room: up the left wall,
+// across the back, down the right. The south wall is skipped — that is the
+// doorway side, and a kiosk there would face the player's back on entry.
+export function kioskPlacements(wing, count) {
+  if (count === 0) return []
+
+  const cx = wing.x
+  const inset = 1.0
+  const endPad = 2.0
+  const left = cx - ROOM.width / 2 + inset
+  const right = cx + ROOM.width / 2 - inset
+  const back = ROOM.z - ROOM.depth / 2 + inset
+  const front = ROOM.z + ROOM.depth / 2 - endPad
+
+  const segments = [
+    // Up the left wall, facing +x.
+    { length: front - (back + endPad), rotationY: Math.PI / 2,
+      at: (t) => ({ x: left, z: front - t }) },
+    // Across the back wall, facing +z.
+    { length: (right - endPad) - (left + endPad), rotationY: 0,
+      at: (t) => ({ x: left + endPad + t, z: back }) },
+    // Down the right wall, facing -x.
+    { length: front - (back + endPad), rotationY: -Math.PI / 2,
+      at: (t) => ({ x: right, z: back + endPad + t }) },
+  ]
+
+  const total = segments.reduce((sum, s) => sum + s.length, 0)
+  const placements = []
+
+  for (let i = 0; i < count; i++) {
+    let d = ((i + 0.5) / count) * total
+    for (const seg of segments) {
+      if (d <= seg.length) {
+        const { x, z } = seg.at(d)
+        placements.push({ position: { x, y: 0, z }, rotationY: seg.rotationY })
+        break
+      }
+      d -= seg.length
+    }
+  }
+
+  return placements
+}
+
 // Decorative floor strips pointing into each room — no collision.
 export function wayfindingStrips() {
   const northZ = CORRIDOR.z - CORRIDOR.width / 2

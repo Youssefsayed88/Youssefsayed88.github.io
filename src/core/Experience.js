@@ -6,6 +6,8 @@ import Camera from './Camera.js'
 import Renderer from './Renderer.js'
 import Physics from '../physics/Physics.js'
 import World from '../world/World.js'
+import Hud from '../ui/Hud.js'
+import Modal from '../ui/Modal.js'
 
 export default class Experience {
   constructor(canvas) {
@@ -17,10 +19,16 @@ export default class Experience {
     this.scene = new THREE.Scene()
     this.scene.fog = new THREE.Fog('#1d1f2b', 40, 110)
 
+    this.hud = new Hud()
+    this.modal = new Modal((open) => { this.paused = open })
+    this.paused = false
+
     this.camera = new Camera(this)
     this.renderer = new Renderer(this)
     this.physics = new Physics()
     this.world = new World(this)
+
+    this.input.on('interact', () => this.interact())
 
     this.sizes.on('resize', () => {
       this.camera.resize()
@@ -29,13 +37,25 @@ export default class Experience {
     this.time.on('tick', () => this.update())
   }
 
+  interact() {
+    if (this.paused || !this.world.activeKiosk) return
+    this.modal.show(this.world.activeKiosk.project)
+  }
+
   update() {
     const delta = this.time.delta
 
-    this.camera.applyLook(this.input.consumeLook())
-    // Order matters: the character queues its move, THEN the world steps.
-    this.world.update(delta, this.input, this.camera)
-    this.physics.update(delta)
+    if (this.paused) {
+      // Drop any drag accumulated behind the modal so the camera does not
+      // lurch when it closes.
+      this.input.consumeLook()
+    } else {
+      this.camera.applyLook(this.input.consumeLook())
+      // Order matters: the character queues its move, THEN the world steps.
+      this.world.update(delta, this.input, this.camera)
+      this.physics.update(delta)
+    }
+
     this.camera.update(this.world.player.position, delta)
     this.renderer.update()
   }
