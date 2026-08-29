@@ -9,6 +9,8 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { pendingVideos } from '../src/data/projects.js'
 
 const OUT = 'videos-raw'
@@ -32,22 +34,48 @@ for (const v of pendingVideos) {
   }
 
   process.stdout.write(`get   ${v.title} ... `)
-  const res = await fetch(url(v.fileId), { redirect: 'follow' })
 
+  let res = await fetch(url(v.fileId), { redirect: 'follow' })
   if (!res.ok) {
     console.log(`FAILED (HTTP ${res.status})`)
     continue
   }
-  const type = res.headers.get('content-type') || ''
+
+  let type = res.headers.get('content-type') || ''
+
+  // Files over ~100MB return an HTML "Virus scan warning" page instead of the
+  // file. It carries a plain GET form with a per-request uuid; following it is
+  // all that is needed. Still no credentials anywhere.
+  if (type.startsWith('text/html')) {
+    const html = await res.text()
+    const form = parseConfirmForm(html)
+    if (!form) {
+      console.log('FAILED (HTML response, no confirm form — file may not be shared publicly)')
+      continue
+    }
+    res = await fetch(form, { redirect: 'follow' })
+    type = res.headers.get('content-type') || ''
+  }
+
   if (!type.startsWith('video/')) {
-    // Drive serves an HTML interstitial when a file is not link-shared.
-    console.log(`FAILED (got ${type} — file may not be shared publicly)`)
+    console.log(`FAILED (got ${type})`)
     continue
   }
 
-  const buf = Buffer.from(await res.arrayBuffer())
-  fs.writeFileSync(dest, buf)
-  console.log(`${(buf.length / 1e6).toFixed(1)} MB -> ${dest}`)
+  // Stream rather than buffer — these run past 100MB.
+  await pipeline(Readable.fromWeb(res.body), fs.createWriteStream(dest))
+  console.log(`${(fs.statSync(dest).size / 1e6).toFixed(1)} MB -> ${dest}`)
+}
+
+// Rebuilds the interstitial's <form> into a URL.
+function parseConfirmForm(html) {
+  const action = html.match(/<form[^>]+action="([^"]+)"/i)?.[1]
+  if (!action) return null
+  const params = new URLSearchParams()
+  for (const m of html.matchAll(/<input type="hidden" name="([^"]+)" value="([^"]*)"/gi)) {
+    params.set(m[1], m[2])
+  }
+  return `${action.replace(/&amp;/g, '&')}?${params}`
 }
 
 console.log('\nNext: re-encode before uploading, e.g.')

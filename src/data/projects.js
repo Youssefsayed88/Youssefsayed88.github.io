@@ -7,7 +7,7 @@
 // prompt, then replace `role` with one concrete sentence about what YOU built.
 // This is the field that separates this portfolio from Shehab's; the rest is shared.
 //
-// `videoSource` = file ID on the ORIGINAL owner's Drive, pending re-host.
+// `videoSource` = file ID on the original owner's Drive, pending re-host.
 // `video` stays null until the footage lives on an account you control.
 
 export const OWNER = {
@@ -17,35 +17,21 @@ export const OWNER = {
   email: 'youssefsayed88@gmail.com',
   phone: '+201227248910',
   location: 'Cairo, Egypt',
-  // TODO(youssef): the CV hyperlinks did not survive text extraction — paste the URLs.
-  linkedin: null,
-  github: null,
-  itch: null,
+  linkedin: 'https://www.linkedin.com/in/youssef-mohamed-759380204/',
+  github: 'https://github.com/Youssefsayed88',
+  itch: 'https://mr34.itch.io/',
 }
 
+// Rebalanced to 3 wings after the Digito and VR-Connect merges left two rooms
+// holding a single project each. Adding a wing back is one entry here.
 export const WINGS = [
   { id: 'games', label: 'Games' },
-  { id: 'xr', label: 'XR & Simulation' },
-  { id: 'twins', label: 'Digital Twins' },
+  { id: 'xr', label: 'XR & Digital Twins' },
   { id: 'lab', label: 'Lab' },
 ]
 
 export const projects = [
   // ===== GAMES ===========================================================
-  {
-    id: 'harvest-haulers',
-    wing: 'games',
-    title: 'Harvest Haulers',
-    blurb: 'Idle clicker: harvest resources, upgrade the fleet, automate the farm.',
-    role: null,
-    cvHint: 'Appsinnovate — "Developed learning experiences and mini games", "Maintained published webgl projects"',
-    company: 'Appsinnovate',
-    image: 'images/harvest-haulers.webp',
-    video: null,
-    videoSource: null,
-    links: [{ label: 'Play', url: 'https://playgama.com/game/harvest-haulers' }],
-    tech: ['Unity', 'WebGL'],
-  },
   {
     id: 'lu-run',
     wing: 'games',
@@ -78,20 +64,6 @@ export const projects = [
     tech: ['Unity', 'C#', 'PlayFab'],
   },
   {
-    id: 'head-ball',
-    wing: 'games',
-    title: 'Head Ball',
-    blurb: 'World Cup 2026 mini game — Egypt vs Argentina in a fast head-ball showdown.',
-    role: null,
-    cvHint: 'Appsinnovate — "mini games for e-content team", "Maintained published webgl projects"',
-    company: 'Appsinnovate',
-    image: 'images/headball.webp',
-    video: null,
-    videoSource: null,
-    links: [{ label: 'Play', url: 'https://appsinnovate.com/en/products/headball' }],
-    tech: ['Unity', 'WebGL'],
-  },
-  {
     id: 'robotics',
     wing: 'games',
     title: 'Robotics',
@@ -106,43 +78,47 @@ export const projects = [
     tech: ['Unity', 'Multiplayer'],
   },
   {
-    id: 'biohazard-breakout',
+    id: 'harvest-haulers',
     wing: 'games',
-    title: 'Biohazard Breakout',
-    blurb: 'Co-operative survival shooter with a hidden-impostor mechanic.',
+    title: 'Harvest Haulers',
+    blurb: 'Idle clicker: harvest resources, upgrade the fleet, automate the farm.',
     role: null,
-    cvHint: 'Your own project. "Designed 2+ multiplayer prototypes using Mirror/PUN" almost certainly covers this.',
-    company: null,
-    image: null,          // TODO: needs a screenshot
+    cvHint: 'Appsinnovate — "Developed learning experiences and mini games", "Maintained published webgl projects"',
+    company: 'Appsinnovate',
+    image: 'images/harvest-haulers.webp',
     video: null,
     videoSource: null,
-    links: [],
-    tech: ['Unity', 'Mirror/PUN'],
+    links: [{ label: 'Play', url: 'https://playgama.com/game/harvest-haulers' }],
+    tech: ['Unity', 'WebGL'],
   },
   {
-    id: 'ballpop',
+    id: 'head-ball',
     wing: 'games',
-    title: 'Ballpop!',
-    blurb: 'Fast-paced arcade game: stop the balls before they flood the screen.',
+    title: 'Head Ball',
+    blurb: 'World Cup 2026 mini game — Egypt vs Argentina in a fast head-ball showdown.',
     role: null,
-    cvHint: 'Your own project.',
-    company: null,
-    image: null,          // TODO: needs a screenshot
+    cvHint: 'Appsinnovate — "mini games for e-content team", "Maintained published webgl projects"',
+    company: 'Appsinnovate',
+    image: 'images/headball.webp',
     video: null,
     videoSource: null,
-    links: [],
-    tech: ['Unity', 'C#'],
+    links: [{ label: 'Play', url: 'https://appsinnovate.com/en/products/headball' }],
+    tech: ['Unity', 'WebGL'],
   },
 
-  // ===== XR & SIMULATION =================================================
+  // ===== XR & DIGITAL TWINS ==============================================
   {
-    id: 'vr-training',
+    id: 'vr-connect',
     wing: 'xr',
-    title: 'Advanced Training & Simulations',
-    blurb: 'Immersive training environments with realistic physics for industrial scenarios.',
+    // Shehab's site lists this generically as "Advanced Training and Simulations";
+    // VR-Connect is the actual product name, so it leads.
+    title: 'VR-Connect',
+    blurb: 'VR training simulator that guides and evaluates medical staff on cleaning procedures and compliance with medical standards.',
     role: null,
-    cvHint: 'Genesis Creations — "Developed and Maintained VR Solutions and Training Development"',
+    cvHint: 'Genesis Creations — "Developed and Maintained VR Solutions and Training Development". Also one of your own listed Technical Projects.',
     company: 'Genesis Creations',
+    // NOTE: images/VRMedical.webp also exists (unused on Shehab's site) and may
+    // suit this better than the generic vr-simulation shot.
     image: 'images/vr-simulation.webp',
     video: null,
     videoSource: '1xJIepycbbY_BFpPrHi5mcYXEel8KtL9J',
@@ -164,51 +140,51 @@ export const projects = [
     tech: ['Unity', 'AR Foundation', 'WebAR'],
   },
   {
-    id: 'vr-connect',
+    id: 'digito',
     wing: 'xr',
-    title: 'VR-Connect',
-    blurb: 'VR training simulator that guides and evaluates medical staff on cleaning procedures and compliance standards.',
+    // Shehab's site lists this generically as "Digital Twin Projects";
+    // Digito is the actual product name.
+    title: 'Digito',
+    blurb: 'Digital twin of a real restaurant — view and interact with the space virtually, backed by live data from the real venue.',
     role: null,
-    cvHint: 'Your own project. Genesis Creations VR training work.',
-    company: null,
-    image: null,          // TODO: needs a screenshot
-    video: null,
-    videoSource: null,
-    links: [],
-    tech: ['Unity', 'VR'],
-  },
-
-  // ===== DIGITAL TWINS ===================================================
-  {
-    id: 'digital-twin',
-    wing: 'twins',
-    title: 'Digital Twin Projects',
-    blurb: 'IoT-driven virtual replicas for real-time monitoring, simulation and predictive insight.',
-    role: null,
-    cvHint: 'Genesis Creations — GraphQL/REST API calls, Unreal POC work.',
+    cvHint: 'Your own listed Technical Project. "Wrote Graphql and REST API calls" likely applies.',
     company: null,
     image: 'images/Digital-Twin.webp',
     video: null,
     videoSource: '1ivv3SsybwivDc-QBTiKNSkA1nfF5S40e',
     links: [],
-    tech: ['Unity', 'IoT', 'REST'],
-  },
-  {
-    id: 'digito',
-    wing: 'twins',
-    title: 'Digito',
-    blurb: 'Digital twin of a real restaurant — view, interact with, and pull live data from the space virtually.',
-    role: null,
-    cvHint: 'Your own project. "Wrote Graphql and REST API calls" likely applies.',
-    company: null,
-    image: null,          // TODO: needs a screenshot
-    video: null,
-    videoSource: null,
-    links: [],
     tech: ['Unity', 'GraphQL', 'IoT'],
   },
 
   // ===== LAB =============================================================
+  {
+    id: 'biohazard-breakout',
+    wing: 'lab',
+    title: 'Biohazard Breakout',
+    blurb: 'Co-operative survival shooter with a hidden-impostor mechanic.',
+    role: null,
+    cvHint: 'Your own project. "Designed 2+ multiplayer prototypes using Mirror/PUN" almost certainly covers this.',
+    company: null,
+    image: null,          // TODO: screenshot needed — check itch.io
+    video: null,
+    videoSource: null,
+    links: [],
+    tech: ['Unity', 'Mirror/PUN'],
+  },
+  {
+    id: 'ballpop',
+    wing: 'lab',
+    title: 'Ballpop!',
+    blurb: 'Fast-paced arcade game: stop the balls before they flood the screen.',
+    role: null,
+    cvHint: 'Your own project.',
+    company: null,
+    image: null,          // TODO: screenshot needed — check itch.io
+    video: null,
+    videoSource: null,
+    links: [],
+    tech: ['Unity', 'C#'],
+  },
   {
     id: 'novel-viz',
     wing: 'lab',
@@ -217,7 +193,7 @@ export const projects = [
     role: null,
     cvHint: 'B.Sc. Computers & AI, Cairo University. Python + generative AI libraries.',
     company: 'Cairo University',
-    image: null,          // TODO: needs a screenshot
+    image: null,          // TODO: screenshot needed
     video: null,
     videoSource: null,
     links: [],
@@ -227,7 +203,7 @@ export const projects = [
 
 export const byWing = (wingId) => projects.filter((p) => p.wing === wingId)
 
-// Videos still awaiting re-host, for the migration script.
+// Videos still awaiting re-host, for scripts/fetch-videos.mjs.
 export const pendingVideos = projects
   .filter((p) => p.videoSource && !p.video)
   .map((p) => ({ id: p.id, title: p.title, fileId: p.videoSource }))

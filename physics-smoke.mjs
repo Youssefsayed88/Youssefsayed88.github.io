@@ -4,7 +4,7 @@
 //   node physics-smoke.mjs
 //
 import RAPIER from '@dimforge/rapier3d-compat'
-import { buildLayout, SPAWN, CORRIDOR, WINGS } from './src/world/layout.js'
+import { buildLayout, SPAWN, CORRIDOR, WINGS, ROOM } from './src/world/layout.js'
 
 await RAPIER.init()
 
@@ -27,9 +27,9 @@ for (const { position, size } of layout) {
   )
 }
 
-function spawnCharacter() {
+function spawnCharacter(x = SPAWN.x) {
   const body = world.createRigidBody(
-    RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(SPAWN.x, SPAWN.y, SPAWN.z),
+    RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(x, SPAWN.y, SPAWN.z),
   )
   const collider = world.createCollider(RAPIER.ColliderDesc.capsule(HALF_HEIGHT, RADIUS), body)
   const controller = world.createCharacterController(0.02)
@@ -93,25 +93,26 @@ console.log(`spawn = (${SPAWN.x}, ${SPAWN.y}, ${SPAWN.z}), ${layout.length} stat
     `rest y=${r.y} (expected ~${REST_Y}), grounded=${r.grounded}`)
 }
 
-// 2. Walking north from the corridor at x=0 must hit the gap wall, not fall.
-//    There is no wing at x=0 with an even wing count, so this is solid wall.
+const northZ = CORRIDOR.z - CORRIDOR.width / 2
+
+// 2. Walking north from BETWEEN two rooms must hit the gap wall, not fall through.
+//    x is derived from the layout so this holds at any wing count.
 {
-  const a = spawnCharacter()
+  const gapX = (WINGS[0].x + ROOM.width / 2 + (WINGS[1].x - ROOM.width / 2)) / 2
+  const a = spawnCharacter(gapX)
   const r = walk(a, 240, () => ({ x: 0, z: -1 }))
   check('blocked by the corridor north wall between wings',
-    r.minY > 0.5 && r.grounded,
-    `ended (${r.x}, ${r.y}, ${r.z}), lowest y=${r.minY}`)
+    r.minY > 0.5 && r.z > northZ - 0.5,
+    `started x=${gapX}, ended (${r.x}, ${r.y}, ${r.z}), wall at z=${northZ}, lowest y=${r.minY}`)
 }
 
-// 3. Walking into a wing doorway must reach the room and stay on its floor.
-{
-  const wing = WINGS[1]
-  const a = spawnCharacter()
-  // Strafe to line up with the doorway, then head north through it.
-  const r = walk(a, 400, (f) => (f < 120 ? { x: -1, z: 0 } : { x: 0, z: -1 }))
-  check(`walks through the "${wing.label}" doorway into the room`,
-    r.minY > 0.5 && r.z < CORRIDOR.z - CORRIDOR.width / 2,
-    `ended (${r.x}, ${r.y}, ${r.z}), lowest y=${r.minY}, wing x=${wing.x}`)
+// 3. Walking north from a wing's centre must pass through the doorway into the room.
+for (const wing of WINGS) {
+  const a = spawnCharacter(wing.x)
+  const r = walk(a, 300, () => ({ x: 0, z: -1 }))
+  check(`walks through the "${wing.label}" doorway`,
+    r.minY > 0.5 && r.z < northZ,
+    `ended (${r.x}, ${r.y}, ${r.z}), doorway at z=${northZ}, lowest y=${r.minY}`)
 }
 
 // 4. Walking east must stop at the corridor end cap.
