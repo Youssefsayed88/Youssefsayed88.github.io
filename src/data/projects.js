@@ -175,14 +175,16 @@ export const projects = [
     id: 'ballpop',
     wing: 'lab',
     title: 'Ballpop!',
-    blurb: 'Fast-paced arcade game: stop the balls before they flood the screen.',
+    blurb: 'Arcade game where the player keeps the screen from filling up by popping balls and chaining combos. Published to the Play Store.',
     role: null,
-    cvHint: 'Your own project.',
+    cvHint: 'Your own project, published on itch.io and the Play Store.',
     company: null,
-    image: null,          // TODO: screenshot needed — check itch.io
+    // 280x500 from the itch.io page; itch does not expose a full-res original.
+    // Replace with your source capture if you still have it.
+    image: 'images/ballpop.png',
     video: null,
     videoSource: null,
-    links: [],
+    links: [{ label: 'itch.io', url: 'https://mr34.itch.io/ballpop' }],
     tech: ['Unity', 'C#'],
   },
   {

@@ -193,9 +193,10 @@ export function decorations() {
         size: { x: 0.5, y: 0.12, z: ROOM.depth - 4 },
       })
     }
-    // Low dais in the middle of the room to break up the floor plane.
+    // Low dais to break up the floor plane. Uses 'dais', not 'trim': trim is
+    // tuned bright for thin baseboards and reads as a glowing slab at 7x7.
     items.push({
-      kind: 'trim', wingId: null,
+      kind: 'dais', wingId: null,
       position: { x: wing.x, y: 0.06, z: ROOM.z },
       size: { x: 7, y: 0.12, z: 7 },
     })
@@ -214,7 +215,9 @@ export function signs(ownerName, ownerTitle) {
     width: DOOR_W,
     height: 0.9,
     position: { x: wing.x, y: ROOM.height - 0.75, z: northZ + 0.35 },
-    rotationY: Math.PI,   // faces back down the corridor, toward the player
+    // rotationY 0 leaves the plane's +z normal pointing down the corridor at the
+    // approaching player. Math.PI would face it into the room, at nobody.
+    rotationY: 0,
   }))
 
   placed.push({

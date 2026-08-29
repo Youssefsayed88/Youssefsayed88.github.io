@@ -70,7 +70,7 @@ function makeMatcap({ base, rim, spec = '#ffffff', ambient = 0.30, key = 0.72, f
 // Palette
 // ---------------------------------------------------------------------------
 
-export const BACKGROUND = '#12151f'
+export const BACKGROUND = '#1a1f2e'
 
 // Each wing gets its own hue. Used for the doorway sign, the floor strip
 // leading in, and the kiosk highlight — so colour does the wayfinding.
@@ -81,12 +81,16 @@ export const WING_ACCENTS = {
 }
 export const DEFAULT_ACCENT = '#22c3e6'
 
+// Ambient carries most of the load here. These were first tuned blind and came
+// out near-black on screen; the values below are set from an actual render.
 const SPECS = {
-  floor:   { base: '#262b3f', rim: '#39415e', ambient: 0.34, key: 0.55, shininess: 40, specGain: 0.16 },
-  wall:    { base: '#333A54', rim: '#4d5678', ambient: 0.32, key: 0.66 },
-  ceiling: { base: '#1b1f2e', rim: '#2b3149', ambient: 0.26, key: 0.40, specGain: 0.05 },
-  trim:    { base: '#5c6684', rim: '#8b95b8', ambient: 0.33, key: 0.68, specGain: 0.34 },
-  player:  { base: '#f0913c', rim: '#ffd9a0', ambient: 0.34, key: 0.74, rimGain: 0.7, specGain: 0.45 },
+  floor:   { base: '#4a5372', rim: '#69739a', ambient: 0.58, key: 0.50, shininess: 40, specGain: 0.18 },
+  wall:    { base: '#5a6486', rim: '#818cb4', ambient: 0.56, key: 0.58 },
+  ceiling: { base: '#39405c', rim: '#525b7e', ambient: 0.50, key: 0.38, specGain: 0.06 },
+  trim:    { base: '#8d97ba', rim: '#b6bfda', ambient: 0.55, key: 0.60, specGain: 0.34 },
+  // Only a little lighter than the floor — enough to read as a platform.
+  dais:    { base: '#565f80', rim: '#767fa4', ambient: 0.56, key: 0.48, specGain: 0.12 },
+  player:  { base: '#f0913c', rim: '#ffd9a0', ambient: 0.46, key: 0.70, rimGain: 0.7, specGain: 0.45 },
 }
 
 const cache = new Map()
@@ -103,6 +107,7 @@ export const MATERIALS = {
   wall: () => material('wall', SPECS.wall),
   ceiling: () => material('ceiling', SPECS.ceiling),
   trim: () => material('trim', SPECS.trim),
+  dais: () => material('dais', SPECS.dais),
   player: () => material('player', SPECS.player),
 
   // Bright, self-lit look for accents and light fixtures.

@@ -83,9 +83,12 @@ h2{margin:0 0 .35rem;font-size:1.35rem}
 .grid{display:grid;gap:1.1rem;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
 .card{background:#1b1e2b;border:1px solid rgba(255,255,255,.07);border-radius:12px;overflow:hidden;
   display:flex;flex-direction:column}
-.card__media{background:#10121c;aspect-ratio:16/9}
-.card__media img{width:100%;height:100%;object-fit:cover;display:block}
-.card__placeholder{width:100%;height:100%;display:grid;place-items:center;color:#6b7290;
+/* aspect-ratio goes on the img, not the container: inside a flex column the
+   container's height resolves from the image's intrinsic size and the ratio is
+   ignored, which leaves the grid rows ragged. */
+.card__media{background:#10121c;overflow:hidden;flex:none}
+.card__media img,.card__placeholder{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
+.card__placeholder{display:grid;place-items:center;color:#6b7290;
   font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;
   background:repeating-linear-gradient(45deg,#1d2030,#1d2030 10px,#212434 10px,#212434 20px)}
 .card__body{padding:1rem 1.1rem 1.15rem;display:flex;flex-direction:column;gap:.5rem;flex:1}

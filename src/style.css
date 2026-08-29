@@ -141,7 +141,7 @@ canvas.webgl {
 
 /* ---------- Loader ---------- */
 .loader{position:fixed;inset:0;z-index:200;display:grid;place-items:center;
-  background:#12151f;transition:opacity .5s ease}
+  background:#1a1f2e;transition:opacity .5s ease}
 .loader.is-done{opacity:0;pointer-events:none}
 .loader__inner{display:flex;flex-direction:column;align-items:center;gap:.9rem;width:min(280px,70vw)}
 .loader__bar{width:100%;height:2px;background:rgba(255,255,255,.12);overflow:hidden;border-radius:2px}
@@ -160,7 +160,7 @@ canvas.webgl {
 .controls__btn:hover,.controls__btn:focus-visible{opacity:1;border-color:#22c3e6}
 
 .noscript{position:fixed;inset:0;z-index:300;display:grid;place-items:center;
-  background:#12151f;padding:2rem;text-align:center;font-size:.95rem}
+  background:#1a1f2e;padding:2rem;text-align:center;font-size:.95rem}
 .noscript a{color:#37cdea}
 
 /* Touch: the hint text is desktop-specific, and the HUD needs safe-area room. */
