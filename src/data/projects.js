@@ -7,12 +7,16 @@
 // prompt, then replace `role` with one concrete sentence about what YOU built.
 // This is the field that separates this portfolio from Shehab's; the rest is shared.
 //
-// `videoSource` = file ID on the original owner's Drive, pending re-host.
-// `video` stays null until the footage lives on an account you control.
+// `videoSource` = the file ID the footage was originally pulled from.
+// `video` is a path under public/, self-hosted: 62MB total after re-encoding,
+// which GitHub Pages carries comfortably and which avoids Drive's iframe,
+// its branding and its "too many requests" quota wall. To move to YouTube or
+// Drive later, swap the path for the embed URL — Modal.js already renders a
+// bare .mp4/.webm inline and anything else as an iframe.
 
 export const OWNER = {
   name: 'Youssef Mohamed',
-  title: 'Unity Game Developer',
+  title: 'Senior Unity Developer',
   tagline: 'Multiplayer systems and VR, shipped on mobile and WebGL.',
   email: 'youssefsayed88@gmail.com',
   phone: '+201227248910',
@@ -41,7 +45,7 @@ export const projects = [
     cvHint: 'Appsinnovate — "Added features and optimized multiplayer games"',
     company: 'Appsinnovate',
     image: 'images/lu-run.webp',
-    video: null,
+    video: 'videos/lu-run.mp4',
     videoSource: '1jJS54oP1i5j09zQVxZW4ZQ0cwj7-Oljh',
     links: [{ label: 'Play Store', url: 'https://play.google.com/store/apps/details?id=com.appsinnovate.lurun' }],
     tech: ['Unity', 'C#'],
@@ -55,7 +59,7 @@ export const projects = [
     cvHint: 'Listed under your own Technical Projects. Genesis Creations era — SDK integration, PlayFab matchmaking, Profiler/logcat debugging.',
     company: 'Genesis Creations',
     image: 'images/sinai-heroes.webp',
-    video: null,
+    video: 'videos/sinai-heroes.mp4',
     videoSource: '15xyE3T_DzzRp_Wt69PhqHCvWntsOTyFU',
     links: [
       { label: 'Play Store', url: 'https://play.google.com/store/apps/details?id=com.GenesisCreations.sinaiheroes' },
@@ -72,7 +76,7 @@ export const projects = [
     cvHint: 'Multiplayer prototypes with Mirror/PUN; "Developed learning experiences and mini games"',
     company: null,
     image: 'images/robotics.webp',
-    video: null,
+    video: 'videos/robotics.mp4',
     videoSource: '1QNK3hpy1AStBzry5usKmo-jAtabFyUcE',
     links: [],
     tech: ['Unity', 'Multiplayer'],
@@ -117,10 +121,9 @@ export const projects = [
     role: null,
     cvHint: 'Genesis Creations — "Developed and Maintained VR Solutions and Training Development". Also one of your own listed Technical Projects.',
     company: 'Genesis Creations',
-    // NOTE: images/VRMedical.webp also exists (unused on Shehab's site) and may
-    // suit this better than the generic vr-simulation shot.
+    // This shot is from inside the experience itself, so it stays.
     image: 'images/vr-simulation.webp',
-    video: null,
+    video: 'videos/vr-connect.mp4',
     videoSource: '1xJIepycbbY_BFpPrHi5mcYXEel8KtL9J',
     links: [],
     tech: ['Unity', 'VR', 'URP'],
@@ -134,7 +137,7 @@ export const projects = [
     cvHint: 'Appsinnovate — "Developed AR experiences using ARFoundation and WebAR". Strongest direct match on the CV.',
     company: 'Appsinnovate',
     image: 'images/ar-rewards-hunt.webp',
-    video: null,
+    video: 'videos/ar-rewards-hunt.mp4',
     videoSource: '15Z2_ij_KXJ3Cme3_dwrJaRfKCWGEIiOR',
     links: [],
     tech: ['Unity', 'AR Foundation', 'WebAR'],
@@ -150,7 +153,7 @@ export const projects = [
     cvHint: 'Your own listed Technical Project. "Wrote Graphql and REST API calls" likely applies.',
     company: null,
     image: 'images/Digital-Twin.webp',
-    video: null,
+    video: 'videos/digito.mp4',
     videoSource: '1ivv3SsybwivDc-QBTiKNSkA1nfF5S40e',
     links: [],
     tech: ['Unity', 'GraphQL', 'IoT'],
@@ -185,6 +188,34 @@ export const projects = [
     video: null,
     videoSource: null,
     links: [{ label: 'itch.io', url: 'https://mr34.itch.io/ballpop' }],
+    tech: ['Unity', 'C#'],
+  },
+  {
+    id: 'tower-of-hanoi',
+    wing: 'lab',
+    title: 'Tower of Hanoi',
+    blurb: 'A browser build of the classic puzzle, written to exercise recursion alongside architectural and design patterns.',
+    role: null,
+    cvHint: 'Your own project. Explicitly a patterns/recursion demonstration.',
+    company: null,
+    image: 'images/tower-of-hanoi.jpg',
+    video: null,
+    videoSource: null,
+    links: [{ label: 'Play (HTML5)', url: 'https://mr34.itch.io/towerofhanoi' }],
+    tech: ['Unity', 'C#', 'WebGL'],
+  },
+  {
+    id: 'whack-a-hole',
+    wing: 'lab',
+    title: 'Whack a Hole To Whack a Mole',
+    blurb: 'Game jam entry inverting whack-a-mole: open the hole before the mole appears, and you only get three misses.',
+    role: null,
+    cvHint: 'Your own project, and your first published game.',
+    company: null,
+    image: 'images/whack-a-hole.png',
+    video: null,
+    videoSource: null,
+    links: [{ label: 'itch.io', url: 'https://mr34.itch.io/holemoled' }],
     tech: ['Unity', 'C#'],
   },
   {

@@ -5,4 +5,5 @@ dist/
 
 videos-raw/
 videos-web/
+# public/videos IS committed: the re-encoded, self-hosted project footage.
 classic.html
