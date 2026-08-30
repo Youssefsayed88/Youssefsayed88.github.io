@@ -1,6 +1,10 @@
 // Room label plus the "press E" interaction prompt.
 export default class Hud {
-  constructor() {
+  // `onPrompt` mirrors the prompt onto any other surface that has to react to
+  // a kiosk coming into range — on touch that is the on-screen Open button,
+  // which is the same affordance as the E key and must light up with it.
+  constructor(onPrompt) {
+    this.onPrompt = onPrompt
     this.roomEl = document.getElementById('room-label')
     this.hintEl = document.getElementById('hint')
     this.promptEl = document.getElementById('prompt')
@@ -19,6 +23,7 @@ export default class Hud {
   setPrompt(title) {
     if (title === this.promptTitle) return
     this.promptTitle = title
+    this.onPrompt?.(title)
 
     if (!this.promptEl) return
     if (title) {

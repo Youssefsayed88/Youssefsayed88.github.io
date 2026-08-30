@@ -159,29 +159,88 @@ await waitFor(() => cdp.eval('!!(window.experience?.world?.player)'), 'the showr
 }
 
 // Let it settle on the floor before measuring anything.
-await sleep(600)
+//
+// Not a bare sleep, because the first frames are the expensive ones: shader
+// compilation for the normal-mapped matcaps and the skinned character, and the
+// texture uploads behind them. On a software rasteriser that can swallow most of
+// a second — and since `Time.delta` is clamped to 1/20, a measurement taken
+// across those frames sees almost no SIMULATED time and reports a walk that
+// never got up to speed. Waiting on the boot flag alone is not enough: it
+// resolves when World is constructed, which is before anything has rendered.
+//
+// So wait for the character to land and for the renderer to be demonstrably
+// past its first frames, then settle. This measures steady state, which is what
+// the speed checks below are actually about.
+await waitFor(() => cdp.eval('!!window.experience.world.player.character?.ready'),
+  'the character model to load')
+const frameCount = () => cdp.eval('window.experience.renderer.instance.info.render.frame')
+const firstFrame = await frameCount()
+await waitFor(async () => (await frameCount()) > firstFrame + 30, 'the renderer to warm up')
+await sleep(400)
 
 const speedNow = () => cdp.eval('window.experience.world.player.speed')
 const posNow = () => cdp.eval('JSON.parse(JSON.stringify(window.experience.world.player.position))')
 
+// Poll until the reading stops moving, then return it.
+//
+// Sampling at a fixed wall-clock offset is the wrong instrument here. Speed
+// ramps in SIMULATED time, and `Time.delta` is clamped to 1/20, so one slow
+// frame on a software rasteriser can leave a fixed window catching the ramp
+// half-finished — which is a statement about this machine's frame rate, not
+// about the movement model. The ramp DURATION is already asserted
+// deterministically against real Rapier in physics-smoke.mjs; what only a
+// browser can answer is the steady speed the real input path produces.
+// Stability is counted in RENDERED FRAMES, not in elapsed milliseconds.
+//
+// Two identical readings 120ms apart prove nothing on their own: if no frame was
+// drawn between them, the value could not have changed, and a still-accelerating
+// player reads as a settled one. SwiftShader rasterises this scene's anisotropic
+// tiled floor in software and can drop to a few frames a second on a loaded
+// machine, which is exactly when that false reading appears. So a sample only
+// counts once the renderer's frame counter has moved.
+//
+// The timeout is a backstop, not a budget. The player has ~22 m of runway from
+// spawn into the XR room, so a stalled settle stops on the clock rather than on
+// a wall.
+async function settled(read, { tolerance = 0.05, stableFor = 3, timeout = 6000 } = {}) {
+  const sample = async () => ({ value: await read(), frame: await frameCount() })
+  const startedAt = Date.now()
+  let last = await sample()
+  let stable = 0
+
+  while (Date.now() - startedAt < timeout) {
+    await sleep(120)
+    const now = await sample()
+    if (now.frame === last.frame) continue   // nothing was drawn; nothing to learn
+    stable = Math.abs(now.value - last.value) < tolerance ? stable + 1 : 0
+    last = now
+    if (stable >= stableFor) break
+  }
+  return last.value
+}
+
 // 2. Walking reaches base speed, and not more.
 await cdp.key('keyDown', 'KeyW', 'w', 87)
-await sleep(700)
-const walkSpeed = await speedNow()
+const walkSpeed = await settled(speedNow)
 check('holding W accelerates to the tuned walk speed',
   Math.abs(walkSpeed - SPEED) < 0.6,
-  `${walkSpeed.toFixed(2)} m/s after 0.7s (want ~${SPEED})`)
+  `${walkSpeed.toFixed(2)} m/s once settled (want ~${SPEED})`)
 
 // 3. Shift sprints.
 await cdp.key('keyDown', 'ShiftLeft', 'Shift', 16)
-await sleep(700)
-const sprintSpeed = await speedNow()
+const sprintSpeed = await settled(speedNow)
 const wantSprint = SPEED * SPRINT_MULTIPLIER
 check('shift sprints',
   Math.abs(sprintSpeed - wantSprint) < 0.8 && sprintSpeed > walkSpeed + 1,
   `${sprintSpeed.toFixed(2)} m/s (want ~${wantSprint.toFixed(1)}), up from ${walkSpeed.toFixed(2)}`)
 
 // 4. The camera widened while sprinting.
+//
+// Held a moment longer than the sprint itself: the FOV is eased separately from
+// the rig, and deliberately more slowly, so that it trails the acceleration
+// rather than snapping with it. Reading it the instant speed settles would be
+// reading it mid-ease.
+await sleep(900)
 const fov = await cdp.eval('window.experience.camera.instance.fov')
 check('the camera widens at sprint speed',
   fov > 58, `fov ${fov.toFixed(1)} (55 at rest)`)

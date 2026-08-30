@@ -1,4 +1,4 @@
-// Screenshots the built showroom in headless Chrome and writes public/og.png,
+// Screenshots the built showroom in headless Chrome and writes public/og.jpg,
 // the image every share card uses.
 //
 //   npm run build && node scripts/capture-og.mjs
@@ -15,7 +15,13 @@ import { OWNER } from '../src/data/projects.js'
 
 const PORT = 4181
 const CDP_PORT = 9224
-const OUT = 'public/og.png'
+// JPEG, not PNG. The level used to be flat-shaded and squeezed into a 376 kB
+// PNG; once the floors and walls carried tile joints and grain there was no
+// flat colour left to run-length away and the same shot became a 2 MB PNG.
+// This is a photograph of a 3D render, which is what JPEG is for — and a share
+// card that big is one some scrapers simply decline to fetch.
+const OUT = 'public/og.jpg'
+const QUALITY = 88
 
 // How the shot is posed. The gameplay camera is tuned for walking a room; at
 // 1200x630 that same angle is mostly empty floor. These are photograph
@@ -187,7 +193,7 @@ await evaluate(`
 `)
 await sleep(500)
 
-const shot = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false })
+const shot = await send('Page.captureScreenshot', { format: 'jpeg', quality: QUALITY, captureBeyondViewport: false })
 writeFileSync(OUT, Buffer.from(shot.data, 'base64'))
 
 const framing = await evaluate('window.experience.camera.currentDistance')

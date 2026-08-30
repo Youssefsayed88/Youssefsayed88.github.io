@@ -14,7 +14,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
 ))
 
-// No trailing slash, so `${SITE}/og.png` never doubles up.
+// No trailing slash, so `${SITE}/og.jpg` never doubles up.
 const SITE = String(OWNER.site ?? '').replace(/\/+$/, '')
 
 const socials = [
@@ -60,11 +60,11 @@ const html = `<!DOCTYPE html>
 <meta property="og:description" content="${esc(summary)}">
 <meta property="og:type" content="profile">
 <meta property="og:url" content="${esc(SITE)}/classic.html">
-<meta property="og:image" content="${esc(SITE)}/og.png">
+<meta property="og:image" content="${esc(SITE)}/og.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="${esc(SITE)}/og.png">
+<meta name="twitter:image" content="${esc(SITE)}/og.jpg">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 html{scroll-behavior:smooth}

@@ -15,10 +15,10 @@ const SITE = String(OWNER.site ?? '').replace(/\/+$/, '')
 function shareTags() {
   const tags = [
     `<meta property="og:url" content="${SITE}/">`,
-    `<meta property="og:image" content="${SITE}/og.png">`,
+    `<meta property="og:image" content="${SITE}/og.jpg">`,
     `<meta property="og:image:width" content="1200">`,
     `<meta property="og:image:height" content="630">`,
-    `<meta name="twitter:image" content="${SITE}/og.png">`,
+    `<meta name="twitter:image" content="${SITE}/og.jpg">`,
     `<link rel="canonical" href="${SITE}/">`,
   ]
   const block = tags.map((t) => `  ${t}`).join('\n')

@@ -1,6 +1,7 @@
 # Youssef Mohamed — Portfolio Showroom
 
-Status document. Last updated 2026-08-29, at commit `7b49beb` (11 commits).
+Status document. Last updated 2026-08-31, at commit `b080d7e` (16 commits),
+plus the uncommitted M8 work described below.
 
 ---
 
@@ -43,7 +44,7 @@ matchmaking layer" learns about you.
 ## 2. Current state
 
 **Stack**: Vite 8.2 · Three.js r185.1 · Rapier 0.20 (WASM) · vanilla JS, no framework
-**Size**: 24 source files, ~2,700 lines
+**Size**: 27 source files, ~2,630 lines
 **Tests**: 14/14 headless physics + layout checks · 7/7 in-browser checks over CDP
 **Deployed**: no — runs locally only
 
@@ -97,14 +98,17 @@ follow-up question in an interview.
 | Asset | Raw | Gzip |
 |---|---|---|
 | Boot JS (blocks first paint) | 2.6 kB | **1.24 kB** |
-| Engine chunk (Three + app) | 757 kB | 178 kB |
+| Engine chunk (Three + app + GLTFLoader) | 863 kB | 207 kB |
 | Rapier WASM (parallel, cacheable) | 2,021 kB | 774 kB |
-| `classic.html` (CSS inlined, one request) | 15.7 kB | 4.3 kB |
-| `og.png` share card (2400×1260) | 376 kB | — |
+| `character.glb` (fetched after first paint) | 464 kB | — |
+| `classic.html` (CSS inlined, one request) | 19.9 kB | 5.4 kB |
+| `og.jpg` share card (2400×1260) | 274 kB | — |
 | Video (6 files, self-hosted) | 62 MB | — |
 | **`dist/` total** | **65 MB** | — |
 
-Runtime: 29 draw calls, ~1,190 triangles, 0 console errors.
+Runtime: 49 draw calls, ~4,020 triangles, 0 console errors. The level shell is
+still 8 of those; the character's 14 skinned meshes account for most of the rest.
+Surface maps are generated at boot rather than downloaded: 3 canvases, 6 textures.
 
 ---
 
@@ -178,10 +182,12 @@ the suite check that a full-speed sprint into the end cap does not tunnel throug
 The link itself is part of the portfolio: it gets pasted into LinkedIn, a DM and an
 email long before anyone loads the WebGL.
 
-- **`og.png`, generated from the level.** `scripts/capture-og.mjs` boots the built
+- **`og.jpg`, generated from the level.** `scripts/capture-og.mjs` boots the built
   site in headless Chrome, poses the player in the Games wing, drops the camera out
   of the gameplay pitch, captions it with `OWNER.name`/`OWNER.title` and captures
-  2400×1260. Regenerate it and the card always matches the real rooms.
+  2400×1260. Regenerate it and the card always matches the real rooms — including
+  the character, who now stands in it. (It was a PNG until M8 made that a 2 MB
+  file; see the bug table.)
 - **Absolute URLs from one constant.** `OWNER.site` drives `og:image`, `og:url`,
   `canonical`, `sitemap.xml` and `robots.txt`. Share cards reject a relative
   `og:image` and the sitemap spec rejects a relative `<loc>` — both were previously
@@ -193,6 +199,59 @@ email long before anyone loads the WebGL.
   constant, four outputs, no drift.
 - **A favicon**: the showroom's own floorplan, three wings in their wayfinding
   colours over the corridor.
+
+### M8 — The character, the surfaces and the phone
+
+Three things that had each been standing in for something better.
+
+**An animated character replaces the capsule.** `character.glb` is
+"RobotExpressive" by Tomás Laulhé, CC0, from the three.js examples — 464 kB, and
+chosen mostly because its three materials are flat untextured colours, so they
+convert to matcap exactly and the character shades under the same no-lights model
+as everything else. A typical free PBR rig would have meant adding lights for one
+object. `Character.js` blends `Idle`/`Walking`/`Running` by the speed the
+*solver* produced — walk into a wall and the stride stops, because
+`resolveVelocity` has already folded the velocity back. Clip playback is scaled
+by speed over a reference ground speed, so the feet do not skate at 12.4 m/s. The
+`Jump` clip is never advanced by the mixer: it is posed by hand at one frame
+while rising and another while falling, so a long fall holds a falling pose
+instead of running off the end of a one-second clip. The GLB is fetched after
+first paint and the greybox capsule stays until it lands — and permanently if it
+never does.
+
+**Surfaces.** `surfaces.js` generates one height field per material and derives
+both an albedo (`map`, which multiplies the matcap) and a `normalMap` (which
+perturbs the normal it samples) from that same field — so the joint you can see
+is the joint that catches the light. Floors get one-metre tiles, walls one-metre
+panels on two-metre courses, the dais a finer grid. Nothing is downloaded.
+
+The part that actually mattered: **UVs are projected in world space**, by
+dominant face normal, in `TEXTURE_SCALE` metres. `BoxGeometry` ships 0..1 UVs per
+face, so the 104-metre corridor floor and a 0.7-metre kiosk plinth would each
+have got exactly one tile. Projecting by metres instead means tiles run
+continuously across the seams of the merged mesh, and a wall panel is the same
+size wherever it lands. Anisotropy comes from the renderer's real limit, because
+a tiled floor at a ~54-degree pitch is the textbook case for it.
+
+**Touch controls, rebuilt.** What was there — drag the left half to walk, the
+right half to look — reads fine in a design document and fails on a phone:
+nothing on screen says it exists, there is no thumb rest and no feedback, and the
+two invisible halves have a seam down the middle you find by walking the wrong
+way. Jumping was not reachable at all.
+
+| Control | Behaviour |
+|---|---|
+| Floating joystick | The base jumps to wherever the thumb lands in a large bottom-left zone. Fixed bases are the main reason a mobile stick feels wrong — a thumb never lands twice on the same pixel |
+| Analogue speed | Deflection *is* the speed, so the stick walks as well as it runs |
+| Sprint | Push *past* the rim, at `SPRINT_AT` = 1.25 radii. `Input` and the ring that lights read the one exported constant, so they cannot drift apart |
+| Open button | The E key's counterpart, driven by the same prompt signal the HUD gets — so it is never a dead control someone taps at nothing |
+| Jump button | Held, not tapped, so it feeds the same edge-triggered buffer the spacebar does, and coyote time still applies |
+| The canvas | Now means one thing on every device: drag to look |
+
+They appear on a coarse pointer, or on the first touch on a hybrid — a Windows
+laptop should not get a joystick for owning a touchscreen. On touch the HUD's
+centre column moves to the top of the screen, because the bottom is where both
+thumbs are and the stick was landing on top of the kiosk prompt.
 
 ### Media pipeline
 Two scripts, both reading from `projects.js` so neither can drift:
@@ -219,6 +278,11 @@ Recorded because several were invisible without deliberate verification.
 | `classic.html` rows ragged | `aspect-ratio` on a flex-column container loses to the image's intrinsic height |
 | `classic.html` built twice | Vite resolved `<link rel="canonical">` as an asset *and* as an entry |
 | **Test harness silently corrupting itself** | `spawnCharacter()` never removed its body, so each check spawned inside the previous one's corpse |
+| **Jumping was impossible on touch** | `Input` set `touchJump = false` in its constructor and nothing ever wrote to it again. Nothing errored; the jump simply did not exist on a phone |
+| Sprint fired before the stick reached its rim | The threshold was 0.9 stick-radii — *under* full deflection — so an analogue stick sprinted almost any time it was pushed. Now one exported constant at 1.25, read by both the input and the ring |
+| The joystick anchored itself off-screen | Safe-area padding on the touch root did nothing: an absolutely positioned child is laid out against its ancestor's **padding edge**, so the insets had to move onto the pieces themselves |
+| **`verify-browser.mjs` was measuring this machine, not the movement** | It sampled speed at a fixed 700ms. Speed ramps in *simulated* time and `Time.delta` is clamped to 1/20, so on a software rasteriser a fixed window catches the ramp half-finished — the checks began failing on a loaded machine with nothing wrong in the app. It now settles on the reading, and counts stability in **rendered frames**: two identical samples with no frame drawn between them prove nothing, which was the first fix's own bug |
+| **The share card quintupled to 2 MB** | Not a code bug, a consequence. Flat-shaded walls squeezed into a 376 kB PNG; once every surface carried tile joints and grain there was no flat colour left to run-length away. It is a photograph of a render, so it is now `og.jpg` at 274 kB |
 
 The last one is the reason `walk()` now despawns: characters collide with each
 other, and the leak was masking results across the whole suite.
@@ -258,8 +322,17 @@ permanent git history.
 
 ### Phase 8 — Polish
 
-- **Test on a real phone.** Touch controls, the sprint gesture and safe-area insets
-  are written but verified only on desktop Chrome. Highest-risk untested area.
+- **Test on a real phone.** The joystick, the sprint push, the Open and Jump
+  buttons and the safe-area insets are exercised in an emulated 390×844 viewport
+  by real `PointerEvent`s over CDP, which proves the wiring rather than the
+  ergonomics. Thumb reach and button size still want a real hand. Highest-risk
+  remaining area.
+- **The camera jams to `MIN_DISTANCE` at a kiosk.** Standing at a kiosk in the
+  front half of a room puts the orbit camera through the south wall, so the
+  occlusion raycast clamps it to 3 m and the character fills the frame. This
+  predates the character — the capsule did it too — but a detailed model makes it
+  obvious. The real fix is to pitch the camera steeper as it is pushed in, rather
+  than only pulling it closer.
 - Fill the corridor's dead space in top-down view — an outer apron floor, or a
   tighter camera in narrow spaces.
 - Minimap or wing overview — the top-down view makes this natural.
@@ -299,8 +372,9 @@ npm run classic   # regenerate classic.html only
 ```
 
 **Controls** — WASD / arrows to move · **shift** to sprint · drag to orbit ·
-space to jump · **E** at a
-kiosk. Touch: left half walks (push the drag further to sprint), right half looks.
+space to jump · **E** at a kiosk.
+Touch: on-screen joystick to walk (push it past the rim to sprint), drag anywhere
+else to look, **Jump** and **Open** buttons bottom-right.
 Gamepad: sticks, A jumps, X opens, L3 or the left trigger sprints.
 
 ### Where things live
@@ -312,12 +386,16 @@ Gamepad: sticks, A jumps, X opens, L3 or the left trigger sprints.
 | `src/world/layout.js` | Pure level geometry — no THREE, no DOM. Shared with the test |
 | `src/world/movement.js` | Camera-relative movement basis and `SPEED`. Shared with the test |
 | `src/world/Materials.js` | Matcap generation and the palette |
+| `src/world/surfaces.js` | Procedural tile/panel maps, and the world-space UV projection |
+| `src/world/Character.js` | Loads the GLB, converts it to matcap, blends the clips by speed |
+| `src/ui/TouchControls.js` | The joystick and the Jump / Open buttons |
+| `public/models/README.md` | Where the character model came from, and its licence |
 | `src/ui/Modal.js` | Project panel. Plays `.mp4` inline, embeds anything else |
 | `src/world/Player.js` | Character controller: momentum, sprint, coyote time, jump buffer |
 | `physics-smoke.mjs` | The 14 checks. Drives the real layout and movement through Rapier in Node |
 | `scripts/verify-browser.mjs` | Boots the built site in headless Chrome and measures actual walk/sprint speeds |
 | `scripts/build-classic.mjs` | Generates `classic.html`, `sitemap.xml`, `robots.txt` |
-| `scripts/capture-og.mjs` | Screenshots the built showroom into `public/og.png` |
+| `scripts/capture-og.mjs` | Screenshots the built showroom into `public/og.jpg` |
 
 Adding a project is one object in `projects.js`. The room re-spaces its kiosks and
 the classic page regenerates automatically. Adding a **wing** is one entry in

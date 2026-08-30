@@ -21,10 +21,16 @@ export default class Experience {
     this.scene = new THREE.Scene()
     this.scene.fog = new THREE.Fog(BACKGROUND, 34, 105)
 
-    this.hud = new Hud()
+    // The touch Open button is the E key's counterpart, so it lights up off the
+    // same prompt the HUD does rather than polling the world for a kiosk.
+    this.hud = new Hud((title) => this.input.touch.setPrompt(title))
     this.audio = new Audio()
     this.modal = new Modal((open) => {
       this.paused = open
+      // The panel covers the screen; leaving a joystick under it would both
+      // show through the backdrop blur and hold whatever direction the thumb
+      // was last pushing.
+      this.input.touch.setVisible(!open)
       open ? this.audio.openPanel() : this.audio.closePanel()
     })
     this.paused = false

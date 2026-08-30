@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { MATERIALS } from './Materials.js'
+import Character from './Character.js'
 import {
   desiredVelocity, stepVelocity, resolveVelocity, SPEED, SPRINT_MULTIPLIER,
 } from './movement.js'
@@ -24,18 +25,31 @@ export default class Player {
     const { RAPIER, world } = physics
     this.physics = physics
 
-    this.mesh = new THREE.Mesh(
+    // `mesh` is the root the rest of the app steers and reads a position from
+    // (World, Camera and the capture script all go through it). What hangs off
+    // it is a presentation detail.
+    this.mesh = new THREE.Group()
+    this.mesh.position.copy(spawn)
+    scene.add(this.mesh)
+
+    // The greybox capsule, kept as the stand-in until the character GLB lands —
+    // and permanently if it never does. The model is ~460 kB fetched after
+    // first paint, so there are real frames where this is what you see.
+    this.placeholder = new THREE.Mesh(
       new THREE.CapsuleGeometry(RADIUS, HALF_HEIGHT * 2, 6, 16),
       MATERIALS.player(),
     )
-    this.mesh.position.copy(spawn)
-    scene.add(this.mesh)
+    this.mesh.add(this.placeholder)
 
     // A nose cone so facing direction is readable in greybox.
     this.nose = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.4, 8), MATERIALS.accent())
     this.nose.rotation.x = Math.PI / 2
     this.nose.position.set(0, 0.35, -RADIUS - 0.1)
-    this.mesh.add(this.nose)
+    this.placeholder.add(this.nose)
+
+    this.character = new Character(this.mesh, {
+      onReady: () => { this.placeholder.visible = false },
+    })
 
     this.body = world.createRigidBody(
       RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(spawn.x, spawn.y, spawn.z),
@@ -107,6 +121,15 @@ export default class Player {
       const target = Math.atan2(this.velocity.x, this.velocity.z)
       this.mesh.rotation.y = dampAngle(this.mesh.rotation.y, target + Math.PI, 14, delta)
     }
+
+    // Animation is driven by what the solver actually produced, not by what was
+    // asked for — walk into a wall and the character stops striding, because
+    // `velocity` has already been folded back by resolveVelocity above.
+    this.character.update(delta, {
+      speed: this.speed,
+      grounded: this.grounded,
+      verticalVelocity: this.verticalVelocity,
+    })
   }
 
   // Coyote time and jump buffering, both counted in seconds.

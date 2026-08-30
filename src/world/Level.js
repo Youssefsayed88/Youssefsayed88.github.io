@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import { MATERIALS, accentFor } from './Materials.js'
 import { buildLayout, decorations, signs } from './layout.js'
 import { createSign } from './Sign.js'
+import { projectUVs } from './surfaces.js'
 import { OWNER } from '../data/projects.js'
 
 export { WINGS, SPAWN, CORRIDOR, ROOM } from './layout.js'
@@ -22,6 +23,9 @@ export default class Level {
     const add = (key, material, { position, size }) => {
       const geo = new THREE.BoxGeometry(size.x, size.y, size.z)
       geo.translate(position.x, position.y, position.z)
+      // World-space UVs, so tile joints run continuously across the merged
+      // mesh instead of restarting at every box seam.
+      projectUVs(geo)
       if (!buckets.has(key)) buckets.set(key, { material, geometries: [] })
       buckets.get(key).geometries.push(geo)
     }

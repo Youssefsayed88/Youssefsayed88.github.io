@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { SURFACES } from './surfaces.js'
 
 // Matcaps are generated per-pixel rather than as a radial gradient: a key light,
 // a bounce fill, a rim, and a specular lobe baked into a 128px sphere. That is
@@ -94,18 +95,37 @@ const SPECS = {
 
 const cache = new Map()
 
-function material(name, spec) {
+// `surface` names an entry in SURFACES: its albedo multiplies the matcap and
+// its normal map perturbs the normal the matcap is sampled with, which is what
+// turns a flat tinted plane into tiles and panels. `normalScale` is how deep
+// those joints read — the floor is seen at a glancing angle from a top-down
+// camera and needs more than the walls to survive it.
+function material(name, spec, { surface, normalScale = 1 } = {}) {
   if (!cache.has(name)) {
-    cache.set(name, new THREE.MeshMatcapMaterial({ matcap: makeMatcap(spec) }))
+    const options = { matcap: makeMatcap(spec) }
+    if (surface) {
+      const { map, normalMap } = SURFACES[surface]()
+      options.map = map
+      options.normalMap = normalMap
+      options.normalScale = new THREE.Vector2(normalScale, normalScale)
+    }
+    cache.set(name, new THREE.MeshMatcapMaterial(options))
   }
   return cache.get(name)
 }
 
+// Matcap material from an arbitrary base colour, for meshes that arrive with a
+// palette of their own — the character GLB is shaded this way so it sits in the
+// same lightless world as the level instead of needing lights nothing else has.
+export function matcapMaterial(name, spec) {
+  return material(name, spec)
+}
+
 export const MATERIALS = {
-  floor: () => material('floor', SPECS.floor),
-  wall: () => material('wall', SPECS.wall),
+  floor: () => material('floor', SPECS.floor, { surface: 'floor', normalScale: 1.15 }),
+  wall: () => material('wall', SPECS.wall, { surface: 'wall', normalScale: 0.85 }),
   trim: () => material('trim', SPECS.trim),
-  dais: () => material('dais', SPECS.dais),
+  dais: () => material('dais', SPECS.dais, { surface: 'dais', normalScale: 0.7 }),
   player: () => material('player', SPECS.player),
 
   // Bright, self-lit look for accents and light fixtures.

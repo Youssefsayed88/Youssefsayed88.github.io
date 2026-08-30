@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { MATERIALS, accentFor } from './Materials.js'
 import { loadProjectTexture } from './textures.js'
+import { projectUVs } from './surfaces.js'
 import { triggerPointFor, TRIGGER_RADIUS } from './layout.js'
 
 const PLINTH = { w: 2.2, h: 1.0, d: 0.7 }
@@ -28,7 +29,13 @@ export default class ProjectKiosk {
     const wall = MATERIALS.wall()
     const accent = MATERIALS.accent(accentFor(project.wing))
 
-    const plinth = new THREE.Mesh(new THREE.BoxGeometry(PLINTH.w, PLINTH.h, PLINTH.d), wall)
+    // The plinth and frame share the level's wall material, so they need the
+    // same metre-based UVs — left on BoxGeometry's default 0..1 they would each
+    // stretch one whole wall panel across themselves.
+    const plinth = new THREE.Mesh(
+      projectUVs(new THREE.BoxGeometry(PLINTH.w, PLINTH.h, PLINTH.d)),
+      wall,
+    )
     plinth.position.y = PLINTH.h / 2
     this.group.add(plinth)
 
@@ -38,7 +45,10 @@ export default class ProjectKiosk {
     this.panel.rotation.x = PANEL_TILT
     this.group.add(this.panel)
 
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(FRAME.w, FRAME.h, FRAME.d), wall)
+    const frame = new THREE.Mesh(
+      projectUVs(new THREE.BoxGeometry(FRAME.w, FRAME.h, FRAME.d)),
+      wall,
+    )
     this.panel.add(frame)
 
     // Screen starts at the max size and is reshaped once the texture's aspect
