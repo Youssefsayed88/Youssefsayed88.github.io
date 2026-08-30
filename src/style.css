@@ -166,7 +166,7 @@ canvas.webgl {
 /* Touch: the hint text is desktop-specific, and the HUD needs safe-area room. */
 @media (pointer:coarse){
   .hud__hint{content:none;font-size:0}
-  .hud__hint::after{content:"Left half to walk \00b7 right half to look";font-size:.78rem}
+  .hud__hint::after{content:"Left half to walk, push further to sprint \00b7 right half to look";font-size:.78rem}
   .hud{padding:max(1rem,env(safe-area-inset-top)) 1rem max(1.25rem,env(safe-area-inset-bottom))}
   .controls{top:max(1rem,env(safe-area-inset-top));right:1rem}
 }

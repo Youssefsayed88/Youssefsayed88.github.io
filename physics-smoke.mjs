@@ -11,7 +11,10 @@ import {
   kioskPlacements, triggerPointFor, TRIGGER_RADIUS,
 } from './src/world/layout.js'
 import { byWing } from './src/data/projects.js'
-import { moveVector, cameraOffset, SPEED } from './src/world/movement.js'
+import {
+  moveVector, cameraOffset, stepVelocity, resolveVelocity,
+  SPEED, SPRINT_MULTIPLIER, ACCELERATION, BRAKING,
+} from './src/world/movement.js'
 
 await RAPIER.init()
 
@@ -56,21 +59,33 @@ function despawn(actor) {
 }
 
 // Walks a character for `frames` along a per-frame direction, returns the trace.
-function walk(actor, frames, dirFn) {
+//
+// Velocity is eased through the SAME stepVelocity/resolveVelocity the browser
+// runs, not a straight `dir * SPEED * delta`. The point of this harness is that
+// it drives the real movement model; once the player gained momentum, a test
+// that teleports to top speed on frame 1 would stop being evidence about the
+// thing that ships — in particular it could never catch momentum tunnelling.
+function walk(actor, frames, dirFn, { sprinting = false } = {}) {
   const delta = 1 / 60
+  const speed = SPEED * (sprinting ? SPRINT_MULTIPLIER : 1)
+  let velocity = { x: 0, z: 0 }
   let vy = 0
   let grounded = false
   let minY = Infinity
+  let maxSpeed = 0
 
   for (let f = 0; f < frames; f++) {
     const dir = dirFn(f)
+    velocity = stepVelocity(velocity, { x: dir.x * speed, z: dir.z * speed }, delta)
+    maxSpeed = Math.max(maxSpeed, Math.hypot(velocity.x, velocity.z))
+
     if (grounded) vy = -1
     else vy += GRAVITY * delta
 
     actor.controller.computeColliderMovement(actor.collider, {
-      x: dir.x * SPEED * delta,
+      x: velocity.x * delta,
       y: vy * delta,
-      z: dir.z * SPEED * delta,
+      z: velocity.z * delta,
     })
     const moved = actor.controller.computedMovement()
     grounded = actor.controller.computedGrounded()
@@ -79,6 +94,7 @@ function walk(actor, frames, dirFn) {
     actor.body.setNextKinematicTranslation({
       x: t.x + moved.x, y: t.y + moved.y, z: t.z + moved.z,
     })
+    velocity = resolveVelocity(velocity, moved, delta)
 
     world.timestep = delta
     world.step()
@@ -86,7 +102,10 @@ function walk(actor, frames, dirFn) {
   }
 
   const p = actor.body.translation()
-  const result = { x: +p.x.toFixed(2), y: +p.y.toFixed(3), z: +p.z.toFixed(2), grounded, minY: +minY.toFixed(3) }
+  const result = {
+    x: +p.x.toFixed(2), y: +p.y.toFixed(3), z: +p.z.toFixed(2),
+    grounded, minY: +minY.toFixed(3), maxSpeed: +maxSpeed.toFixed(2),
+  }
   despawn(actor)
   return result
 }
@@ -176,6 +195,47 @@ for (const wing of WINGS) {
   check('pressing W moves the player forward, S moves them back',
     rf.z < SPAWN.z - 1 && rb.z > SPAWN.z + 1,
     `from z=${SPAWN.z}: W -> z=${rf.z}, S -> z=${rb.z}`)
+}
+
+// 4d. The acceleration curve itself. Pure maths, no physics — this pins the
+//      tuning so a later tweak cannot quietly turn the walk into a glide.
+{
+  const delta = 1 / 60
+  const top = SPEED
+
+  let v = { x: 0, z: 0 }
+  let toSpeed = Infinity
+  for (let f = 0; f < 240; f++) {
+    v = stepVelocity(v, { x: 0, z: -top }, delta)
+    if (Math.hypot(v.x, v.z) >= top * 0.95) { toSpeed = (f + 1) * delta; break }
+  }
+
+  // Now release the key and measure how far they coast.
+  let coast = 0
+  for (let f = 0; f < 240; f++) {
+    v = stepVelocity(v, { x: 0, z: 0 }, delta)
+    coast += Math.hypot(v.x, v.z) * delta
+    if (Math.hypot(v.x, v.z) < 0.05) break
+  }
+
+  const ok = toSpeed < 0.25 && coast < 0.5
+  check('accelerates and stops inside the tuned windows',
+    ok,
+    `accel ${ACCELERATION}/brake ${BRAKING}: ${(toSpeed * 1000).toFixed(0)}ms to 95% of ${top}m/s, ` +
+    `coasts ${coast.toFixed(2)}m after release (want <250ms, <0.5m)`)
+}
+
+// 4e. Momentum must not tunnel. Sprinting flat into the end cap is the fastest
+//      the player can ever hit geometry, so it is the worst case for the
+//      character controller and for the velocity fold-back.
+{
+  const a = spawnCharacter()
+  const r = walk(a, 900, () => ({ x: 1, z: 0 }), { sprinting: true })
+  const expectedTop = SPEED * SPRINT_MULTIPLIER
+  check('sprinting into the corridor end cap does not tunnel through it',
+    r.minY > 0.5 && r.x < CORRIDOR.length / 2 && r.maxSpeed > expectedTop * 0.95,
+    `ended x=${r.x} (cap at ${CORRIDOR.length / 2}), peak ${r.maxSpeed}m/s ` +
+    `of ${expectedTop.toFixed(1)} sprint, lowest y=${r.minY}`)
 }
 
 // 5. Every kiosk must sit inside its room and be physically reachable.

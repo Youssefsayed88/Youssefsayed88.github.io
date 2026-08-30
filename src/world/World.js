@@ -33,7 +33,7 @@ export default class World {
   }
 
   update(delta, input, camera) {
-    this.player.update(delta, input.axis, input.jump, camera.yaw)
+    this.player.update(delta, input.axis, input.jump, camera.yaw, input.sprint)
     this.updateActiveKiosk()
     this.updateRoomLabel()
   }

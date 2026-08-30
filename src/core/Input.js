@@ -3,6 +3,9 @@ import Emitter from './Emitter.js'
 const DEADZONE = 0.18
 const TOUCH_RADIUS = 60      // px of drag for full stick deflection
 const TOUCH_LOOK_SCALE = 1.4
+// Drag this many stick-radii from the origin to sprint. Past full deflection,
+// so the gesture is "push further" rather than a second control to discover.
+const TOUCH_SPRINT_DEPTH = 1.6
 
 // Keyboard + mouse + touch + gamepad, normalised to one axis/look/jump surface.
 //
@@ -16,6 +19,7 @@ export default class Input extends Emitter {
     this.keys = new Set()
     this.look = { x: 0, y: 0 }
     this.touchAxis = { x: 0, z: 0 }
+    this.touchDepth = 0        // raw drag length, unclamped, for the sprint gesture
     this.touchJump = false
 
     this.movePointer = null   // { id, originX, originY }
@@ -61,6 +65,7 @@ export default class Input extends Emitter {
         const scale = len > 1 ? 1 / len : 1
         this.touchAxis.x = dx * scale
         this.touchAxis.z = dy * scale
+        this.touchDepth = len
         return
       }
 
@@ -78,6 +83,7 @@ export default class Input extends Emitter {
         this.movePointer = null
         this.touchAxis.x = 0
         this.touchAxis.z = 0
+        this.touchDepth = 0
       }
       if (this.lookPointer?.id === e.pointerId) this.lookPointer = null
     }
@@ -113,6 +119,8 @@ export default class Input extends Emitter {
       axis: { x: dz(pad.axes[0] ?? 0), z: dz(pad.axes[1] ?? 0) },
       look: { x: dz(pad.axes[2] ?? 0) * 9, y: dz(pad.axes[3] ?? 0) * 9 },
       jump: !!pad.buttons[0]?.pressed,
+      // L3 (click the stick) or the left trigger, whichever the pad has.
+      sprint: !!pad.buttons[10]?.pressed || (pad.buttons[6]?.value ?? 0) > 0.5,
     }
   }
 
@@ -146,6 +154,13 @@ export default class Input extends Emitter {
 
   get jump() {
     return this.keys.has('Space') || this.touchJump || !!this.gamepad?.jump
+  }
+
+  // Held, not toggled — sprint is a modifier on whatever the axis already says.
+  get sprint() {
+    if (this.keys.has('ShiftLeft') || this.keys.has('ShiftRight')) return true
+    if (this.touchDepth > TOUCH_SPRINT_DEPTH) return true
+    return !!this.gamepad?.sprint
   }
 
   consumeLook() {

@@ -9,7 +9,8 @@
     "prebuild": "npm run classic",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node physics-smoke.mjs"
+    "test": "node physics-smoke.mjs",
+    "verify": "npm run build && node scripts/verify-browser.mjs"
   },
   "keywords": [],
   "author": "",

@@ -3,6 +3,13 @@ import * as THREE from 'three'
 const MIN_DISTANCE = 3
 const WALL_MARGIN = 0.35
 
+// The camera widens a little at speed. It is the cheapest way to make sprinting
+// read as sprinting without a speed-line effect or a second animation — the
+// walls sweep past faster at the edges of frame. Kept small; anything more and
+// the kiosk screens start to distort at the corners.
+const BASE_FOV = 55
+const SPRINT_FOV = 60.5
+
 // Top-down rig: the camera sits high and looks down at the player, orbiting on
 // yaw so you can still read kiosks on any wall.
 //
@@ -27,7 +34,8 @@ export default class Camera {
     this.direction = new THREE.Vector3()
     this.currentDistance = this.distance
 
-    this.instance = new THREE.PerspectiveCamera(55, this.sizes.width / this.sizes.height, 0.1, 300)
+    this.fov = BASE_FOV
+    this.instance = new THREE.PerspectiveCamera(BASE_FOV, this.sizes.width / this.sizes.height, 0.1, 300)
     this.instance.position.set(0, 4, 10)
     this.scene.add(this.instance)
   }
@@ -85,10 +93,26 @@ export default class Camera {
     const t = 1 - Math.pow(0.001, delta)
     this.instance.position.lerp(this.desired, t)
     this.instance.lookAt(this.target)
+
+    this.updateFov(delta)
+  }
+
+  // Eased separately from the rig, and more slowly, so the widening trails the
+  // acceleration instead of snapping with it.
+  updateFov(delta) {
+    const ratio = this.experience.world?.player?.speedRatio ?? 0
+    const target = THREE.MathUtils.lerp(BASE_FOV, SPRINT_FOV, ratio * ratio)
+    this.fov = THREE.MathUtils.lerp(this.fov, target, 1 - Math.exp(-5 * delta))
+
+    if (Math.abs(this.fov - this.instance.fov) > 0.01) {
+      this.instance.fov = this.fov
+      this.instance.updateProjectionMatrix()
+    }
   }
 
   resize() {
     this.instance.aspect = this.sizes.width / this.sizes.height
+    this.instance.fov = this.fov
     this.instance.updateProjectionMatrix()
   }
 }
