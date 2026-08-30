@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- The showroom's own floorplan: three wings off one corridor, in the same
+       accent colours the level uses for wayfinding (cyan Games, violet XR,
+       amber Lab). Legible as three marks over a bar at 16px. -->
+  <rect width="32" height="32" rx="7" fill="#1a1f2e"/>
+  <rect x="4"    y="7" width="7" height="12" rx="1.5" fill="#22c3e6"/>
+  <rect x="12.5" y="7" width="7" height="12" rx="1.5" fill="#a78bfa"/>
+  <rect x="21"   y="7" width="7" height="12" rx="1.5" fill="#fbbf24"/>
+  <rect x="4"    y="21" width="24" height="5" rx="2" fill="#8d97ba"/>
+  <circle cx="16" cy="23.5" r="1.9" fill="#f0913c"/>
+</svg>

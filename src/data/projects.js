@@ -1,11 +1,16 @@
 // SINGLE SOURCE OF TRUTH — the 3D showroom and classic.html both render from this.
 //
-// STATUS OF THE `role` FIELD
-// Every `role` is still null on purpose. The CV lists achievements per EMPLOYER,
-// not per project, so filling these in would mean inventing attribution. Each entry
-// carries a `cvHint` with the CV bullets that most plausibly apply — use them as a
-// prompt, then replace `role` with one concrete sentence about what YOU built.
-// This is the field that separates this portfolio from Shehab's; the rest is shared.
+// STATUS OF THE `role` FIELD — all 13 filled, 2026-08-30.
+// Written from Youssef's own answers in a project-by-project interview, NOT
+// inferred from the CV. `cvHint` is kept as provenance: where a hint pointed at
+// something he did not claim, the claim was left out. Three cases worth knowing:
+//   - robotics    — cvHint suggested Mirror/PUN networking; he named only the
+//                   kart, weapon, power-up and UI work, so no networking claimed.
+//   - digito      — cvHint suggested the GraphQL/REST layer; he named only camera
+//                   movement and navigation.
+//   - biohazard   — cvHint guessed Mirror/PUN; the real stack was the PlayFab SDK.
+// Anything added here later should come from him the same way. Do not fill a gap
+// from an employer-level CV bullet: that is inventing attribution.
 //
 // `videoSource` = the file ID the footage was originally pulled from.
 // `video` is a path under public/, self-hosted: 62MB total after re-encoding,
@@ -15,6 +20,13 @@
 // bare .mp4/.webm inline and anything else as an iframe.
 
 export const OWNER = {
+  // The deployed origin, no trailing slash. Share cards need ABSOLUTE urls —
+  // LinkedIn, Twitter/X, Slack and WhatsApp all refuse a relative og:image — and
+  // the sitemap spec requires absolute <loc>. Everything absolute is derived
+  // from this one line, so a move is a one-line change.
+  //
+  // CHANGE THIS if the site is deployed anywhere other than the user Pages site.
+  site: 'https://youssefsayed88.github.io',
   name: 'Youssef Mohamed',
   title: 'Senior Unity Developer',
   tagline: 'Multiplayer systems and VR, shipped on mobile and WebGL.',
@@ -41,7 +53,7 @@ export const projects = [
     wing: 'games',
     title: 'LU RUN',
     blurb: 'Endless runner: secret agent Lu chases an escaped lab monster through a collapsing city.',
-    role: null,
+    role: 'Revived a Unity 5-era codebase, upgrading the project to a modern Unity version and refactoring it as part of the migration.',
     cvHint: 'Appsinnovate — "Added features and optimized multiplayer games"',
     company: 'Appsinnovate',
     image: 'images/lu-run.webp',
@@ -55,7 +67,7 @@ export const projects = [
     wing: 'games',
     title: 'Sinai Heroes',
     blurb: 'First-person shooter with 50k+ downloads, casting the player as an Egyptian army hero in historical Sinai operations.',
-    role: null,
+    role: 'Built the team deathmatch mode and the mission 3 artillery barrage system, fixed the tank combat in mission 4, and drove much of the profiling and optimisation.',
     cvHint: 'Listed under your own Technical Projects. Genesis Creations era — SDK integration, PlayFab matchmaking, Profiler/logcat debugging.',
     company: 'Genesis Creations',
     image: 'images/sinai-heroes.webp',
@@ -72,7 +84,7 @@ export const projects = [
     wing: 'games',
     title: 'Robotics',
     blurb: 'Multiplayer educational game teaching robotics through kart building — bodies, tyres and weapons.',
-    role: null,
+    role: 'Built the kart customisation system, kart movement, weapon aiming and power-ups, along with the visual effects and UI improvements.',
     cvHint: 'Multiplayer prototypes with Mirror/PUN; "Developed learning experiences and mini games"',
     company: null,
     image: 'images/robotics.webp',
@@ -86,7 +98,7 @@ export const projects = [
     wing: 'games',
     title: 'Harvest Haulers',
     blurb: 'Idle clicker: harvest resources, upgrade the fleet, automate the farm.',
-    role: null,
+    role: 'Built the upgrade system and its UI, and fixed bugs across the game.',
     cvHint: 'Appsinnovate — "Developed learning experiences and mini games", "Maintained published webgl projects"',
     company: 'Appsinnovate',
     image: 'images/harvest-haulers.webp',
@@ -100,7 +112,7 @@ export const projects = [
     wing: 'games',
     title: 'Head Ball',
     blurb: 'World Cup 2026 mini game — Egypt vs Argentina in a fast head-ball showdown.',
-    role: null,
+    role: "Built the game's entire gameplay, end to end.",
     cvHint: 'Appsinnovate — "mini games for e-content team", "Maintained published webgl projects"',
     company: 'Appsinnovate',
     image: 'images/headball.webp',
@@ -118,7 +130,7 @@ export const projects = [
     // VR-Connect is the actual product name, so it leads.
     title: 'VR-Connect',
     blurb: 'VR training simulator that guides and evaluates medical staff on cleaning procedures and compliance with medical standards.',
-    role: null,
+    role: 'Contributed to the interaction layer, and built the multithreaded pixel-based cleaning system, a point-cloud system that evaluated poses over time, full-body movement integration and the session-management endpoints.',
     cvHint: 'Genesis Creations — "Developed and Maintained VR Solutions and Training Development". Also one of your own listed Technical Projects.',
     company: 'Genesis Creations',
     // This shot is from inside the experience itself, so it stays.
@@ -133,7 +145,7 @@ export const projects = [
     wing: 'xr',
     title: 'AR Rewards Hunt',
     blurb: 'AR summer campaign: scan your surroundings to place and collect beach-themed items, unlocking a reward.',
-    role: null,
+    role: 'Integrated PlayFab for inventory and player management, handing out items by rarity, and improved the geolocation accuracy behind placing objects at real-world locations.',
     cvHint: 'Appsinnovate — "Developed AR experiences using ARFoundation and WebAR". Strongest direct match on the CV.',
     company: 'Appsinnovate',
     image: 'images/ar-rewards-hunt.webp',
@@ -149,7 +161,7 @@ export const projects = [
     // Digito is the actual product name.
     title: 'Digito',
     blurb: 'Digital twin of a real restaurant — view and interact with the space virtually, backed by live data from the real venue.',
-    role: null,
+    role: 'Built the camera movement and navigation through the virtual space.',
     cvHint: 'Your own listed Technical Project. "Wrote Graphql and REST API calls" likely applies.',
     company: null,
     image: 'images/Digital-Twin.webp',
@@ -165,7 +177,7 @@ export const projects = [
     wing: 'lab',
     title: 'Biohazard Breakout',
     blurb: 'Co-operative survival shooter with a hidden-impostor mechanic.',
-    role: null,
+    role: 'Built server creation and matchmaking on the PlayFab SDK, proximity voice chat with Vivox, and the weapon-holding animation IK, integrating those weapons into the weapon system.',
     cvHint: 'Your own project. "Designed 2+ multiplayer prototypes using Mirror/PUN" almost certainly covers this.',
     company: null,
     image: null,          // TODO: screenshot needed — check itch.io
@@ -179,7 +191,7 @@ export const projects = [
     wing: 'lab',
     title: 'Ballpop!',
     blurb: 'Arcade game where the player keeps the screen from filling up by popping balls and chaining combos. Published to the Play Store.',
-    role: null,
+    role: 'Built the whole game solo and shipped it to the Play Store.',
     cvHint: 'Your own project, published on itch.io and the Play Store.',
     company: null,
     // 280x500 from the itch.io page; itch does not expose a full-res original.
@@ -195,7 +207,7 @@ export const projects = [
     wing: 'lab',
     title: 'Tower of Hanoi',
     blurb: 'A browser build of the classic puzzle, written to exercise recursion alongside architectural and design patterns.',
-    role: null,
+    role: 'Built solo as an exercise in recursion and architecture, structured around the state and command patterns.',
     cvHint: 'Your own project. Explicitly a patterns/recursion demonstration.',
     company: null,
     image: 'images/tower-of-hanoi.jpg',
@@ -209,7 +221,7 @@ export const projects = [
     wing: 'lab',
     title: 'Whack a Hole To Whack a Mole',
     blurb: 'Game jam entry inverting whack-a-mole: open the hole before the mole appears, and you only get three misses.',
-    role: null,
+    role: 'Designed and built solo for a game jam.',
     cvHint: 'Your own project, and your first published game.',
     company: null,
     image: 'images/whack-a-hole.png',
@@ -223,7 +235,7 @@ export const projects = [
     wing: 'lab',
     title: 'Visualising Novels with Generative AI',
     blurb: 'Graduation project: generative models turning novel scenes into visual representations.',
-    role: null,
+    role: 'Fine-tuned Stable Diffusion 1.5 and built it into a pipeline with a GPT-2 prompt auto-completion model trained on well-formed Stable Diffusion prompts, plus an upscaling stage.',
     cvHint: 'B.Sc. Computers & AI, Cairo University. Python + generative AI libraries.',
     company: 'Cairo University',
     image: null,          // TODO: screenshot needed

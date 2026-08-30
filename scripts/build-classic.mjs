@@ -14,6 +14,9 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
 ))
 
+// No trailing slash, so `${SITE}/og.png` never doubles up.
+const SITE = String(OWNER.site ?? '').replace(/\/+$/, '')
+
 const socials = [
   OWNER.github && { label: 'GitHub', url: OWNER.github },
   OWNER.linkedin && { label: 'LinkedIn', url: OWNER.linkedin },
@@ -52,10 +55,16 @@ const html = `<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${esc(OWNER.name)} — ${esc(OWNER.title)}</title>
 <meta name="description" content="${esc(summary)}">
+<link rel="icon" href="./favicon.svg" type="image/svg+xml">
 <meta property="og:title" content="${esc(OWNER.name)} — ${esc(OWNER.title)}">
 <meta property="og:description" content="${esc(summary)}">
 <meta property="og:type" content="profile">
+<meta property="og:url" content="${esc(SITE)}/classic.html">
+<meta property="og:image" content="${esc(SITE)}/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="${esc(SITE)}/og.png">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -194,6 +203,25 @@ ${skills.map((s) => `      <div>
 `
 
 fs.writeFileSync('classic.html', html)
+
+// The crawl files are generated here too, from the same OWNER.site constant.
+//
+// <loc> MUST be absolute — the sitemap protocol requires it and Search Console
+// rejects a relative path outright — and so must the Sitemap: line in robots.txt.
+// Both were relative before, which meant neither was doing anything.
+const today = new Date().toISOString().slice(0, 10)
+fs.writeFileSync('public/sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>${SITE}/</loc><lastmod>${today}</lastmod><priority>1.0</priority></url>
+  <url><loc>${SITE}/classic.html</loc><lastmod>${today}</lastmod><priority>0.9</priority></url>
+</urlset>
+`)
+
+fs.writeFileSync('public/robots.txt', `User-agent: *
+Allow: /
+
+Sitemap: ${SITE}/sitemap.xml
+`)
 
 const withRole = projects.filter((p) => p.role).length
 const withImage = projects.filter((p) => p.image).length

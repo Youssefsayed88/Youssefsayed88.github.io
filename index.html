@@ -6,11 +6,15 @@
   <title>Youssef Mohamed — Unity Game Developer</title>
   <meta name="description" content="An explorable 3D showroom of Unity, XR and digital-twin work by Youssef Mohamed, Unity Game Developer in Cairo.">
   <meta name="theme-color" content="#1a1f2e">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
 
   <meta property="og:title" content="Youssef Mohamed — Unity Game Developer">
   <meta property="og:description" content="Walk through an interactive showroom of shipped games, XR training and digital-twin projects.">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
+  <!-- og:url and og:image are injected from OWNER.site by vite.config.js: they
+       must be ABSOLUTE for any share card to resolve them, and hardcoding the
+       origin here would be a second place to update when the site moves. -->
 
   <!-- No canonical to classic.html: Vite resolves link hrefs as assets and would
        emit a second copy of the page. Crawlers reach it via the visible link
@@ -33,7 +37,7 @@
     <div class="hud__room" id="room-label">Corridor</div>
     <div class="hud__center">
       <div class="hud__prompt" id="prompt" hidden></div>
-      <div class="hud__hint" id="hint">WASD / arrows to move &middot; drag to look &middot; space to jump</div>
+      <div class="hud__hint" id="hint">WASD / arrows to move &middot; shift to sprint &middot; drag to look &middot; space to jump</div>
     </div>
   </div>
 
