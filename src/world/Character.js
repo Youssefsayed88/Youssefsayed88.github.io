@@ -51,11 +51,21 @@ const RUN_PHASE_OFFSET = 0
 // boundary and nowhere else. FOOTFALL_OFFSET slides both onto the clip's
 // contact frame if a swapped model authors its cycle from mid-stride.
 //
-// The weight gate matters more than it looks: cadence has a floor
-// (WALK_RATE.min), so the phase keeps turning at a standstill and holds the
-// idle-to-walk blend ready. Those turns must not be heard.
+// The weight gate is what keeps a standstill silent: cadence has a floor
+// (WALK_RATE.min), so the phase keeps turning while parked and holds the
+// idle-to-walk blend ready, and those turns must not be heard. It sits low
+// rather than at a half because `moving` is already exactly 0 below
+// MOVE_BLEND.from — all this has to reject is the tail of a stop, and a slow
+// touch-stick walk is a real walk that should be audible.
 const FOOTFALL_OFFSET = 0
-const FOOTFALL_MIN_WEIGHT = 0.5
+const FOOTFALL_MIN_WEIGHT = 0.15
+
+// Cycle length assumed for a clip that is not loaded yet, in seconds — close
+// to what the shipped model authors both locomotion clips at. The gait is a
+// model of the walk, not a property of the mesh: the 464 kB GLB arrives after
+// first paint, and the capsule standing in for it until then still walks, so
+// it still makes footfalls.
+const NOMINAL_CYCLE = 0.95
 
 // Speed window over which walk hands off to run. The top of it sits under the
 // 8 m/s base speed so ordinary walking is already a run cycle — 8 m/s is a
@@ -206,7 +216,6 @@ export default class Character {
   // `speed` is planar m/s, `verticalVelocity` signs the airborne pose.
   update(delta, { speed = 0, grounded = true, verticalVelocity = 0 } = {}) {
     this.footfalls = 0
-    if (!this.ready) return
 
     // Eased rather than switched: a single frame of lost ground contact on a
     // doorway lip should not snap the character into a jump pose.
@@ -219,11 +228,6 @@ export default class Character {
     const moving = smoothstep(MOVE_BLEND.from, MOVE_BLEND.to, pace)
     const running = smoothstep(RUN_BLEND.from, RUN_BLEND.to, pace)
     const ground = 1 - this.air
-
-    this.weigh('idle', (1 - moving) * ground)
-    this.weigh('walk', moving * (1 - running) * ground)
-    this.weigh('run', moving * running * ground)
-    this.weigh('jump', this.air)
 
     // One cadence for both clips, in gait cycles per second. Each clip's own
     // rate is speed over the speed it was authored at — that is what keeps the
@@ -252,6 +256,17 @@ export default class Character {
 
     this.phase = fract(advanced)
 
+    // Everything above is the gait; everything below draws it. Only the drawing
+    // needs a model, which is why the guard sits here and not at the top: the
+    // capsule's footsteps are paced by the same cycle the character will use
+    // the moment it loads, rather than falling silent until it does.
+    if (!this.ready) return
+
+    this.weigh('idle', (1 - moving) * ground)
+    this.weigh('walk', moving * (1 - running) * ground)
+    this.weigh('run', moving * running * ground)
+    this.weigh('jump', this.air)
+
     this.pose('walk', this.phase)
     this.pose('run', this.phase + RUN_PHASE_OFFSET)
     this.pose('jump', verticalVelocity > 0 ? AIR_POSE.rising : AIR_POSE.falling)
@@ -264,9 +279,10 @@ export default class Character {
   }
 
   // Natural cycles per second for one clip at `rate` times its authored speed.
+  // Falls back to NOMINAL_CYCLE rather than to zero, so the cadence is defined
+  // for the frames before the clips land.
   cyclesPerSecond(key, rate, limits) {
-    const duration = this.durations[key]
-    if (!duration) return 0
+    const duration = this.durations[key] || NOMINAL_CYCLE
     return Math.min(limits.max, Math.max(limits.min, rate)) / duration
   }
 

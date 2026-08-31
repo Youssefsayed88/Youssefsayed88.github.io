@@ -444,6 +444,44 @@ check('releasing the keys stops the player without a long slide',
     `at ${steps.speed.toFixed(2)} m/s (want ${expected.toFixed(2)} steps, ±1.5)`)
 }
 
+// 7c. And the step is loud enough to be heard when it fires.
+//
+// Pacing the sound to the gait is only half of it: the first version of that
+// burst rendered at a peak of 0.015 against a UI beep's 0.034, and firing it
+// half again less often was enough to make it disappear entirely. A cue nobody
+// can hear is the same bug as a cue that never fires, so the level is asserted
+// alongside the timing — rendered offline, because a headless browser has no
+// speakers and an opinion about loudness is not a test.
+{
+  const level = (call) => cdp.eval(`(async () => {
+    const a = window.experience.audio
+    const live = { ctx: a.ctx, master: a.master, noise: a.noiseBuffer }
+    // Swap the whole graph onto an offline context, render one second of it,
+    // then put the live one back. a.master carries the real master gain, so
+    // this measures what actually reaches the speakers.
+    const off = new OfflineAudioContext(1, 44100, 44100)
+    a.ctx = off
+    a.master = off.createGain()
+    a.master.gain.value = live.master.gain.value
+    a.master.connect(off.destination)
+    a.noiseBuffer = a.makeNoise(0.35)
+    a.${call}
+    const buf = await off.startRendering()
+    Object.assign(a, { ctx: live.ctx, master: live.master, noiseBuffer: live.noise })
+    const d = buf.getChannelData(0)
+    let peak = 0
+    for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]))
+    return peak
+  })()`)
+
+  const step = await level('footstep()')
+  const beep = await level('nearKiosk()')
+  check('a footstep is as audible as the interface cues',
+    step > beep && step < 0.3,
+    `footstep peaks at ${step.toFixed(3)} against the kiosk ping's ${beep.toFixed(3)} ` +
+    `(want louder than the ping, under 0.3)`)
+}
+
 // 8. The kiosk prompt is a button you can click, not a caption about a key.
 {
   // Put the player on a kiosk's hotspot directly. Walking there is the job of
