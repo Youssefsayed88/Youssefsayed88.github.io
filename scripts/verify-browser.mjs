@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { SPEED, SPRINT_MULTIPLIER } from '../src/world/movement.js'
+import { CORRIDOR } from '../src/world/layout.js'
 
 const PORT = 4178
 const CDP_PORT = 9222
@@ -281,6 +282,69 @@ check('releasing the keys stops the player without a long slide',
   const p = await posNow()
   check('never left the floor or the level', p.y > 0.5 && p.y < 2 && Math.abs(p.x) < 60,
     `resting at (${p.x.toFixed(1)}, ${p.y.toFixed(2)}, ${p.z.toFixed(1)})`)
+}
+
+// 6b. The walk holds its speed instead of stuttering.
+//
+// The regression test for what the walk actually felt like. The character
+// controller used to refuse the occasional frame on open floor — its own
+// depenetration against the skin offset, not geometry — and the velocity
+// fold-back treated each refusal as a wall and dropped the player to a
+// standstill. Sampled in the page across every rendered frame, because the
+// collapse and recovery took about 150ms and a CDP poll would step right over
+// it. Speed is in m/s, so a slow frame cannot fake a pass.
+//
+// This is the SYMPTOM check — does the walk hold its speed. Its deterministic
+// counterpart is "the controller never refuses a frame on open floor" in
+// physics-smoke.mjs, which catches the cause at a fixed timestep. Both are
+// needed: with the one-frame grace in resolveVelocity, an isolated refusal is
+// absorbed and never reaches the speed, so this check alone would not notice
+// the ground stick coming back.
+//
+// Driven with D rather than W, from the west end of the corridor: at yaw 0
+// that strafes east down 70-odd metres of empty floor. Walking forward from
+// wherever the previous check left the player runs into the room's north wall
+// mid-sample, and a wall stopping the player is not the thing under test.
+{
+  await cdp.eval(`(() => {
+    const p = window.experience.world.player
+    const x = -${CORRIDOR.length / 2} + 5
+    p.body.setTranslation({ x, y: 1.5, z: ${CORRIDOR.z} }, true)
+    p.body.setNextKinematicTranslation({ x, y: 1.5, z: ${CORRIDOR.z} })
+    p.mesh.position.set(x, 1.5, ${CORRIDOR.z})
+    p.velocity = { x: 0, z: 0 }
+    window.experience.camera.yaw = 0
+  })()`)
+  await sleep(700)
+
+  await cdp.eval(`window.__walk = new Promise((resolve) => {
+    const p = window.experience.world.player
+    const samples = []
+    const started = performance.now()
+    const tick = () => {
+      samples.push(p.speed)
+      if (performance.now() - started < 4000) requestAnimationFrame(tick)
+      else {
+        // Judge only the stretch after the ramp, where speed should be flat.
+        const run = samples.slice(Math.floor(samples.length / 3))
+        resolve({ frames: run.length, top: Math.max(...run), low: Math.min(...run), x: p.position.x })
+      }
+    }
+    requestAnimationFrame(tick)
+  })
+  void 0`)
+
+  await cdp.key('keyDown', 'KeyD', 'd', 68)
+  const walk = await cdp.eval('window.__walk')
+  await cdp.key('keyUp', 'KeyD', 'd', 68)
+  await sleep(400)
+
+  const dip = walk.low / walk.top
+  check('the walk holds its speed instead of stuttering',
+    walk.frames > 10 && dip > 0.9 && walk.x < CORRIDOR.length / 2 - 6,
+    `over ${walk.frames} frames at speed, the slowest was ${walk.low.toFixed(2)} m/s ` +
+    `against a top of ${walk.top.toFixed(2)} (${(100 * dip).toFixed(0)}% — want >90%), ` +
+    `ended x=${walk.x.toFixed(1)} with the end cap at ${CORRIDOR.length / 2}`)
 }
 
 // 7. The two locomotion clips stay in step with each other.

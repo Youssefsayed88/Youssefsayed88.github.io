@@ -12,7 +12,7 @@ import {
 } from './src/world/layout.js'
 import { byWing } from './src/data/projects.js'
 import {
-  moveVector, cameraOffset, stepVelocity, resolveVelocity,
+  moveVector, cameraOffset, stepVelocity, resolveVelocity, GROUND_STICK,
   SPEED, SPRINT_MULTIPLIER, ACCELERATION, BRAKING,
 } from './src/world/movement.js'
 
@@ -71,15 +71,19 @@ function walk(actor, frames, dirFn, { sprinting = false } = {}) {
   let velocity = { x: 0, z: 0 }
   let vy = 0
   let grounded = false
+  let blocked = false
   let minY = Infinity
   let maxSpeed = 0
+  // Frames on which the controller returned far less than it was asked for on
+  // open floor. Should be none; see GROUND_STICK.
+  let refusals = 0
 
   for (let f = 0; f < frames; f++) {
     const dir = dirFn(f)
     velocity = stepVelocity(velocity, { x: dir.x * speed, z: dir.z * speed }, delta)
     maxSpeed = Math.max(maxSpeed, Math.hypot(velocity.x, velocity.z))
 
-    if (grounded) vy = -1
+    if (grounded) vy = GROUND_STICK
     else vy += GRAVITY * delta
 
     actor.controller.computeColliderMovement(actor.collider, {
@@ -90,11 +94,16 @@ function walk(actor, frames, dirFn, { sprinting = false } = {}) {
     const moved = actor.controller.computedMovement()
     grounded = actor.controller.computedGrounded()
 
+    const wanted = Math.hypot(velocity.x, velocity.z)
+    if (wanted > 4 && Math.hypot(moved.x, moved.z) / delta < wanted * 0.9) refusals++
+
     const t = actor.body.translation()
     actor.body.setNextKinematicTranslation({
       x: t.x + moved.x, y: t.y + moved.y, z: t.z + moved.z,
     })
-    velocity = resolveVelocity(velocity, moved, delta)
+    const resolved = resolveVelocity(velocity, moved, delta, blocked)
+    velocity = { x: resolved.x, z: resolved.z }
+    blocked = resolved.blocked
 
     world.timestep = delta
     world.step()
@@ -104,7 +113,7 @@ function walk(actor, frames, dirFn, { sprinting = false } = {}) {
   const p = actor.body.translation()
   const result = {
     x: +p.x.toFixed(2), y: +p.y.toFixed(3), z: +p.z.toFixed(2),
-    grounded, minY: +minY.toFixed(3), maxSpeed: +maxSpeed.toFixed(2),
+    grounded, minY: +minY.toFixed(3), maxSpeed: +maxSpeed.toFixed(2), refusals,
   }
   despawn(actor)
   return result
@@ -223,6 +232,48 @@ for (const wing of WINGS) {
     ok,
     `accel ${ACCELERATION}/brake ${BRAKING}: ${(toSpeed * 1000).toFixed(0)}ms to 95% of ${top}m/s, ` +
     `coasts ${coast.toFixed(2)}m after release (want <250ms, <0.5m)`)
+}
+
+// 4da. The walk must be SMOOTH, not merely fast on average.
+//
+//      This is the regression test for the stutter. The character controller
+//      used to refuse roughly one frame in forty on open, flat floor — it was
+//      undoing the stick-down force that fought its own skin offset — and the
+//      velocity fold-back read each refusal as a wall and threw the player's
+//      momentum away. The walk was a series of re-accelerations from zero.
+//
+//      A long run of empty corridor, at speed, stopping well short of the end
+//      cap so that every frame counted is open floor: the controller must
+//      deliver what it is asked for on every single one of them.
+{
+  const frames = 400
+  const from = -35
+  const a = spawnCharacter(from, CORRIDOR.z)
+  const r = walk(a, frames, () => ({ x: 1, z: 0 }))
+  const clearOfTheCap = r.x < CORRIDOR.length / 2 - 6
+  check('the controller never refuses a frame on open floor',
+    r.refusals === 0 && clearOfTheCap,
+    `${r.refusals} refused frames over ${(r.x - from).toFixed(0)}m of flat corridor ` +
+    `(ground stick ${GROUND_STICK}), ended x=${r.x} with the cap at ${CORRIDOR.length / 2}`)
+}
+
+// 4db. And if one ever does happen — on geometry this level does not have yet,
+//      or on a Rapier that behaves differently — a SINGLE refused frame must
+//      not cost the player their momentum. Two in a row still must.
+{
+  const delta = 1 / 60
+  const fast = { x: 8, z: 0 }
+  const refused = { x: 0, y: 0, z: 0 }
+  const free = { x: 8 * delta, y: 0, z: 0 }
+
+  const once = resolveVelocity(fast, refused, delta, false)
+  const twice = resolveVelocity({ x: once.x, z: once.z }, refused, delta, once.blocked)
+  const clear = resolveVelocity(fast, free, delta, false)
+
+  check('one refused frame keeps the momentum, two in a row do not',
+    once.x === 8 && once.blocked && twice.x === 0 && clear.x === 8 && !clear.blocked,
+    `after one refusal ${once.x.toFixed(1)}m/s, after two ${twice.x.toFixed(1)}m/s, ` +
+    `unobstructed ${clear.x.toFixed(1)}m/s`)
 }
 
 // 4e. Momentum must not tunnel. Sprinting flat into the end cap is the fastest

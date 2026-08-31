@@ -2,7 +2,8 @@ import * as THREE from 'three'
 import { MATERIALS } from './Materials.js'
 import Character from './Character.js'
 import {
-  desiredVelocity, stepVelocity, resolveVelocity, SPEED, SPRINT_MULTIPLIER,
+  desiredVelocity, stepVelocity, resolveVelocity, GROUND_STICK,
+  SPEED, SPRINT_MULTIPLIER,
 } from './movement.js'
 
 const RADIUS = 0.4
@@ -71,6 +72,9 @@ export default class Player {
     this.velocity = { x: 0, z: 0 }
     this.verticalVelocity = 0
     this.grounded = false
+    // Whether the solver refused to move us last frame. resolveVelocity wants
+    // two in a row before it believes there is a wall there.
+    this.blocked = false
     this.coyote = 0
     this.jumpBuffer = 0
     this.jumpHeld = false
@@ -114,7 +118,9 @@ export default class Player {
     this.body.setNextKinematicTranslation(next)
     this.mesh.position.set(next.x, next.y, next.z)
 
-    this.velocity = resolveVelocity(this.velocity, corrected, delta)
+    const resolved = resolveVelocity(this.velocity, corrected, delta, this.blocked)
+    this.velocity = { x: resolved.x, z: resolved.z }
+    this.blocked = resolved.blocked
 
     // Face the direction of travel.
     if (this.speed > FACING_EPSILON) {
@@ -147,7 +153,10 @@ export default class Player {
       this.jumpBuffer = 0
       this.coyote = 0            // no double jump off one window
     } else if (this.grounded) {
-      this.verticalVelocity = -1 // small stick-down force
+      // Zero, deliberately. See GROUND_STICK in movement.js — a stick-down
+      // force here fights the character controller's own skin offset, and that
+      // fight was the stutter in the walk.
+      this.verticalVelocity = GROUND_STICK
     } else {
       this.verticalVelocity += GRAVITY * delta
     }
