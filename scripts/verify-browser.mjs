@@ -283,7 +283,98 @@ check('releasing the keys stops the player without a long slide',
     `resting at (${p.x.toFixed(1)}, ${p.y.toFixed(2)}, ${p.z.toFixed(1)})`)
 }
 
-// 7. Nothing threw along the way.
+// 7. The two locomotion clips stay in step with each other.
+//
+// Walk and run are posed by hand from one shared phase; the mixer must not be
+// advancing them on its own, or they drift apart within seconds and the blend
+// between them averages a left step against a right one. That is what the
+// jitter was. Sampled twice, a second apart, mid-stride: if the mixer had hold
+// of either clip the two normalised phases would separate.
+{
+  const phases = () => cdp.eval(`(() => {
+    const c = window.experience.world.player.character
+    const at = (k) => c.actions[k].time / c.durations[k]
+    return { walk: at('walk'), run: at('run') }
+  })()`)
+
+  await cdp.key('keyDown', 'KeyW', 'w', 87)
+  await sleep(600)
+  const first = await phases()
+  await sleep(900)
+  const second = await phases()
+  await cdp.key('keyUp', 'KeyW', 'w', 87)
+
+  const drift = (p) => Math.abs(p.walk - p.run)
+  // The phase has to actually be MOVING, or two frozen clips would agree
+  // trivially and this would assert nothing.
+  const advanced = Math.abs(second.walk - first.walk) > 1e-4
+  check('the walk and run cycles stay phase-locked while moving',
+    advanced && drift(first) < 1e-6 && drift(second) < 1e-6,
+    `walk/run phase gap ${drift(first).toExponential(1)} then ${drift(second).toExponential(1)}` +
+    `, cycle ${advanced ? 'advancing' : 'FROZEN'}`)
+}
+
+// 8. The kiosk prompt is a button you can click, not a caption about a key.
+{
+  // Put the player on a kiosk's hotspot directly. Walking there is the job of
+  // physics-smoke.mjs, which already proves every hotspot is reachable; what is
+  // under test here is the prompt, so this takes the shortest route to one.
+  const project = await cdp.eval(`(() => {
+    const w = window.experience.world
+    const k = w.kiosks[0]
+    const t = k.triggerPoint
+    w.player.body.setTranslation({ x: t.x, y: 1.5, z: t.z }, true)
+    w.player.body.setNextKinematicTranslation({ x: t.x, y: 1.5, z: t.z })
+    w.player.mesh.position.set(t.x, 1.5, t.z)
+    return k.project.title
+  })()`)
+  await sleep(500)
+
+  const prompt = await cdp.eval(`(() => {
+    const el = document.getElementById('prompt')
+    return {
+      tag: el.tagName,
+      hidden: el.hidden,
+      text: el.textContent,
+      clickable: getComputedStyle(el).pointerEvents,
+      label: el.getAttribute('aria-label'),
+    }
+  })()`)
+  check('the kiosk prompt is a real, clickable button naming the project',
+    prompt.tag === 'BUTTON' && !prompt.hidden && prompt.clickable === 'auto'
+      && prompt.text.includes(project) && prompt.label === `Open ${project}`,
+    `<${prompt.tag.toLowerCase()}> "${prompt.text}", pointer-events: ${prompt.clickable}`)
+
+  // A real click, dispatched by the browser at the button's own coordinates —
+  // not element.click(), which would prove the listener runs but not that the
+  // button is actually reachable through the HUD overlay above the canvas.
+  const box = await cdp.eval(`(() => {
+    const r = document.getElementById('prompt').getBoundingClientRect()
+    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }
+  })()`)
+  for (const type of ['mousePressed', 'mouseReleased']) {
+    await cdp.send('Input.dispatchMouseEvent', {
+      type, x: box.x, y: box.y, button: 'left', clickCount: 1, buttons: type === 'mousePressed' ? 1 : 0,
+    })
+  }
+  await sleep(400)
+
+  const opened = await cdp.eval(`(() => ({
+    open: !document.getElementById('modal').hidden,
+    title: document.getElementById('modal-title')?.textContent ?? '',
+    paused: window.experience.paused,
+    focused: document.activeElement?.id ?? 'none',
+  }))()`)
+  check('clicking the prompt opens that project and hands focus back to the game',
+    opened.open && opened.paused && opened.title.includes(project) && opened.focused !== 'prompt',
+    `modal "${opened.title}" open, focus on ${opened.focused}`)
+
+  await cdp.key('keyDown', 'Escape', 'Escape', 27)
+  await cdp.key('keyUp', 'Escape', 'Escape', 27)
+  await sleep(300)
+}
+
+// 9. Nothing threw along the way.
 {
   const errors = cdp.events
     .filter((e) => e.method === 'Log.entryAdded' && e.params.entry.level === 'error')

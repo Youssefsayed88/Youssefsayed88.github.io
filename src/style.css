@@ -28,22 +28,41 @@ canvas.webgl {
 }
 .hud__center { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
 
+/* A real button, so it needs its own pointer-events: the HUD around it is
+   inert on purpose, otherwise the whole overlay would swallow the look-drag. */
 .hud__prompt {
-  display: flex; align-items: center; gap: 0.6rem;
-  padding: 0.5rem 1rem 0.5rem 0.6rem;
+  pointer-events: auto;
+  appearance: none; font: inherit; cursor: pointer;
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.5rem 0.6rem 0.5rem 1rem;
   background: rgba(16, 18, 28, 0.82);
   border: 1px solid rgba(34, 195, 230, 0.4);
   border-radius: 999px;
+  color: inherit;
   font-size: 0.9rem;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
   animation: prompt-in 0.18s ease-out;
 }
+.hud__prompt[hidden] { display: none; }
+.hud__prompt:hover { background: rgba(34, 195, 230, 0.16); border-color: rgba(34, 195, 230, 0.85); }
+.hud__prompt:active { transform: scale(0.97); }
+.hud__prompt:focus-visible { outline: 2px solid #22c3e6; outline-offset: 3px; }
+
+.hud__prompt-verb { opacity: 0.6; }
+.hud__prompt-name { font-weight: 600; }
+
+/* The keycap is a hint now, not the instruction, so it sits after the label
+   and steps back to match. */
 .hud__prompt kbd {
   display: grid; place-items: center;
   min-width: 1.6rem; height: 1.6rem;
-  background: #22c3e6; color: #10121c;
+  background: rgba(34, 195, 230, 0.16); color: #22c3e6;
+  border: 1px solid rgba(34, 195, 230, 0.45);
   border-radius: 6px;
-  font: inherit; font-size: 0.8rem; font-weight: 700;
+  font: inherit; font-size: 0.72rem; font-weight: 700;
 }
+.hud__prompt:hover kbd { background: #22c3e6; color: #10121c; border-color: #22c3e6; }
 @keyframes prompt-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 .hud__hint {
@@ -225,8 +244,10 @@ canvas.webgl {
 }
 
 /* With an Open button on screen, the keycap in the prompt is telling a phone
-   about a key it does not have. Keep the kiosk's name, drop the E. */
+   about a key it does not have. Keep the kiosk's name, drop the E — and the
+   right-hand padding it was standing in for. */
 .has-touch-controls .hud__prompt kbd{display:none}
+.has-touch-controls .hud__prompt{padding-right:1rem}
 
 /* The kiosk prompt and the movement hint live at the bottom of the screen on
    desktop. On touch that is where both thumbs are, and the stick was landing

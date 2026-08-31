@@ -23,7 +23,10 @@ export default class Experience {
 
     // The touch Open button is the E key's counterpart, so it lights up off the
     // same prompt the HUD does rather than polling the world for a kiosk.
-    this.hud = new Hud((title) => this.input.touch.setPrompt(title))
+    this.hud = new Hud({
+      onPrompt: (title) => this.input.touch.setPrompt(title),
+      onActivate: () => this.interact(),
+    })
     this.audio = new Audio()
     this.modal = new Modal((open) => {
       this.paused = open
