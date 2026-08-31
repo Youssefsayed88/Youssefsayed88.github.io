@@ -163,6 +163,11 @@ export default class Player {
   }
 
   get position() { return this.mesh.position }
+
+  // Footfalls the animated gait landed this frame, for the audio to sound. It
+  // comes off the character rather than off distance travelled so a step is
+  // heard exactly when a foot is planted, at any speed.
+  get footfalls() { return this.character.footfalls }
 }
 
 function dampAngle(current, target, lambda, delta) {

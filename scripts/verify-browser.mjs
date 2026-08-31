@@ -378,6 +378,72 @@ check('releasing the keys stops the player without a long slide',
     `, cycle ${advanced ? 'advancing' : 'FROZEN'}`)
 }
 
+// 7b. Footsteps are sounded by that same gait, not by distance travelled.
+//
+// The sound used to fire every 1.9 metres, which is only ever right at one
+// speed: the stride is ~0.81 m per footfall in the walk cycle and ~3.11 m in
+// the run, so at the 8 m/s base speed the ear heard 1.6 steps for every one the
+// legs took. Counting half-cycles instead means the two cannot come apart at
+// any speed — two footfalls per gait cycle, give or take the boundary each end
+// of the measured window can clip (the sounds are counted from the frame the
+// promise is made, the cycles from the frame after it).
+{
+  // Back to the middle of the corridor first. The tests above leave the player
+  // pressed against a wall in z, and a blocked player still turns the gait
+  // phase at its idle floor while moving nowhere — which is precisely the case
+  // that must stay SILENT, not the one under test here.
+  await cdp.eval(`(() => {
+    const p = window.experience.world.player
+    const z = ${CORRIDOR.z}
+    p.body.setTranslation({ x: 0, y: 1.5, z }, true)
+    p.body.setNextKinematicTranslation({ x: 0, y: 1.5, z })
+    p.mesh.position.set(0, 1.5, z)
+  })()`)
+  await sleep(300)
+
+  // Along the corridor, where there is room to run: D is the direction 6b
+  // already proved has 40 metres of it.
+  await cdp.key('keyDown', 'KeyD', 'd', 68)
+  await waitFor(async () => (await speedNow()) > SPEED * 0.9, 'the player to reach walking speed')
+
+  await cdp.eval(`window.__steps = new Promise((resolve) => {
+    const character = window.experience.world.player.character
+    const audio = window.experience.audio
+    // Count the CALL, not the sound: footstep() returns early while muted or
+    // before the first gesture unlocks the context, and the pacing is what is
+    // under test here, not the synth.
+    const real = audio.footstep.bind(audio)
+    let sounds = 0
+    audio.footstep = () => { sounds++; real() }
+
+    let last = character.phase
+    let cycles = 0
+    let frames = 0
+    let speed = 0
+    const tick = () => {
+      // Phase wraps at 1; a negative delta is one wrap, never a rewind.
+      const d = character.phase - last
+      cycles += d < 0 ? d + 1 : d
+      last = character.phase
+      speed += window.experience.world.player.speed
+      frames++
+      if (frames < 120) requestAnimationFrame(tick)
+      else { audio.footstep = real; resolve({ sounds, cycles, speed: speed / frames }) }
+    }
+    requestAnimationFrame(tick)
+  })
+  void 0`)
+  const steps = await cdp.eval('window.__steps')
+  await cdp.key('keyUp', 'KeyD', 'd', 68)
+  await sleep(400)
+
+  const expected = steps.cycles * 2
+  check('footsteps are sounded once per footfall of the gait cycle',
+    expected > 4 && Math.abs(steps.sounds - expected) <= 1.5,
+    `${steps.sounds} steps heard over ${steps.cycles.toFixed(2)} gait cycles ` +
+    `at ${steps.speed.toFixed(2)} m/s (want ${expected.toFixed(2)} steps, ±1.5)`)
+}
+
 // 8. The kiosk prompt is a button you can click, not a caption about a key.
 {
   // Put the player on a kiosk's hotspot directly. Walking there is the job of

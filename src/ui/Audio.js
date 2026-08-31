@@ -10,7 +10,6 @@ export default class Audio {
     this.master = null
     this.ambient = null
     this.started = false
-    this.stepDistance = 0
 
     let stored = null
     try { stored = localStorage.getItem(STORAGE_KEY) } catch { /* private mode */ }
@@ -87,17 +86,6 @@ export default class Audio {
 
     src.connect(filter); filter.connect(gain); gain.connect(this.master)
     src.start(t); src.stop(t + 0.14)
-  }
-
-  // Advance the footstep cycle by distance travelled, not by time, so the
-  // rhythm matches the walk instead of drifting with framerate.
-  travel(metres) {
-    if (!this.ctx || this.muted || metres <= 0) return
-    this.stepDistance += metres
-    if (this.stepDistance >= 1.9) {
-      this.stepDistance = 0
-      this.footstep()
-    }
   }
 
   tone(freq, duration = 0.14, type = 'sine', peak = 0.12) {

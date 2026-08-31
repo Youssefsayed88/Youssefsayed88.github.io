@@ -50,8 +50,6 @@ export default class Experience {
     window.addEventListener('keydown', wake, { once: true })
     window.addEventListener('pointerdown', wake, { once: true })
 
-    this.previousPosition = this.world.player.position.clone()
-
     this.sizes.on('resize', () => {
       this.camera.resize()
       this.renderer.resize()
@@ -78,10 +76,9 @@ export default class Experience {
       this.world.update(delta, this.input, this.camera)
       this.physics.update(delta)
 
-      // Footsteps are paced by distance walked, not elapsed time.
-      const position = this.world.player.position
-      this.audio.travel(this.previousPosition.distanceTo(position))
-      this.previousPosition.copy(position)
+      // Footsteps are fired by the animation's own gait, so the sound lands on
+      // the frame the foot does — walking or sprinting.
+      for (let i = 0; i < this.world.player.footfalls; i++) this.audio.footstep()
     }
 
     this.camera.update(this.world.player.position, delta)

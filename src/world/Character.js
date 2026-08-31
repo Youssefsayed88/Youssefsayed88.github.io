@@ -43,6 +43,20 @@ const RUN_RATE = { min: 0.7, max: 1.9 }
 // with a differently-authored run is a one-number fix rather than a re-rig.
 const RUN_PHASE_OFFSET = 0
 
+// Where in the gait cycle the feet land, and how much of a stride has to be
+// blended in before those landings are audible.
+//
+// A locomotion cycle carries TWO footfalls — left and right, half a cycle
+// apart — so a footstep sound belongs on every crossing of a half-cycle
+// boundary and nowhere else. FOOTFALL_OFFSET slides both onto the clip's
+// contact frame if a swapped model authors its cycle from mid-stride.
+//
+// The weight gate matters more than it looks: cadence has a floor
+// (WALK_RATE.min), so the phase keeps turning at a standstill and holds the
+// idle-to-walk blend ready. Those turns must not be heard.
+const FOOTFALL_OFFSET = 0
+const FOOTFALL_MIN_WEIGHT = 0.5
+
 // Speed window over which walk hands off to run. The top of it sits under the
 // 8 m/s base speed so ordinary walking is already a run cycle — 8 m/s is a
 // sprint in real terms, and the corridor is 104 metres long.
@@ -90,6 +104,9 @@ export default class Character {
     // locomotion clips are posed from. See update().
     this.speed = 0
     this.phase = 0
+    // Footfalls the gait crossed this frame; read by whatever wants to sound
+    // them. See update().
+    this.footfalls = 0
     this.ready = false
 
     new GLTFLoader().load(
@@ -188,6 +205,7 @@ export default class Character {
 
   // `speed` is planar m/s, `verticalVelocity` signs the airborne pose.
   update(delta, { speed = 0, grounded = true, verticalVelocity = 0 } = {}) {
+    this.footfalls = 0
     if (!this.ready) return
 
     // Eased rather than switched: a single frame of lost ground contact on a
@@ -220,7 +238,19 @@ export default class Character {
     // Airborne, the phase is held rather than advanced: the locomotion clips
     // are silent up there anyway, and freezing means you land on the foot you
     // took off from instead of wherever a half-second of flight ran the cycle.
-    this.phase = fract(this.phase + cadence * delta * ground)
+    const advanced = this.phase + cadence * delta * ground
+
+    // Count the half-cycles the stride just crossed, BEFORE wrapping — the wrap
+    // is what makes "did it pass a boundary?" awkward to ask afterwards. At any
+    // reachable cadence this is 0 or 1 per frame; it is counted rather than
+    // tested so a long frame owes the same number of steps as two short ones.
+    if (moving * ground > FOOTFALL_MIN_WEIGHT) {
+      this.footfalls =
+        Math.floor((advanced - FOOTFALL_OFFSET) * 2) -
+        Math.floor((this.phase - FOOTFALL_OFFSET) * 2)
+    }
+
+    this.phase = fract(advanced)
 
     this.pose('walk', this.phase)
     this.pose('run', this.phase + RUN_PHASE_OFFSET)
