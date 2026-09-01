@@ -12,15 +12,15 @@ import {
 } from './src/world/layout.js'
 import { byWing } from './src/data/projects.js'
 import {
-  moveVector, cameraOffset, stepVelocity, resolveVelocity, GROUND_STICK,
-  SPEED, SPRINT_MULTIPLIER, ACCELERATION, BRAKING,
+  moveVector, cameraOffset, stepVelocity, resolveVelocity, stepJump, jumpApex,
+  GROUND_STICK, SPEED, SPRINT_MULTIPLIER, ACCELERATION, BRAKING,
+  JUMP_BUFFER, RISE_GRAVITY, FALL_GRAVITY,
 } from './src/world/movement.js'
 
 await RAPIER.init()
 
 const RADIUS = 0.4
 const HALF_HEIGHT = 0.5
-const GRAVITY = -20
 const REST_Y = 0 + HALF_HEIGHT + RADIUS   // floor top is y = 0
 
 const world = new RAPIER.World({ x: 0, y: -20, z: 0 })
@@ -69,7 +69,10 @@ function walk(actor, frames, dirFn, { sprinting = false } = {}) {
   const delta = 1 / 60
   const speed = SPEED * (sprinting ? SPRINT_MULTIPLIER : 1)
   let velocity = { x: 0, z: 0 }
-  let vy = 0
+  // The vertical model is stepJump's even when nothing jumps: gravity and the
+  // ground stick both live in there, so a local copy of either here would be
+  // the exact drift this harness exists to prevent.
+  let air = { verticalVelocity: 0, coyote: 0, jumpBuffer: 0, jumpHeld: false }
   let grounded = false
   let blocked = false
   let minY = Infinity
@@ -83,12 +86,11 @@ function walk(actor, frames, dirFn, { sprinting = false } = {}) {
     velocity = stepVelocity(velocity, { x: dir.x * speed, z: dir.z * speed }, delta)
     maxSpeed = Math.max(maxSpeed, Math.hypot(velocity.x, velocity.z))
 
-    if (grounded) vy = GROUND_STICK
-    else vy += GRAVITY * delta
+    air = stepJump(air, { delta, wantsJump: false, grounded })
 
     actor.controller.computeColliderMovement(actor.collider, {
       x: velocity.x * delta,
-      y: vy * delta,
+      y: air.verticalVelocity * delta,
       z: velocity.z * delta,
     })
     const moved = actor.controller.computedMovement()
@@ -118,6 +120,78 @@ function walk(actor, frames, dirFn, { sprinting = false } = {}) {
   despawn(actor)
   return result
 }
+
+// Drives the vertical model through the real controller and reports the shape
+// of the arc. Standing still, because the jump's height and timing are what is
+// under test and horizontal movement only adds solver noise to them.
+//
+// `press(f)` is the jump input, f counted from the moment the character has
+// settled on the floor. Returns metres risen above the resting height, the two
+// halves of the arc separately — the point of the asymmetric gravity is that
+// they differ — and how many separate jumps fired, which is what catches a
+// held key auto-hopping.
+function jump(actor, press, { fps = 60, frames = 300 } = {}) {
+  const delta = 1 / fps
+  const settle = Math.ceil(0.6 * fps)   // long enough to fall from SPAWN.y and rest
+
+  let state = { verticalVelocity: 0, coyote: 0, jumpBuffer: 0, jumpHeld: false }
+  let grounded = false
+  let restY = null
+  let peak = -Infinity
+  let jumps = 0
+  let tookOff = null
+  let apexAt = null
+  let landedAt = null
+  let lastY = null
+
+  for (let f = 0; f < settle + frames; f++) {
+    const i = f - settle
+    if (i === 0) restY = actor.body.translation().y
+
+    state = stepJump(state, {
+      delta,
+      wantsJump: i >= 0 ? !!press(i) : false,
+      grounded,
+    })
+    if (state.jumped) {
+      jumps++
+      if (tookOff === null) tookOff = i
+    }
+
+    actor.controller.computeColliderMovement(actor.collider, {
+      x: 0, y: state.verticalVelocity * delta, z: 0,
+    })
+    const moved = actor.controller.computedMovement()
+    grounded = actor.controller.computedGrounded()
+
+    const t = actor.body.translation()
+    actor.body.setNextKinematicTranslation({ x: t.x + moved.x, y: t.y + moved.y, z: t.z + moved.z })
+    world.timestep = delta
+    world.step()
+
+    const y = actor.body.translation().y
+    if (i >= 0) {
+      peak = Math.max(peak, y)
+      // Apex is the first frame the character stops going up after taking off;
+      // landing is the first time the controller reports ground under it again.
+      if (tookOff !== null && apexAt === null && lastY !== null && y <= lastY) apexAt = i
+      if (apexAt !== null && landedAt === null && grounded) landedAt = i
+      lastY = y
+    }
+  }
+
+  despawn(actor)
+  return {
+    rise: +(peak - restY).toFixed(3),
+    jumps,
+    riseTime: tookOff !== null && apexAt !== null ? +((apexAt - tookOff) * delta).toFixed(3) : null,
+    fallTime: apexAt !== null && landedAt !== null ? +((landedAt - apexAt) * delta).toFixed(3) : null,
+    airtime: tookOff !== null && landedAt !== null ? +((landedAt - tookOff) * delta).toFixed(3) : null,
+  }
+}
+
+const held = () => true
+const tap = (n) => (i) => i < n
 
 const results = []
 const check = (name, pass, detail) => {
@@ -287,6 +361,85 @@ for (const wing of WINGS) {
     r.minY > 0.5 && r.x < CORRIDOR.length / 2 && r.maxSpeed > expectedTop * 0.95,
     `ended x=${r.x} (cap at ${CORRIDOR.length / 2}), peak ${r.maxSpeed}m/s ` +
     `of ${expectedTop.toFixed(1)} sprint, lowest y=${r.minY}`)
+}
+
+// 4f. The jump. None of this was covered before, and all three of the defects
+//     it now pins were shipped: the arc was a 1.47 m floater, a tap and a
+//     one-second hold produced the same height to within 6 mm, and a press
+//     buffered before landing was dropped on a slow frame.
+{
+  const a = spawnCharacter()
+  const r = jump(a, held)
+  const want = jumpApex(1)
+  check('a held jump reaches the tuned apex and comes back down',
+    Math.abs(r.rise - want) < 0.03 && r.airtime > 0.35 && r.airtime < 0.7,
+    `rose ${r.rise}m (model says ${want.toFixed(3)}), airtime ${r.airtime}s ` +
+    `(${r.riseTime}s up, ${r.fallTime}s down)`)
+}
+
+// The one that matters most: the control has to have more than one output.
+{
+  const short = jump(spawnCharacter(), tap(1))
+  const long = jump(spawnCharacter(), held)
+  check('tapping jumps lower than holding',
+    short.rise < long.rise * 0.55 && short.rise > 0.15,
+    `tap ${short.rise}m vs hold ${long.rise}m ` +
+    `(was identical to within 6mm before the release cut)`)
+}
+
+// Asymmetric gravity, stated as the thing you can see rather than as the two
+// constants: the way down is quicker than the way up.
+{
+  const r = jump(spawnCharacter(), held)
+  check('the arc falls faster than it rises',
+    r.fallTime < r.riseTime,
+    `${r.riseTime}s up, ${r.fallTime}s down ` +
+    `(gravity ${RISE_GRAVITY} rising, ${FALL_GRAVITY} falling)`)
+}
+
+// The release cut is applied once, on the release edge, precisely so the height
+// cannot depend on how many frames the machine drew. A phone at 30 and a
+// monitor at 144 must jump the same height.
+{
+  // 0.1s is a whole number of frames at all three rates, so the release edge
+  // falls at the same MOMENT in each run rather than at the same frame index —
+  // otherwise the test would be measuring its own rounding.
+  const rates = [30, 60, 120]
+  const holdFor = (fps) => (i) => i * (1 / fps) < 0.0999
+
+  const tapped = rates.map((fps) => jump(spawnCharacter(), holdFor(fps), { fps }).rise)
+  const fully = rates.map((fps) => jump(spawnCharacter(), held, { fps }).rise)
+  const spread = (a) => Math.max(...a) - Math.min(...a)
+
+  check('the same press jumps the same height at 30, 60 and 120fps',
+    spread(tapped) < 0.06 && spread(fully) < 0.06,
+    `tapped ${rates.map((f, i) => `${f}fps ${tapped[i]}m`).join(', ')} (spread ${spread(tapped).toFixed(3)}m); ` +
+    `held ${rates.map((f, i) => `${f}fps ${fully[i]}m`).join(', ')} (spread ${spread(fully).toFixed(3)}m)`)
+}
+
+// Buffering: a press made while still falling has to survive until touchdown.
+// The landing frame comes from a first run, so the press is aimed at a real
+// landing rather than at a guess.
+{
+  const probe = jump(spawnCharacter(), tap(1))
+  const fps = 60
+  const landing = Math.round((probe.airtime ?? 0) * fps)
+  // Pressed most of a buffer BEFORE the character is back on the ground.
+  const early = landing - Math.floor(JUMP_BUFFER * fps * 0.8)
+
+  const r = jump(spawnCharacter(), (i) => i < 1 || (i >= early && i < early + 2), { fps })
+  check('a press made before touchdown still fires on landing',
+    r.jumps === 2,
+    `pressed ${((landing - early) / fps).toFixed(3)}s before landing ` +
+    `(buffer ${JUMP_BUFFER}s), got ${r.jumps} jumps`)
+}
+
+// And the other half of the edge trigger: resting on the key must not pogo.
+{
+  const r = jump(spawnCharacter(), held, { frames: 400 })
+  check('holding jump does not auto-hop on every landing',
+    r.jumps === 1,
+    `${r.jumps} jump from a key held for ${(400 / 60).toFixed(1)}s`)
 }
 
 // 5. Every kiosk must sit inside its room and be physically reachable.

@@ -50,6 +50,136 @@ export const BRAKING = 28
 // yourself: node scripts/ground-stick.mjs
 export const GROUND_STICK = 0
 
+// ---------------------------------------------------------------------------
+// The jump.
+//
+// It lives here, next to the walk, for the reason everything else here does:
+// physics-smoke.mjs can then drive the shipped model instead of a copy of its
+// arithmetic. It did not, and the three things below were the cost of that.
+//
+// What was wrong. The old model was a single constant pair — JUMP 7.5 against a
+// flat GRAVITY of -20 — and it fired perfectly every time. Measured in a real
+// browser it rose 1.47 m and hung for 0.75 s, which is the problem twice over:
+//
+//  - 1.47 m is a body height. The character is 1.8 m and the doorways are 4.5 m
+//    wide; nothing in this building is 1.4 m high, so the jump was clearing an
+//    obstacle that does not exist and reading as low gravity.
+//  - Tapping the key and holding it for a second produced the SAME 1.23 m rise,
+//    to within 6 mm. There was no variable height at all: every press was the
+//    maximum one, so the control had exactly one output and the player's timing
+//    could not express anything.
+//
+// And it sat oddly against the walk right next to it, which reaches full speed
+// in 150 ms and stops in 110 ms. The ground movement is crisp and the air
+// movement was floaty; they read as two different games.
+//
+// What replaces it. Three standard platformer devices, none of them exotic:
+//
+//  - ASYMMETRIC GRAVITY. Falling is heavier than rising, so the arc spends its
+//    time near the ground where the player can read it rather than hanging at
+//    the top. This is the single biggest contributor to a jump feeling "solid".
+//  - A CUT ON RELEASE. Letting go while still rising scales the remaining
+//    upward velocity, so a tap is a hop and a hold is a jump. Applied once, on
+//    the release edge, so it does not depend on frame rate.
+//  - A LOWER APEX. Sized to the building: 1.11 m clears the 1.0 m kiosk
+//    plinths, which is the only thing here worth clearing.
+//
+// Rise 7.6 m/s against -26 gives an apex of 1.11 m in 0.29 s; the fall back at
+// -42 takes 0.23 s. Airtime 0.52 s against the old 0.75.
+export const JUMP_SPEED = 7.6
+export const RISE_GRAVITY = -26
+export const FALL_GRAVITY = -42
+
+// What a release keeps of the rise still to come. 0.5 makes the shortest
+// possible tap a ~0.28 m hop against the full jump's 1.11 m — different enough
+// to be worth aiming for, big enough not to feel like a failed input.
+export const JUMP_CUT = 0.5
+
+// Jump forgiveness. Both windows are short enough to be invisible and long
+// enough to cover the two ways a jump gets eaten: pressing a few frames after
+// walking off an edge, and pressing a few frames before landing.
+export const COYOTE_TIME = 0.12
+
+// The buffer was 0.15 s, which is three frames on a phone holding 20fps — and a
+// measured second press 0.12 s before touchdown was silently dropped. It is
+// sized against the airtime rather than against a frame count, so a press
+// aimed at the landing lands.
+export const JUMP_BUFFER = 0.2
+
+// Gravity is a function of which half of the arc we are in, which is what
+// "asymmetric" means in practice. Falling off a ledge gets the heavy value too:
+// the weight should be a property of the character, not of how they left the
+// ground.
+export const gravityFor = (verticalVelocity) =>
+  (verticalVelocity > 0 ? RISE_GRAVITY : FALL_GRAVITY)
+
+// One frame of the vertical model.
+//
+// `state` carries the four values that have to survive between frames:
+// verticalVelocity, coyote, jumpBuffer and jumpHeld. Returns the next state
+// plus `jumped`, which is true only on the frame a jump actually fires.
+//
+// Pure, so the whole thing — coyote time, buffering, the release cut and the
+// two gravities — is checked in physics-smoke.mjs against the real Rapier
+// controller rather than trusted.
+export function stepJump(state, { delta, wantsJump, grounded }) {
+  // Edge-triggered: holding the key does not re-arm the buffer, so resting a
+  // finger on space no longer auto-hops on every landing.
+  const pressed = wantsJump && !state.jumpHeld
+  const released = !wantsJump && state.jumpHeld
+
+  let coyote = grounded ? COYOTE_TIME : Math.max(0, state.coyote - delta)
+  let jumpBuffer = pressed ? JUMP_BUFFER : Math.max(0, state.jumpBuffer - delta)
+  let verticalVelocity = state.verticalVelocity
+  let jumped = false
+
+  if (jumpBuffer > 0 && coyote > 0) {
+    // Half a frame of gravity, taken off the launch.
+    //
+    // Without it the jump is measurably HIGHER on a slow machine: the takeoff
+    // frame moves at the full launch speed before gravity has been applied even
+    // once, so the arc carries a bias of v*dt/2 — 1.24 m at 30fps against 1.14 m
+    // at 120fps for the same press. That is the same frame-rate dependence the
+    // walk's `1 - e^-kt` easing exists to avoid, left in the one part of the
+    // movement model that had no test to catch it.
+    //
+    // Subtracting half a step of gravity here is the standard leapfrog
+    // correction and cancels the bias to second order: every rate now apexes at
+    // jumpApex(1) to within a couple of millimetres.
+    verticalVelocity = JUMP_SPEED + gravityFor(JUMP_SPEED) * delta * 0.5
+    jumpBuffer = 0
+    coyote = 0                 // no double jump off one window
+    jumped = true
+  } else if (grounded) {
+    // Zero, deliberately. See GROUND_STICK above — a stick-down force here
+    // fights the character controller's own skin offset, and that fight was the
+    // stutter in the walk.
+    verticalVelocity = GROUND_STICK
+  } else {
+    // The cut goes before gravity, and only on the frame the key came up while
+    // still climbing. Scaling every airborne frame instead would make the
+    // height depend on how many frames the machine managed to draw.
+    if (released && verticalVelocity > 0) verticalVelocity *= JUMP_CUT
+    verticalVelocity += gravityFor(verticalVelocity) * delta
+  }
+
+  return { verticalVelocity, coyote, jumpBuffer, jumpHeld: wantsJump, jumped }
+}
+
+// Apex of a jump released at `heldFraction` of its rise, in metres. Exists so
+// the test can state the heights it expects in metres rather than restating the
+// integration, and so the tuning above can be checked by reading it.
+export function jumpApex(heldFraction = 1) {
+  const full = (JUMP_SPEED * JUMP_SPEED) / (2 * -RISE_GRAVITY)
+  if (heldFraction >= 1) return full
+
+  // Height reached before the cut, plus what the cut velocity still buys.
+  const cutSpeed = JUMP_SPEED * (1 - heldFraction)
+  const risen = full - (cutSpeed * cutSpeed) / (2 * -RISE_GRAVITY)
+  const after = cutSpeed * JUMP_CUT
+  return risen + (after * after) / (2 * -RISE_GRAVITY)
+}
+
 // How far short of the requested speed the solver has to land before the player
 // is treated as blocked. Generous, because the solver routinely returns a hair
 // under what was asked (float noise, a slope's slide) and none of that is a

@@ -89,6 +89,15 @@ const SPEED_SMOOTHING = 14
 // correctly for a jump of any height.
 const AIR_POSE = { rising: 0.30, falling: 0.55 }
 
+// How fast the airborne pose blends in and out, per second. Sized against the
+// jump rather than picked: the arc is ~0.52 s of airtime (see movement.js), and
+// at the old rate of 12 the pose was still easing in a quarter of the way
+// through it — a hop that was over before the character had finished reacting
+// to it. Reaching ~95% in 0.17 s puts the pose in place while there is still
+// jump left to look at, and it stays eased rather than switched so a single
+// frame of lost contact on a doorway lip does not snap into a jump.
+const AIR_BLEND = 18
+
 const smoothstep = (e0, e1, x) => {
   const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)))
   return t * t * (3 - 2 * t)
@@ -219,7 +228,7 @@ export default class Character {
 
     // Eased rather than switched: a single frame of lost ground contact on a
     // doorway lip should not snap the character into a jump pose.
-    this.air = damp(this.air, grounded ? 0 : 1, 12, delta)
+    this.air = damp(this.air, grounded ? 0 : 1, AIR_BLEND, delta)
 
     // Everything below reads the smoothed speed, never the raw one.
     this.speed = damp(this.speed, speed, SPEED_SMOOTHING, delta)

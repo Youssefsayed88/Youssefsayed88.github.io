@@ -2,20 +2,12 @@ import * as THREE from 'three'
 import { MATERIALS } from './Materials.js'
 import Character from './Character.js'
 import {
-  desiredVelocity, stepVelocity, resolveVelocity, GROUND_STICK,
+  desiredVelocity, stepVelocity, resolveVelocity, stepJump,
   SPEED, SPRINT_MULTIPLIER,
 } from './movement.js'
 
 const RADIUS = 0.4
 const HALF_HEIGHT = 0.5        // half of the cylindrical section
-const GRAVITY = -20
-const JUMP = 7.5
-
-// Jump forgiveness. Both windows are short enough to be invisible and long
-// enough to cover the two ways a jump gets eaten: pressing a few frames after
-// walking off an edge, and pressing a few frames before landing.
-const COYOTE_TIME = 0.12       // still jumpable this long after leaving ground
-const JUMP_BUFFER = 0.15       // a press this long before landing still fires
 
 // Below this speed the player is treated as stopped, so the nose cone does not
 // keep swinging on the last scraps of decaying velocity.
@@ -78,6 +70,7 @@ export default class Player {
     this.coyote = 0
     this.jumpBuffer = 0
     this.jumpHeld = false
+    this.jumped = false
     this._move = new THREE.Vector3()
   }
 
@@ -138,31 +131,38 @@ export default class Player {
     })
   }
 
-  // Coyote time and jump buffering, both counted in seconds.
+  // Coyote time, jump buffering, the release cut and the two gravities all live
+  // in movement.js, so the smoke test drives this exact model rather than a
+  // copy of it. `jumped` is kept for whatever wants to sound or animate a
+  // takeoff.
   updateJump(delta, wantsJump) {
-    this.coyote = this.grounded ? COYOTE_TIME : Math.max(0, this.coyote - delta)
+    const next = stepJump(this, { delta, wantsJump, grounded: this.grounded })
 
-    // Edge-triggered: holding the key does not re-arm the buffer, so resting a
-    // finger on space no longer auto-hops on every landing.
-    if (wantsJump && !this.jumpHeld) this.jumpBuffer = JUMP_BUFFER
-    else this.jumpBuffer = Math.max(0, this.jumpBuffer - delta)
-    this.jumpHeld = wantsJump
-
-    if (this.jumpBuffer > 0 && this.coyote > 0) {
-      this.verticalVelocity = JUMP
-      this.jumpBuffer = 0
-      this.coyote = 0            // no double jump off one window
-    } else if (this.grounded) {
-      // Zero, deliberately. See GROUND_STICK in movement.js — a stick-down
-      // force here fights the character controller's own skin offset, and that
-      // fight was the stutter in the walk.
-      this.verticalVelocity = GROUND_STICK
-    } else {
-      this.verticalVelocity += GRAVITY * delta
-    }
+    this.verticalVelocity = next.verticalVelocity
+    this.coyote = next.coyote
+    this.jumpBuffer = next.jumpBuffer
+    this.jumpHeld = next.jumpHeld
+    this.jumped = next.jumped
   }
 
   get position() { return this.mesh.position }
+
+  // Drop the player somewhere without walking them there, for `?project=` deep
+  // links. `setTranslation` rather than `setNextKinematicTranslation`: the
+  // latter is interpolated toward over the next step, which would slide the
+  // character across the whole showroom instead of placing them.
+  //
+  // Velocity is cleared too. Landing at a kiosk carrying the momentum from
+  // wherever the spawn was would walk them straight back out of the trigger
+  // radius they were placed inside.
+  teleport(position, facingY) {
+    this.body.setTranslation({ x: position.x, y: position.y, z: position.z }, true)
+    this.mesh.position.set(position.x, position.y, position.z)
+    this.velocity = { x: 0, z: 0 }
+    this.verticalVelocity = 0
+    this.blocked = false
+    if (facingY !== undefined) this.mesh.rotation.y = facingY
+  }
 
   // Footfalls the animated gait landed this frame, for the audio to sound. It
   // comes off the character rather than off distance travelled so a step is

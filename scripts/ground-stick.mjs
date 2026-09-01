@@ -19,14 +19,15 @@
 // Vite's WASM-ESM transform. Same version, same solver.
 import RAPIER from '@dimforge/rapier3d-compat'
 import { buildLayout, SPAWN, CORRIDOR } from '../src/world/layout.js'
-import { stepVelocity, resolveVelocity, SPEED, GROUND_STICK } from '../src/world/movement.js'
+import {
+  stepVelocity, resolveVelocity, SPEED, GROUND_STICK, FALL_GRAVITY,
+} from '../src/world/movement.js'
 
 await RAPIER.init()
 
 // Kept in step with Player.js.
 const RADIUS = 0.4
 const HALF_HEIGHT = 0.5
-const GRAVITY = -20
 const OFFSET = 0.02          // the character controller's skin width
 const DT = 1 / 60
 
@@ -78,7 +79,10 @@ function lap(stick, frames = 900) {
 
     velocity = stepVelocity(velocity, { x: dir * SPEED, z: 0 }, DT)
     if (grounded) vy = stick
-    else vy += GRAVITY * DT
+    // FALL_GRAVITY rather than a local copy. This script sweeps `stick` itself,
+    // so it cannot call stepJump — but the airborne branch is still the model's,
+    // and the frames it affects are discarded as the spawn drop anyway.
+    else vy += FALL_GRAVITY * DT
 
     controller.computeColliderMovement(collider, {
       x: velocity.x * DT, y: vy * DT, z: velocity.z * DT,
