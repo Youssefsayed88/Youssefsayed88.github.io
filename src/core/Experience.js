@@ -11,6 +11,13 @@ import Hud from '../ui/Hud.js'
 import Modal from '../ui/Modal.js'
 import Audio from '../ui/Audio.js'
 
+// The query parameter that names a single kiosk. `?project=lu-run` is the
+// shareable form of one project: it is what goes into a job application when the
+// point is that ONE piece of work, not the whole building. classic.html answers
+// the same parameter, and main.js carries it through the no-WebGL redirect, so
+// one link resolves on every route.
+const PROJECT_PARAM = 'project'
+
 export default class Experience {
   constructor(canvas) {
     this.canvas = canvas
@@ -28,12 +35,17 @@ export default class Experience {
       onActivate: () => this.interact(),
     })
     this.audio = new Audio()
-    this.modal = new Modal((open) => {
+    this.modal = new Modal((open, project) => {
       this.paused = open
       // The panel covers the screen; leaving a joystick under it would both
       // show through the backdrop blur and hold whatever direction the thumb
       // was last pushing.
       this.input.touch.setVisible(!open)
+      // Keep the address bar pointing at whatever is on screen, so copying the
+      // URL of an open panel shares that project. No pushState: a back button
+      // that stepped through every kiosk someone opened while wandering would
+      // be a worse back button, not a better one.
+      this.setUrlProject(open ? project.id : null)
       open ? this.audio.openPanel() : this.audio.closePanel()
     })
     this.paused = false
@@ -55,11 +67,41 @@ export default class Experience {
       this.renderer.resize()
     })
     this.time.on('tick', () => this.update())
+
+    // After the world and camera exist: a deep link places the player before
+    // the first frame is drawn, so a shared link opens ON its kiosk rather than
+    // walking there in front of the visitor.
+    this.openDeepLink()
   }
 
   interact() {
     if (this.paused || !this.world.activeKiosk) return
     this.modal.show(this.world.activeKiosk.project)
+  }
+
+  openDeepLink() {
+    const id = new URLSearchParams(window.location.search).get(PROJECT_PARAM)
+    if (!id) return
+
+    const kiosk = this.world.goToProject(id, this.camera)
+    // An id that is not in the data leaves the player at the spawn and drops the
+    // parameter. A renamed or mistyped project should land someone in the
+    // corridor with a showroom to walk around, not on an error.
+    if (kiosk) this.modal.show(kiosk.project)
+    else this.setUrlProject(null)
+  }
+
+  setUrlProject(id) {
+    try {
+      const url = new URL(window.location.href)
+      if (id) url.searchParams.set(PROJECT_PARAM, id)
+      else url.searchParams.delete(PROJECT_PARAM)
+      window.history.replaceState(null, '', url)
+    } catch {
+      // Some contexts (an opaque origin, a sandboxed frame) refuse
+      // replaceState. The showroom does not depend on the URL for anything, so
+      // losing it is not worth an error.
+    }
   }
 
   update() {

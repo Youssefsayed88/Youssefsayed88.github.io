@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { ROOM, WINGS } from '../src/world/layout.js'
-import { OWNER } from '../src/data/projects.js'
+import { OWNER, OG_IMAGE } from '../src/data/projects.js'
 
 const PORT = 4181
 const CDP_PORT = 9224
@@ -20,7 +20,7 @@ const CDP_PORT = 9224
 // flat colour left to run-length away and the same shot became a 2 MB PNG.
 // This is a photograph of a 3D render, which is what JPEG is for — and a share
 // card that big is one some scrapers simply decline to fetch.
-const OUT = 'public/og.jpg'
+const OUT = `public/${OG_IMAGE.path}`
 const QUALITY = 88
 
 // How the shot is posed. The gameplay camera is tuned for walking a room; at
@@ -36,9 +36,13 @@ const SHOT = {
   distance: 16,
 }
 
-// 1200x630 is the size Open Graph, LinkedIn and Twitter all read as a large card.
-const WIDTH = 1200
-const HEIGHT = 630
+// 1200x630 is the size Open Graph, LinkedIn and Twitter all read as a large
+// card; the capture is taken at twice that so it stays crisp when a card scales
+// it up. Both numbers come from OG_IMAGE, because og:image:width/height have to
+// declare the PRODUCT of them — keeping the two in separate files is how the
+// tags came to advertise 1200x630 for a 2400x1260 file.
+const WIDTH = OG_IMAGE.logical.width
+const HEIGHT = OG_IMAGE.logical.height
 
 const CHROME = [
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
@@ -112,9 +116,9 @@ const evaluate = async (expression) => {
 
 await send('Runtime.enable')
 await send('Page.enable')
-// deviceScaleFactor 2 so the capture is crisp when a card scales it up.
+// deviceScaleFactor from OG_IMAGE so the file matches what the meta tags say.
 await send('Emulation.setDeviceMetricsOverride', {
-  width: WIDTH, height: HEIGHT, deviceScaleFactor: 2, mobile: false,
+  width: WIDTH, height: HEIGHT, deviceScaleFactor: OG_IMAGE.scale, mobile: false,
 })
 await send('Page.navigate', { url: `http://localhost:${PORT}/` })
 await send('Page.bringToFront')   // headless throttles rAF on a background page
@@ -200,7 +204,7 @@ const framing = await evaluate('window.experience.camera.currentDistance')
 const where = await evaluate('window.experience.hud.room')
 console.log(`camera settled ${framing.toFixed(1)} units back (asked for ${SHOT.distance})`)
 const p = await evaluate('JSON.parse(JSON.stringify(window.experience.world.player.position))')
-console.log(`wrote ${OUT} — ${WIDTH * 2}x${HEIGHT * 2}, shot in "${where}" at (${p.x.toFixed(1)}, ${p.z.toFixed(1)})`)
+console.log(`wrote ${OUT} — ${OG_IMAGE.width}x${OG_IMAGE.height}, shot in "${where}" at (${p.x.toFixed(1)}, ${p.z.toFixed(1)})`)
 
 kill()
 process.exit(0)

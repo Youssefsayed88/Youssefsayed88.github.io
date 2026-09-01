@@ -24,6 +24,8 @@ export default class Modal {
     })
   }
 
+  // `onToggle` is handed the project as well as the state: the address bar
+  // tracks whichever panel is open, so the caller has to know which one it is.
   show(project) {
     if (this.open) return
     this.open = true
@@ -34,7 +36,7 @@ export default class Modal {
     this.root.hidden = false
     // Focus the close button so Tab stays inside the dialog and Escape is obvious.
     this.root.querySelector('.modal__close').focus()
-    this.onToggle?.(true)
+    this.onToggle?.(true, project)
   }
 
   close() {
@@ -43,14 +45,23 @@ export default class Modal {
     this.root.hidden = true
     // Drop the iframe/video so audio cannot keep playing behind the scene.
     this.media.innerHTML = ''
-    this.onToggle?.(false)
+    this.onToggle?.(false, null)
   }
 
   renderMedia(p) {
     if (p.video) {
       // A hosted file plays inline; anything else (YouTube, Drive) is an embed.
       if (/\.(mp4|webm)$/i.test(p.video)) {
-        return `<video class="modal__video" src="${esc(p.video)}" controls playsinline preload="metadata"></video>`
+        // The project's own screenshot stands in until play is pressed.
+        // `preload="metadata"` is right — these are 3-21 MB and most visitors
+        // will never play them — but on its own it opens the panel on a black
+        // rectangle, which reads as a broken video rather than a paused one.
+        // The image is already being downloaded for the kiosk, so this costs
+        // nothing and is the whole difference between the two readings.
+        const poster = p.image
+          ? ` poster="${esc(import.meta.env.BASE_URL + p.image)}"`
+          : ''
+        return `<video class="modal__video" src="${esc(p.video)}"${poster} controls playsinline preload="metadata"></video>`
       }
       return `<iframe class="modal__video" src="${esc(p.video)}" allow="autoplay; fullscreen" allowfullscreen loading="lazy" title="${esc(p.title)} video"></iframe>`
     }

@@ -109,13 +109,27 @@ canvas.webgl {
 .modal__close:hover { background: #22c3e6; color: #10121c; border-color: #22c3e6; }
 
 .modal__media { background: #10121c; border-radius: 14px 14px 0 0; overflow: hidden; }
-.modal__video, .modal__image {
+.modal__video {
   display: block; width: 100%;
   aspect-ratio: 16 / 9;
   border: 0; object-fit: cover;
 }
+/* The image keeps its own shape instead of being cropped to 16:9 — the same
+   rule the kiosk screen already follows, and for the same reason. `cover` on a
+   square or portrait capture throws away the top and bottom of it: the Novel
+   Visualisation card is a 2x2 grid of the model's output and lost a row and a
+   half of it. Letterboxing against the panel's own background costs nothing;
+   showing three quarters of the picture costs the picture.
+   The height cap keeps a tall image from pushing the title below the fold. */
+.modal__image {
+  display: block; width: 100%;
+  max-height: min(58vh, 500px);
+  border: 0; object-fit: contain;
+  background: #10121c;
+}
 .modal__image--empty {
   display: grid; place-items: center;
+  aspect-ratio: 16 / 9;
   color: #6b7290; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase;
   background: repeating-linear-gradient(45deg, #1d2030, #1d2030 10px, #212434 10px, #212434 20px);
 }

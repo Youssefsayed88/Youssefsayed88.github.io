@@ -7,14 +7,14 @@
 // unavailable or they are in a hurry, so it should cost exactly one request.
 
 import fs from 'node:fs'
-import { OWNER, WINGS, projects, byWing } from '../src/data/projects.js'
+import { OWNER, OG_IMAGE, WINGS, projects, byWing } from '../src/data/projects.js'
 import { summary, experience, education, skills } from '../src/data/profile.js'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
 ))
 
-// No trailing slash, so `${SITE}/og.jpg` never doubles up.
+// No trailing slash, so `${SITE}/${OG_IMAGE.path}` never doubles up.
 const SITE = String(OWNER.site ?? '').replace(/\/+$/, '')
 
 const socials = [
@@ -33,8 +33,10 @@ function projectCard(p) {
     p.video && { label: 'Watch video', url: p.video },
   ].filter(Boolean)
 
+  // Same id the showroom answers `?project=` with, so one shared link resolves
+  // on either route. See the deep-link script at the foot of this page.
   return `
-      <article class="card">
+      <article class="card" id="project-${esc(p.id)}">
         <div class="card__media">${media}</div>
         <div class="card__body">
           ${p.company ? `<p class="card__eyebrow">${esc(p.company)}</p>` : ''}
@@ -60,11 +62,11 @@ const html = `<!DOCTYPE html>
 <meta property="og:description" content="${esc(summary)}">
 <meta property="og:type" content="profile">
 <meta property="og:url" content="${esc(SITE)}/classic.html">
-<meta property="og:image" content="${esc(SITE)}/og.jpg">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
+<meta property="og:image" content="${esc(SITE)}/${OG_IMAGE.path}">
+<meta property="og:image:width" content="${OG_IMAGE.width}">
+<meta property="og:image:height" content="${OG_IMAGE.height}">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="${esc(SITE)}/og.jpg">
+<meta name="twitter:image" content="${esc(SITE)}/${OG_IMAGE.path}">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -86,12 +88,22 @@ h1{margin:0 0 .3rem;font-size:clamp(1.9rem,5vw,2.8rem);line-height:1.1}
 .contact a{display:inline-block;padding:.4rem .85rem;background:rgba(255,255,255,.06);
   border-radius:999px;font-size:.82rem;text-decoration:none;color:#e8ebf3}
 .contact a:hover{background:#37cdea;color:#10121c}
+/* The CV is the one link on this page a recruiter is actively looking for, so
+   it is the only one that does not look like the rest of the row. */
+.contact .cv a{background:#37cdea;color:#10121c;font-weight:600}
+.contact .cv a:hover{background:#6fdcf0}
 section{padding:2.25rem 0;border-top:1px solid rgba(255,255,255,.07)}
 h2{margin:0 0 .35rem;font-size:1.35rem}
 .wing-note{margin:0 0 1.4rem;color:#7d859c;font-size:.85rem}
 .grid{display:grid;gap:1.1rem;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
 .card{background:#1b1e2b;border:1px solid rgba(255,255,255,.07);border-radius:12px;overflow:hidden;
-  display:flex;flex-direction:column}
+  display:flex;flex-direction:column;
+  /* The bar is sticky, so an anchored card would otherwise land underneath it. */
+  scroll-margin-top:4.5rem}
+/* A deep-linked card says so, briefly. Without it, arriving via ?project= just
+   scrolls somewhere and leaves you to guess which of the three cards on screen
+   was meant. */
+.card.is-target{border-color:#37cdea;box-shadow:0 0 0 1px #37cdea,0 0 34px rgba(55,205,234,.18)}
 /* aspect-ratio goes on the img, not the container: inside a flex column the
    container's height resolves from the image's intrinsic size and the ratio is
    ignored, which leaves the grid rows ragged. */
@@ -146,6 +158,7 @@ footer{padding:2.5rem 0 3.5rem;border-top:1px solid rgba(255,255,255,.07);color:
     <p class="role">${esc(OWNER.title)} &middot; ${esc(OWNER.location)}</p>
     <p class="summary">${esc(summary)}</p>
     <ul class="contact">
+      ${OWNER.cv ? `<li class="cv"><a href="${esc(OWNER.cv)}" target="_blank" rel="noopener noreferrer">Download CV (PDF)</a></li>` : ''}
       <li><a href="mailto:${esc(OWNER.email)}">${esc(OWNER.email)}</a></li>
       <li><a href="tel:${esc(OWNER.phone.replace(/\s/g, ''))}">${esc(OWNER.phone)}</a></li>
       ${socials.map((s) => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.label)}</a></li>`).join('\n      ')}
@@ -198,6 +211,23 @@ ${skills.map((s) => `      <div>
   </footer>
 
 </div>
+
+<script>
+// Deep links. The showroom answers ?project=<id> by walking you to that kiosk;
+// here the same URL scrolls to the same project's card and says which one it
+// meant. Progressive enhancement on purpose — the anchor #project-<id> already
+// works with JavaScript off, and this only adds the query form and the
+// highlight on top of it.
+(function () {
+  var id = new URLSearchParams(location.search).get('project')
+    || (location.hash.indexOf('#project-') === 0 ? location.hash.slice(9) : null)
+  if (!id) return
+  var card = document.getElementById('project-' + id)
+  if (!card) return
+  card.classList.add('is-target')
+  card.scrollIntoView({ block: 'center' })
+})()
+</script>
 </body>
 </html>
 `

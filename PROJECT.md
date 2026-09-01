@@ -1,7 +1,7 @@
 # Youssef Mohamed — Portfolio Showroom
 
-Status document. Last updated 2026-08-31, at commit `b080d7e` (16 commits),
-plus the uncommitted M8 work described below.
+Status document. Last updated 2026-09-01, at commit `e1b8b5d` (21 commits),
+plus the uncommitted M9 work described below.
 
 ---
 
@@ -44,9 +44,9 @@ matchmaking layer" learns about you.
 ## 2. Current state
 
 **Stack**: Vite 8.2 · Three.js r185.1 · Rapier 0.20 (WASM) · vanilla JS, no framework
-**Size**: 27 source files, ~2,630 lines
-**Tests**: 14/14 headless physics + layout checks · 7/7 in-browser checks over CDP
-**Deployed**: no — runs locally only
+**Size**: 35 source files, ~5,500 lines (app + scripts + tests)
+**Tests**: 22/22 headless physics + layout checks · 18/18 in-browser checks over CDP
+**Deployed**: **yes** — <https://youssefsayed88.github.io>, from `main` via GitHub Actions
 
 ### What the site is
 
@@ -82,7 +82,7 @@ entirely — hence the emphasis on `role`.
 ```
 13 projects
 roles filled  13 / 13     ← done, 2026-08-30
-images        11 / 13     ← missing: Biohazard Breakout, Novel Visualisation
+images        13 / 13     ← done, 2026-09-01
 videos         6 / 13     ← the 6 that had footage; the rest never had any
 ```
 
@@ -101,8 +101,9 @@ follow-up question in an interview.
 | Engine chunk (Three + app + GLTFLoader) | 863 kB | 207 kB |
 | Rapier WASM (parallel, cacheable) | 2,021 kB | 774 kB |
 | `character.glb` (fetched after first paint) | 464 kB | — |
-| `classic.html` (CSS inlined, one request) | 19.9 kB | 5.4 kB |
+| `classic.html` (CSS inlined, one request) | 21.9 kB | 6.2 kB |
 | `og.jpg` share card (2400×1260) | 274 kB | — |
+| CV PDF (linked, never auto-fetched) | 95 kB | — |
 | Video (6 files, self-hosted) | 62 MB | — |
 | **`dist/` total** | **65 MB** | — |
 
@@ -253,6 +254,80 @@ laptop should not get a joystick for owning a touchscreen. On touch the HUD's
 centre column moves to the top of the screen, because the bottom is where both
 thumbs are and the stick was landing on top of the kiosk prompt.
 
+### M9 — The jump, the share surface, and the last of the drift
+
+Seven things, found by reviewing the deployed site rather than the plan.
+
+**The jump was three bugs wearing one constant.** It fired perfectly every time,
+which is why it had survived: the fault was entirely in what it did afterwards.
+Measured in a real browser over CDP it rose **1.47 m and hung for 0.75 s** — a
+body height, in a building whose tallest obstacle is a 1.0 m kiosk plinth — and
+a **tap and a one-second hold produced the same height to within 6 mm**. There
+was no variable jump height at all, so the control had exactly one output. And
+it sat badly against the walk beside it, which reaches full speed in 150 ms and
+stops in 110: the ground movement was crisp and the air movement was floaty.
+
+The model moved into `movement.js` as `stepJump`, next to the walk, which is what
+let the test suite drive it. Three standard devices, none exotic:
+
+| Change | Detail |
+|---|---|
+| Asymmetric gravity | −26 rising, −42 falling. The arc spends its time near the ground where it can be read, instead of hanging at the top |
+| Cut on release | Letting go while still rising halves what is left of it, so a tap is a 0.28 m hop and a hold is a 1.11 m jump. Applied ONCE, on the release edge, so it cannot depend on frame rate |
+| Lower apex | 1.11 m, sized to clear the plinths. Airtime 0.52 s against the old 0.75 |
+
+Writing the test found a **fourth** bug that predated all of it: the jump was
+**higher on a slow machine** — 1.24 m at 30fps against 1.14 m at 120 — because
+the takeoff frame moved at the full launch speed before gravity had been applied
+even once. That is the same frame-rate dependence the walk's `1 - e^-kt` easing
+exists to avoid, left in the one part of the movement model with no test on it.
+Half a step of gravity taken off the launch is the standard leapfrog correction
+and closes it: every rate now apexes within **1 mm** of the same height.
+
+**The camera stops jamming at kiosks.** Pulling the boom in was the only answer
+the rig had to a blocked view, and at a kiosk in the front half of a room that is
+the wrong one — the orbit sits behind the south wall, the ray clamps to the 3 m
+floor, and the character fills the frame at the exact moment the screen behind
+them is the point. It now walks the pitch up from wherever the player left it and
+takes the **shallowest** angle that clears, going *over* the wall; the ceilings
+were removed for the top-down view, so up is always clear. Distance clamping
+stays as the fallback. Verified at 0.62 rad (the shallowest the player can go)
+two metres off a wall: the boom holds 17 m where it used to collapse to 3.
+
+**`?project=<id>` deep-links a single kiosk.** The showroom places the player at
+that kiosk with the camera already there — no swoop — and opens its panel;
+`classic.html` answers the same parameter by scrolling to that card and
+highlighting it; and `main.js` carries the query through the no-WebGL redirect,
+which it previously dropped. Opening any panel writes the parameter back with
+`replaceState`, so the address bar is always a link to what is on screen.
+A stale id lands in the corridor rather than on an error.
+
+**A CV, and the last of the title drift.** `index.html` said "Unity Game
+Developer" while `classic.html` derived "Senior Unity Developer" from `OWNER` —
+the two routes of the same site introduced their owner differently. Title,
+description and the CV link are now injected from `OWNER` by the same plugin that
+already injected the absolute URLs. `OG_IMAGE` is new and holds the share card's
+logical size and scale in one place, because `capture-og.mjs` rendered at
+1200×630 and doubled it while the meta tags declared 1200×630 — **the card was
+advertising a quarter of its own pixels**.
+
+**Two missing screenshots, and one blurb that argued with itself.** Biohazard
+Breakout and Novel Visualisation were the only two kiosks still on a generated
+placeholder. `scripts/encode-images.mjs` borrows headless Chrome's canvas as a
+WebP encoder (the ffmpeg on this machine is from 2013 with no libwebp), 1 MB PNG
+→ 30 kB. The AR Rewards Hunt blurb said "scan your surroundings" directly above a
+role line describing geolocation-anchored placement.
+
+**Video panels no longer open black.** `preload="metadata"` is right for 3–21 MB
+files most visitors will never play, but on its own it reads as a broken video
+rather than a paused one. The project's own screenshot is now the `poster` — it
+is already being downloaded for the kiosk, so it costs nothing.
+
+**And the modal stopped cropping its own pictures.** `object-fit: cover` at 16:9
+suits the grid on `classic.html`, where rows have to align, but in a single panel
+it threw away a row and a half of the Novel Visualisation collage. Images there
+now keep their own shape, which is the rule the kiosk screen already followed.
+
 ### Media pipeline
 Two scripts, both reading from `projects.js` so neither can drift:
 - `scripts/fetch-videos.mjs` — downloads footage, following Drive's >100 MB
@@ -284,8 +359,17 @@ Recorded because several were invisible without deliberate verification.
 | **`verify-browser.mjs` was measuring this machine, not the movement** | It sampled speed at a fixed 700ms. Speed ramps in *simulated* time and `Time.delta` is clamped to 1/20, so on a software rasteriser a fixed window catches the ramp half-finished — the checks began failing on a loaded machine with nothing wrong in the app. It now settles on the reading, and counts stability in **rendered frames**: two identical samples with no frame drawn between them prove nothing, which was the first fix's own bug |
 | **The share card quintupled to 2 MB** | Not a code bug, a consequence. Flat-shaded walls squeezed into a 376 kB PNG; once every surface carried tile joints and grain there was no flat colour left to run-length away. It is a photograph of a render, so it is now `og.jpg` at 274 kB |
 
-The last one is the reason `walk()` now despawns: characters collide with each
-other, and the leak was masking results across the whole suite.
+| **The jump had one output** | A tap and a one-second hold rose the same 1.23 m, to within 6 mm. Nothing cut the rise on release, so every press was the maximum one |
+| **The jump was higher on a slow machine** | 1.24 m at 30fps against 1.14 m at 120. The takeoff frame moved at the full launch speed before gravity had been applied once — a `v·dt/2` bias. Invisible until there was a test that ran the same press at three frame rates |
+| **The camera jammed at kiosks** | Occlusion could only shorten the boom, so a blocked view collapsed to the 3 m floor and filled the frame with the character. The level has no ceilings; pitching up was always available and never tried |
+| **The share card advertised a quarter of its pixels** | `capture-og.mjs` renders 1200×630 at `deviceScaleFactor: 2`; the meta tags in two other files declared 1200×630. Three files, one number, no shared constant |
+| **The two routes introduced their owner differently** | `index.html` hardcoded "Unity Game Developer"; `classic.html` derived "Senior Unity Developer" from `OWNER.title`. The M7 fix for absolute URLs had not been extended to the title |
+| **The no-WebGL redirect dropped the query string** | Only mattered once `?project=` existed — but it sent exactly the visitor least able to go looking to the top of a thirteen-project page |
+| **A blurb contradicted the role line under it** | AR Rewards Hunt said "scan your surroundings" above a role describing geolocation-anchored placement at real-world locations |
+| **The modal cropped its own pictures** | `object-fit: cover` at 16:9, inherited from the `classic.html` grid where rows must align. In a single panel it cost the Novel Visualisation collage a row and a half |
+
+The character-collision one is the reason `walk()` despawns: characters collide
+with each other, and the leak was masking results across the whole suite.
 
 ---
 
@@ -294,57 +378,57 @@ other, and the leak was masking results across the whole suite.
 ### Phase 6 — Content
 
 1. ~~Write 13 `role` lines.~~ **Done.** See the header of `projects.js`.
-2. **Two screenshots**: Biohazard Breakout, Visualising Novels with Generative AI.
-   Both now have strong `role` lines carrying them, but they are the only two
-   kiosks showing a generated placeholder.
-3. **The AR Rewards Hunt blurb is now wrong.** It says "scan your surroundings",
-   but the work described is geolocation-anchored placement at real-world
-   locations. One line to fix in `projects.js`.
-3. *(Optional)* Replace the Ballpop! and Whack-a-Hole art — both are itch thumbnails
+2. ~~Two screenshots: Biohazard Breakout, Visualising Novels with Generative AI.~~
+   **Done, 2026-09-01.** Both encoded through `scripts/encode-images.mjs`.
+3. ~~The AR Rewards Hunt blurb contradicts its own role line.~~ **Done.**
+4. *(Optional)* Replace the Ballpop! and Whack-a-Hole art — both are itch thumbnails
    (280×500 and 347×195). Tower of Hanoi came at original resolution.
+   `encode-images.mjs` now makes this a one-command job if the originals turn up.
 
-### Phase 7 — Ship it
+### Phase 7 — Ship it ✅
 
-0. **Set `OWNER.site` in `src/data/projects.js`** if the deploy URL is not
-   `https://youssefsayed88.github.io`. Every absolute URL — share card, canonical,
-   sitemap — comes from that one line, and a wrong value means share previews
-   silently render blank.
-0b. **The deploy workflow triggers on `main`; the local branch is `master`.**
-   As it stands the first push deploys nothing and reports no error. Rename the
-   branch or change the one line in `.github/workflows/deploy.yml`.
-1. Create the GitHub repo (`Youssefsayed88.github.io`, or any name with Pages on).
-2. Settings → Pages → **Source: GitHub Actions**.
-3. `git push`. The workflow runs `npm test`, then `npm run build`, then deploys.
-   A broken level fails the deploy rather than shipping.
+**Done.** Live at <https://youssefsayed88.github.io>, deploying from `main` via
+GitHub Actions, gated on `npm test`. `OWNER.site` matches the deploy URL, so the
+share card, canonical and sitemap all resolve.
 
-Note the first push carries **65 MB**, mostly video. Well inside limits, but it is
-permanent git history.
+The one thing to remember: **every absolute URL still comes from `OWNER.site`**.
+If the site ever moves, that one line is the change — and a wrong value means
+share previews silently render blank rather than erroring.
 
 ### Phase 8 — Polish
 
+- **Analytics.** Deliberately still none, and now the only thing standing between
+  the site being live and knowing whether anyone opens it or bounces at the
+  loading bar. A cookieless counter needs no consent banner. Deferred pending
+  credentials. **Shehab's `G-95G4Y8NTMR` must never be copied.**
 - **Test on a real phone.** The joystick, the sprint push, the Open and Jump
   buttons and the safe-area insets are exercised in an emulated 390×844 viewport
   by real `PointerEvent`s over CDP, which proves the wiring rather than the
   ergonomics. Thumb reach and button size still want a real hand. Highest-risk
-  remaining area.
-- **The camera jams to `MIN_DISTANCE` at a kiosk.** Standing at a kiosk in the
-  front half of a room puts the orbit camera through the south wall, so the
-  occlusion raycast clamps it to 3 m and the character fills the frame. This
-  predates the character — the capsule did it too — but a detailed model makes it
-  obvious. The real fix is to pitch the camera steeper as it is pushed in, rather
-  than only pulling it closer.
+  remaining area — and the jump retune means the Jump button now wants a second
+  look too.
+- ~~The camera jams to `MIN_DISTANCE` at a kiosk.~~ **Fixed in M9** — it pitches
+  over the wall instead. Regression-checked at the shallowest pitch two metres
+  off a wall.
+- ~~Deep-link a project (`?project=lu-run`).~~ **Done in M9**, on both routes.
 - Fill the corridor's dead space in top-down view — an outer apron floor, or a
   tighter camera in narrow spaces.
 - Minimap or wing overview — the top-down view makes this natural.
-- Deep-link a project (`?project=lu-run`) so a single kiosk can be shared.
+- **First load is still ~1 MB gzip before you can take a step** — 208 kB of
+  engine and 774 kB of Rapier WASM, for a level made entirely of axis-aligned
+  boxes. This is the largest remaining cost to a recruiter on mobile data. A
+  custom Rapier build claws back 200–300 kB; replacing it with a hand-rolled AABB
+  controller removes it entirely, but `physics-smoke.mjs` is built around Rapier
+  and that is a real project rather than a tidy-up.
 
 ### Phase 9 — Optional depth
 
 - Per-project case studies rather than one-line blurbs.
-- A downloadable CV PDF from `profile.js`.
+- ~~A downloadable CV PDF.~~ **Done in M9** — `public/`, linked from both routes,
+  path held in `OWNER.cv`. Note the file in the repo ROOT is still named
+  `YoussefMohamed_MidLevelUnityDev_CV.pdf`; only the published copy was renamed,
+  because the headline says Senior and the CV body agrees with the headline.
 - Trim the Rapier WASM with a custom build (774 kB gzip; maybe 200–300 kB back).
-- Analytics — deliberately none today. **Shehab's `G-95G4Y8NTMR` must never be
-  copied**, and his `analytics.js` third-party IP lookup was not carried over.
 
 ---
 
@@ -358,6 +442,11 @@ permanent git history.
   YouTube/Drive is one line per project; `Modal.js` already renders a bare
   `.mp4`/`.webm` inline and anything else as an iframe.
 - No linter or formatter.
+- **Email and phone are in plain `mailto:`/`tel:` markup on a public page**, so
+  they are scrapeable. That may well be the intent for a job hunt — it is listed
+  here as a decision to have made deliberately, not as a defect.
+- The CV in the repo root is still `YoussefMohamed_MidLevelUnityDev_CV.pdf`. Only
+  the copy under `public/` was renamed. Regenerating the CV means updating both.
 
 ---
 
@@ -365,14 +454,23 @@ permanent git history.
 
 ```bash
 npm run dev       # regenerates classic.html, then serves on :5173
-npm test          # 14 headless physics + layout checks, no browser needed
-npm run verify    # builds, then drives real Chrome over CDP: 7 checks
+npm test          # 22 headless physics + layout checks, no browser needed
+npm run verify    # builds, then drives real Chrome over CDP: 18 checks
 npm run build     # -> dist/
 npm run classic   # regenerate classic.html only
+
+# One-offs
+node scripts/capture-og.mjs                        # re-shoot the share card
+node scripts/encode-images.mjs <src> <dest.webp>   # add a project screenshot
+node scripts/ground-stick.mjs                      # the evidence for GROUND_STICK
 ```
 
+**Deep links** — `?project=<id>` opens a single kiosk, and works on both routes:
+`/?project=lu-run` walks you to it in the showroom, `/classic.html?project=lu-run`
+scrolls to its card. Ids are the `id` field in `projects.js`.
+
 **Controls** — WASD / arrows to move · **shift** to sprint · drag to orbit ·
-space to jump · **E** at a kiosk.
+space to jump (held jumps higher than tapped) · **E** at a kiosk.
 Touch: on-screen joystick to walk (push it past the rim to sprint), drag anywhere
 else to look, **Jump** and **Open** buttons bottom-right.
 Gamepad: sticks, A jumps, X opens, L3 or the left trigger sprints.
@@ -384,7 +482,10 @@ Gamepad: sticks, A jumps, X opens, L3 or the left trigger sprints.
 | `src/data/projects.js` | **Single source of truth.** Owner details, wings, all 13 projects |
 | `src/data/profile.js` | CV content for `classic.html`. Nothing here is inferred |
 | `src/world/layout.js` | Pure level geometry — no THREE, no DOM. Shared with the test |
-| `src/world/movement.js` | Camera-relative movement basis and `SPEED`. Shared with the test |
+| `src/world/movement.js` | The whole movement model — walk basis, `SPEED`, and `stepJump` (gravity, coyote, buffer, release cut). Pure; shared with the test |
+| `src/core/Camera.js` | Top-down orbit, and the occlusion assist that pitches over walls |
+| `scripts/lib/chrome.mjs` | Headless Chrome launch + CDP client, shared by the scripts that need a browser |
+| `scripts/encode-images.mjs` | Source screenshot → web-sized WebP, using Chrome's canvas as the encoder |
 | `src/world/Materials.js` | Matcap generation and the palette |
 | `src/world/surfaces.js` | Procedural tile/panel maps, and the world-space UV projection |
 | `src/world/Character.js` | Loads the GLB, converts it to matcap, blends the clips by speed |

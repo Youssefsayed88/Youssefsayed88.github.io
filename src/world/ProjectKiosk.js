@@ -26,6 +26,12 @@ export default class ProjectKiosk {
     this.group.rotation.y = placement.rotationY
     scene.add(this.group)
 
+    // Kept for deep links: standing at the trigger point and facing the screen
+    // is exactly `rotationY` for both the player and the camera orbit, because
+    // the trigger point is offset along the kiosk's own forward. See
+    // World.goToProject().
+    this.rotationY = placement.rotationY
+
     const wall = MATERIALS.wall()
     const accent = MATERIALS.accent(accentFor(project.wing))
 

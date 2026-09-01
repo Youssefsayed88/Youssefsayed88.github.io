@@ -29,6 +29,12 @@ export const OWNER = {
   site: 'https://youssefsayed88.github.io',
   name: 'Youssef Mohamed',
   title: 'Senior Unity Developer',
+  // Served from public/, so the path is relative to the site root. Renamed on
+  // the way in: the file in the repo root is still called "MidLevelUnityDev",
+  // which a recruiter would read as the headline contradicting itself. The CV's
+  // BODY lists Senior Unity Developer at Appsinnovate, so the name was the only
+  // thing that was stale.
+  cv: 'Youssef-Mohamed-Unity-Developer-CV.pdf',
   tagline: 'Multiplayer systems and VR, shipped on mobile and WebGL.',
   email: 'youssefsayed88@gmail.com',
   phone: '+201227248910',
@@ -36,6 +42,24 @@ export const OWNER = {
   linkedin: 'https://www.linkedin.com/in/youssef-mohamed-759380204/',
   github: 'https://github.com/Youssefsayed88',
   itch: 'https://mr34.itch.io/',
+}
+
+// The share card, and the one place its size is written down.
+//
+// scripts/capture-og.mjs renders at `logical` and screenshots at `scale`, so the
+// file on disk is the PRODUCT of the two — while og:image:width/height have to
+// declare those actual pixels. Keeping the two halves in separate files is how
+// the tags came to advertise 1200x630 for a 2400x1260 image; now the capture and
+// the tags are computed from the same three numbers.
+const OG_LOGICAL = { width: 1200, height: 630 }
+const OG_SCALE = 2
+
+export const OG_IMAGE = {
+  path: 'og.jpg',
+  logical: OG_LOGICAL,
+  scale: OG_SCALE,
+  width: OG_LOGICAL.width * OG_SCALE,
+  height: OG_LOGICAL.height * OG_SCALE,
 }
 
 // Rebalanced to 3 wings after the Digito and VR-Connect merges left two rooms
@@ -144,7 +168,10 @@ export const projects = [
     id: 'ar-rewards-hunt',
     wing: 'xr',
     title: 'AR Rewards Hunt',
-    blurb: 'AR summer campaign: scan your surroundings to place and collect beach-themed items, unlocking a reward.',
+    // Not "scan your surroundings" — that described a plane-detection game this
+    // never was, and contradicted the role line directly under it. The items are
+    // anchored to real-world coordinates and found by travelling to them.
+    blurb: 'AR summer campaign: beach-themed collectibles anchored to real-world locations, found by travelling to them and redeemed for a reward.',
     role: 'Integrated PlayFab for inventory and player management, handing out items by rarity, and improved the geolocation accuracy behind placing objects at real-world locations.',
     cvHint: 'Appsinnovate — "Developed AR experiences using ARFoundation and WebAR". Strongest direct match on the CV.',
     company: 'Appsinnovate',
@@ -180,7 +207,7 @@ export const projects = [
     role: 'Built server creation and matchmaking on the PlayFab SDK, proximity voice chat with Vivox, and the weapon-holding animation IK, integrating those weapons into the weapon system.',
     cvHint: 'Your own project. "Designed 2+ multiplayer prototypes using Mirror/PUN" almost certainly covers this.',
     company: null,
-    image: null,          // TODO: screenshot needed — check itch.io
+    image: 'images/biohazard-breakout.webp',
     video: null,
     videoSource: null,
     links: [],
@@ -238,7 +265,9 @@ export const projects = [
     role: 'Fine-tuned Stable Diffusion 1.5 and built it into a pipeline with a GPT-2 prompt auto-completion model trained on well-formed Stable Diffusion prompts, plus an upscaling stage.',
     cvHint: 'B.Sc. Computers & AI, Cairo University. Python + generative AI libraries.',
     company: 'Cairo University',
-    image: null,          // TODO: screenshot needed
+    // A 2x2 of the pipeline's own output, so the kiosk shows what the model
+    // produced rather than a screenshot of the notebook that produced it.
+    image: 'images/novel-visualisation.webp',
     video: null,
     videoSource: null,
     links: [],

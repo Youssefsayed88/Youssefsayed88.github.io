@@ -38,6 +38,38 @@ export default class World {
     this.updateRoomLabel()
   }
 
+  kioskFor(projectId) {
+    return this.kiosks.find((k) => k.project.id === projectId) ?? null
+  }
+
+  // Stand the player at a kiosk as though they had walked to it, for a
+  // `?project=` deep link.
+  //
+  // The trigger point sits TRIGGER_OFFSET along the kiosk's own forward, so
+  // facing back at the screen from there — for the player and for the camera
+  // orbit alike — is just the kiosk's own `rotationY`. (The camera sits at
+  // target + offset(yaw), and the player's forward is the negation of that
+  // offset, so the two want the same number rather than opposite ones.)
+  //
+  // Returns the kiosk so the caller can open its panel, or null for an id that
+  // is not in the data — a stale link must land in the corridor, not throw.
+  goToProject(projectId, camera) {
+    const kiosk = this.kioskFor(projectId)
+    if (!kiosk) return null
+
+    this.player.teleport(kiosk.triggerPoint, kiosk.rotationY)
+    if (camera) {
+      camera.yaw = kiosk.rotationY
+      camera.snapTo(this.player.position)
+    }
+
+    // Bring the HUD, the room label and the highlight into agreement with where
+    // the player now is, rather than waiting a frame for the walk to notice.
+    this.updateActiveKiosk()
+    this.updateRoomLabel()
+    return kiosk
+  }
+
   updateActiveKiosk() {
     const p = this.player.position
     let nearest = null

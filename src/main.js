@@ -18,7 +18,11 @@ function fail(message) {
 }
 
 if (!webglAvailable()) {
-  window.location.replace('./classic.html')
+  // Carry the query string across. A shared `?project=lu-run` has to resolve to
+  // that project on the fallback page too — classic.html reads the same
+  // parameter — and dropping it here would send exactly the visitor least able
+  // to go looking for it to the top of a thirteen-project page instead.
+  window.location.replace(`./classic.html${window.location.search}`)
 } else {
   try {
     // Dynamic so the loading screen paints before Three.js and the 2MB Rapier

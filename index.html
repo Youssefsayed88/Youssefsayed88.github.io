@@ -3,18 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Youssef Mohamed — Unity Game Developer</title>
-  <meta name="description" content="An explorable 3D showroom of Unity, XR and digital-twin work by Youssef Mohamed, Unity Game Developer in Cairo.">
   <meta name="theme-color" content="#1a1f2e">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
 
-  <meta property="og:title" content="Youssef Mohamed — Unity Game Developer">
-  <meta property="og:description" content="Walk through an interactive showroom of shipped games, XR training and digital-twin projects.">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
-  <!-- og:url and og:image are injected from OWNER.site by vite.config.js: they
-       must be ABSOLUTE for any share card to resolve them, and hardcoding the
-       origin here would be a second place to update when the site moves. -->
+  <!-- The title, description, og:url and og:image are injected from OWNER by
+       vite.config.js. The URLs must be ABSOLUTE for any share card to resolve
+       them, and the title has to say what classic.html says: both were a second
+       place to edit when OWNER changed, and the title had already drifted. -->
 
   <!-- No canonical to classic.html: Vite resolves link hrefs as assets and would
        emit a second copy of the page. Crawlers reach it via the visible link
@@ -43,6 +40,10 @@
 
   <div class="controls">
     <button class="controls__btn" id="mute" type="button" aria-pressed="true">Sound on</button>
+    <!-- Filled from OWNER.cv by vite.config.js, for the same reason the title
+         is: the filename is data, and this must not become a second copy of it.
+         Removed entirely if OWNER.cv is unset. -->
+    <!--CV_LINK-->
     <a class="controls__btn" href="./classic.html">Skip the game &rarr;</a>
   </div>
 

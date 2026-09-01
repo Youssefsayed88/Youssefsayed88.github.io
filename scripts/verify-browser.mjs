@@ -8,40 +8,22 @@
 // without a browser. This is the manual counterpart to physics-smoke.mjs:
 // the smoke test proves the maths, this proves the wiring.
 import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
-import { SPEED, SPRINT_MULTIPLIER } from '../src/world/movement.js'
-import { CORRIDOR } from '../src/world/layout.js'
+import { launchChrome, waitFor, chromePath } from './lib/chrome.mjs'
+import { SPEED, SPRINT_MULTIPLIER, jumpApex } from '../src/world/movement.js'
+import { CORRIDOR, ROOM } from '../src/world/layout.js'
+import { projects } from '../src/data/projects.js'
 
 const PORT = 4178
 const CDP_PORT = 9222
 
-const CHROME = [
-  'C:/Program Files/Google/Chrome/Application/chrome.exe',
-  'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
-  '/usr/bin/google-chrome',
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-].find((p) => existsSync(p))
-
-if (!CHROME) {
+if (!chromePath()) {
   console.error('No Chrome found — skipping browser verification.')
   process.exit(0)
 }
 
-// A FRESH profile per run. Chrome will not open a second debugging port on a
-// profile another instance still holds — it silently hands the URL to the
-// running instance and exits, leaving the harness waiting forever for a target
-// that never appears. A leftover lock from a killed run is enough to cause it.
-const PROFILE = mkdtempSync(join(tmpdir(), 'portfolio-verify-'))
-
 const children = []
-const kill = () => {
-  children.forEach((c) => { try { c.kill() } catch {} })
-  try { rmSync(PROFILE, { recursive: true, force: true }) } catch {}
-}
-process.on('exit', kill)
+process.on('exit', () => children.forEach((c) => { try { c.kill() } catch {} }))
 
 // Spawned WITHOUT shell:true. On Windows a shell spawn puts cmd.exe in between,
 // and killing cmd orphans the server it started — which then holds the port and
@@ -55,90 +37,24 @@ function serve() {
   return p
 }
 
-function browser() {
-  // SwiftShader gives headless Chrome a real WebGL2 context; without it the app
-  // correctly redirects to classic.html and we would verify nothing.
-  const p = spawn(CHROME, [
-    '--headless=new', `--remote-debugging-port=${CDP_PORT}`,
-    '--use-angle=swiftshader', '--enable-unsafe-swiftshader',
-    '--no-first-run', '--no-default-browser-check',
-    `--user-data-dir=${PROFILE}`,
-    '--window-size=1280,800', 'about:blank',
-  ], { stdio: 'ignore' })
-  children.push(p)
-  return p
-}
-
-async function waitFor(fn, label, tries = 60) {
-  let last
-  for (let i = 0; i < tries; i++) {
-    try { const v = await fn(); if (v) return v } catch (e) { last = e }
-    await sleep(250)
-  }
-  console.error(`FAIL  timed out after ${(tries * 250) / 1000}s waiting for ${label}` +
-    (last ? `
-      last error: ${last.message}` : ''))
-  process.exit(1)
-}
-
-// Minimal CDP client: one websocket, id-matched replies.
-class Cdp {
-  constructor(ws) { this.ws = ws; this.id = 0; this.pending = new Map(); this.events = [] }
-
-  static async attach(url) {
-    const ws = new WebSocket(url)
-    await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej })
-    const cdp = new Cdp(ws)
-    ws.onmessage = (m) => {
-      const msg = JSON.parse(m.data)
-      if (msg.id && cdp.pending.has(msg.id)) {
-        const { res, rej } = cdp.pending.get(msg.id)
-        cdp.pending.delete(msg.id)
-        msg.error ? rej(new Error(msg.error.message)) : res(msg.result)
-      } else if (msg.method) cdp.events.push(msg)
-    }
-    return cdp
-  }
-
-  send(method, params = {}) {
-    const id = ++this.id
-    this.ws.send(JSON.stringify({ id, method, params }))
-    return new Promise((res, rej) => this.pending.set(id, { res, rej }))
-  }
-
-  async eval(expression) {
-    const r = await this.send('Runtime.evaluate', {
-      expression, awaitPromise: true, returnByValue: true,
-    })
-    if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? 'eval threw')
-    return r.result.value
-  }
-
-  // `code` is what the app reads (e.type/e.code), so it must be set.
-  key(type, code, key, keyCode) {
-    return this.send('Input.dispatchKeyEvent', {
-      type, code, key, windowsVirtualKeyCode: keyCode, nativeVirtualKeyCode: keyCode,
-    })
-  }
-}
-
 const results = []
 const check = (name, pass, detail) => {
   results.push({ name, pass })
-  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}\n      ${detail}`)
+  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}
+      ${detail}`)
 }
 
 serve()
-browser()
 
-const target = await waitFor(async () => {
-  const list = await (await fetch(`http://127.0.0.1:${CDP_PORT}/json`)).json()
-  return list.find((t) => t.type === 'page')
-}, 'a Chrome page target')
+// SwiftShader gives headless Chrome a real WebGL2 context; without it the app
+// correctly redirects to classic.html and we would verify nothing.
+const { cdp } = await launchChrome({
+  port: CDP_PORT,
+  args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--window-size=1280,800'],
+})
 
 await waitFor(() => fetch(`http://localhost:${PORT}/`).then((r) => r.ok), 'the preview server')
 
-const cdp = await Cdp.attach(target.webSocketDebuggerUrl)
 await cdp.send('Runtime.enable')
 await cdp.send('Log.enable')
 await cdp.send('Page.enable')
@@ -542,6 +458,163 @@ check('releasing the keys stops the player without a long slide',
   await sleep(300)
 }
 
+// 8b. The jump, in the real browser. physics-smoke.mjs pins the model against
+//      Rapier at fixed timesteps; this proves the KEY reaches it and that the
+//      arc survives a real, jittery frame clock. Sampled in the page across
+//      every rendered frame, because the whole jump is half a second and a CDP
+//      poll would step over the apex.
+{
+  await cdp.eval(`(() => {
+    const p = window.experience.world.player
+    p.teleport({ x: 0, y: 1.5, z: ${CORRIDOR.z} }, 0)
+  })()`)
+
+  // Wait for the drop from the teleport height to finish. Not a fixed sleep:
+  // SwiftShader clamps Time.delta at 1/20, so wall-clock and simulated time run
+  // at different rates and a settle measured in milliseconds is a guess about
+  // this machine. Reading `rest` a few centimetres early is subtracted straight
+  // off the measured rise.
+  await waitFor(async () => cdp.eval(
+    'window.experience.world.player.grounded && window.experience.world.player.verticalVelocity === 0',
+  ), 'the player to settle before jumping')
+
+  // Peak only; `rest` is read out here, once, from a player known to be resting.
+  const track = () => cdp.eval(`window.__arc = new Promise((resolve) => {
+    const p = window.experience.world.player
+    let peak = -Infinity
+    let jumps = 0
+    const started = performance.now()
+    const tick = () => {
+      if (p.jumped) jumps++
+      peak = Math.max(peak, p.position.y)
+      if (performance.now() - started < 2500) requestAnimationFrame(tick)
+      else resolve({ peak, jumps })
+    }
+    requestAnimationFrame(tick)
+  })
+  void 0`)
+
+  const restY = await cdp.eval('window.experience.world.player.position.y')
+
+  const press = async (holdMs) => {
+    await track()
+    await cdp.key('keyDown', 'Space', ' ', 32)
+    await sleep(holdMs)
+    await cdp.key('keyUp', 'Space', ' ', 32)
+    const r = await cdp.eval('window.__arc')
+    return { rise: r.peak - restY, jumps: r.jumps }
+  }
+
+  // Only the held press is measured here. Tap-versus-hold is pinned
+  // deterministically in physics-smoke.mjs at 30, 60 and 120fps; under
+  // SwiftShader a frame can be longer than the tap itself, so asserting it here
+  // would be testing this machine's frame rate.
+  const full = await press(600)
+
+  const want = jumpApex(1)
+  check('space jumps to the tuned height',
+    full.jumps === 1 && Math.abs(full.rise - want) < 0.12,
+    `rose ${full.rise.toFixed(2)}m against the model's ${want.toFixed(2)}, ` +
+    `${full.jumps} jump from the held press`)
+}
+
+// 8c. The camera must not jam itself against the player at a kiosk.
+//
+// The reproduction is specific, and worth stating because a check taken
+// anywhere else passes against the broken code. It needs BOTH:
+//
+//   - the player near the front of a room, a couple of metres off the south
+//     wall, which is where the front row of kiosks is;
+//   - the camera looking south over that wall (yaw 0) at the shallow end of the
+//     pitch band, which is where the boom is longest and lowest.
+//
+// From the default 54 degrees the rig already clears a 6 m wall, so the old
+// code looked fine most of the time. Here the ray meets the wall 2.5 m out, the
+// old rig clamped to its 3 m floor, and the character filled the frame at the
+// exact moment the screen behind them was the point. The fix goes OVER instead,
+// so the assertion is that the boom stays long AND the pitch was lifted.
+{
+  // The real front kiosk, not the middle of the room: the middle of a room's
+  // south wall is the DOORWAY, and a ray fired through an opening proves
+  // nothing. The front row of kiosks sits against the side walls, well clear
+  // of it, which is also where a visitor actually stands.
+  const front = await cdp.eval(`(() => {
+    const e = window.experience
+    const k = e.world.kiosks.reduce((a, b) => (b.triggerPoint.z > a.triggerPoint.z ? b : a))
+    e.world.player.teleport(k.triggerPoint, k.rotationY)
+    e.camera.yaw = 0             // swung to look south, over the wall behind them
+    e.camera.pitch = 0.62        // PITCH_MIN: the shallowest the player can go
+    e.camera.viewPitch = 0.62    // start unassisted, so the ease is observable
+    return { id: k.project.id, x: k.triggerPoint.x, z: k.triggerPoint.z }
+  })()`)
+  await sleep(1600)              // let the assist ease in
+
+  const view = await cdp.eval(`(() => {
+    const c = window.experience.camera
+    const p = window.experience.world.player.position
+    return {
+      distance: c.currentDistance,
+      pitch: c.pitch,
+      viewPitch: c.viewPitch,
+      height: c.instance.position.y - p.y,
+    }
+  })()`)
+  check('the camera pitches over the wall at a kiosk instead of jamming in close',
+    view.distance > 8 && view.viewPitch > view.pitch + 0.05,
+    `boom ${view.distance.toFixed(1)}m (3m is the old jam floor), pitch ${view.pitch.toFixed(2)} ` +
+    `assisted to ${view.viewPitch.toFixed(2)}, camera ${view.height.toFixed(1)}m above the player, ` +
+    `at "${front.id}", ${(ROOM.z + ROOM.depth / 2 - front.z).toFixed(1)}m off the south wall`)
+}
+
+// 8d. A ?project= deep link opens on its kiosk, and the address bar tracks the
+//     panel afterwards. Reloads the page, so it goes last.
+{
+  const target = projects[projects.length - 1].id
+  await cdp.send('Page.navigate', { url: `http://localhost:${PORT}/?project=${target}` })
+  await waitFor(() => cdp.eval('!!(window.experience?.world?.player)'), 'the deep link to boot')
+  await sleep(1200)
+
+  const landed = await cdp.eval(`(() => {
+    const e = window.experience
+    return {
+      active: e.world.activeKiosk?.project.id ?? null,
+      open: !document.getElementById('modal').hidden,
+      title: document.getElementById('modal-title')?.textContent ?? '',
+      param: new URLSearchParams(location.search).get('project'),
+      boom: e.camera.currentDistance,
+    }
+  })()`)
+  check('a ?project= link lands on that kiosk with its panel open',
+    landed.active === target && landed.open && landed.param === target,
+    `asked for "${target}", standing at "${landed.active}" with "${landed.title}" open, ` +
+    `boom ${landed.boom.toFixed(1)}m`)
+
+  // Closing it must clear the parameter, or every later copy of the URL would
+  // still point at a panel that is no longer open.
+  await cdp.key('keyDown', 'Escape', 'Escape', 27)
+  await cdp.key('keyUp', 'Escape', 'Escape', 27)
+  await sleep(400)
+  const after = await cdp.eval("new URLSearchParams(location.search).get('project')")
+  check('closing the panel drops the project from the URL',
+    after === null, `?project= is now ${after === null ? 'absent' : after}`)
+}
+
+// 8e. A deep link to a project that no longer exists must not strand anyone.
+{
+  await cdp.send('Page.navigate', { url: `http://localhost:${PORT}/?project=not-a-real-project` })
+  await waitFor(() => cdp.eval('!!(window.experience?.world?.player)'), 'the stale link to boot')
+  await sleep(800)
+
+  const stale = await cdp.eval(`(() => ({
+    open: !document.getElementById('modal').hidden,
+    param: new URLSearchParams(location.search).get('project'),
+    y: window.experience.world.player.position.y,
+  }))()`)
+  check('a stale ?project= link lands in the showroom rather than on an error',
+    !stale.open && stale.param === null && stale.y > 0.5,
+    `no panel, parameter dropped, player standing at y=${stale.y.toFixed(2)}`)
+}
+
 // 9. Nothing threw along the way.
 {
   const errors = cdp.events
@@ -557,5 +630,5 @@ check('releasing the keys stops the player without a long slide',
 
 const failed = results.filter((r) => !r.pass)
 console.log(`\n${results.length - failed.length}/${results.length} passed`)
-kill()
+
 process.exit(failed.length ? 1 : 0)
