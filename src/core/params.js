@@ -19,3 +19,19 @@
 // generates, so no route can drift from another over the spelling of a link.
 export const PROJECT_PARAM = 'project'
 export const SHOWROOM_PARAM = 'showroom'
+
+// What the two routes are CALLED, in the one place that names them.
+//
+// These labels were five separate strings a moment ago — two cards on the front
+// door, the corner button inside the showroom, and two links on classic.html —
+// which is four chances for the same destination to be introduced by a
+// different name depending on where you met it. The showroom's own exit said
+// "Skip the game", which named what you were leaving rather than what you were
+// getting.
+//
+// vite.config.js substitutes these into index.html and build-classic.mjs writes
+// them into the generated page, so a rename is this line and nothing else.
+export const ROUTE_NAMES = {
+  showroom: 'Interactive Portfolio',
+  basic: 'Basic Portfolio',
+}

@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import wasm from 'vite-plugin-wasm'
 import { OWNER, OG_IMAGE } from './src/data/projects.js'
+import { ROUTE_NAMES } from './src/core/params.js'
 
 const SITE = String(OWNER.site ?? '').replace(/\/+$/, '')
 
@@ -72,6 +73,10 @@ function headTags() {
           .replace('<!--CV_LINK-->', cvLink)
           .replace('<!--OWNER_NAME-->', ownerName)
           .replace('<!--OWNER_TITLE-->', ownerTitle)
+          // Global: the basic route is named twice, on the front door and on
+          // the button that leaves the showroom for it.
+          .replace(/<!--LABEL_SHOWROOM-->/g, esc(ROUTE_NAMES.showroom))
+          .replace(/<!--LABEL_BASIC-->/g, esc(ROUTE_NAMES.basic))
       },
     },
   }

@@ -378,7 +378,7 @@ Verified on an emulated phone over CDP: portrait raises the panel and reports
 **The showroom stopped being compulsory.** Landing on the site started a 3D
 building whether or not that was what the visitor came for, and the way out was
 a corner button they had to notice while it loaded. `index.html` now asks:
-**Interactive portfolio** or **Basic portfolio**, named, described and costed
+**Interactive Portfolio** or **Basic Portfolio**, named, described and costed
 ("needs a landscape screen · a moment to load" against "loads instantly · works
 anywhere · prints"). Neither is the other's cancel button — a recruiter choosing
 the plain page is choosing, not giving up.
@@ -394,12 +394,21 @@ exactly the kind of place a second copy of the owner's job title takes root.
 
 Two parameters skip the door, because each is a link that has already answered
 it: `?project=<id>`, the shareable form of one kiosk, and `?showroom`, which is
-what classic.html's "Enter the 3D showroom" link now carries — a link that says
+what classic.html's link back now carries — a link that says
 which portfolio it means must not be asked again. Both live in
 `src/core/params.js`, a module of its own precisely because `main.js` has to
 recognise them before the engine that answers them has been fetched;
 `build-classic.mjs` interpolates the same constants, so no route can drift from
 another over the spelling of a link.
+
+Those two names then turned out to be five separate strings — the two cards,
+the corner button that left the showroom, and two links back from classic.html —
+so they are now one constant, `ROUTE_NAMES` in the same module. The showroom's
+exit had been reading "Skip the game", which named what you were leaving rather
+than what you were getting; it says **Basic Portfolio**, the same thing the
+front door calls it. classic.html's footer link was also still landing on the
+front door while promising the showroom, and now carries `?showroom` like the
+one in its header.
 
 `is-showroom` on the body is what tells the stylesheet the game is running. It
 gates the HUD, the corner controls and — the one that matters — the

@@ -196,6 +196,16 @@ canvas.webgl {
 .loader__skip{font-size:.75rem;opacity:.42;color:#f2f4f8;text-decoration:underline}
 .loader__skip:hover{opacity:.9}
 
+/* ---------- Work-in-progress notice ---------- */
+/* Same type as .hud__room in the opposite corner — uppercase, tracked out,
+   stepped back — so it reads as part of the furniture rather than a sticker on
+   top of it. Above the front door (250), below the rotate panel (400) and the
+   noscript screen (500). */
+.wip{position:fixed;z-index:260;margin:0;pointer-events:none;
+  left:max(1.5rem,env(safe-area-inset-left));
+  bottom:max(1.5rem,env(safe-area-inset-bottom));
+  font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;opacity:.42}
+
 /* ---------- The front door ---------- */
 /* The first thing anyone sees, and the only screen on this route that is not
    the showroom. Opaque and above the loader, because until a choice is made

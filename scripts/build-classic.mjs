@@ -8,7 +8,7 @@
 
 import fs from 'node:fs'
 import { OWNER, OG_IMAGE, WINGS, projects, byWing } from '../src/data/projects.js'
-import { PROJECT_PARAM, SHOWROOM_PARAM } from '../src/core/params.js'
+import { PROJECT_PARAM, SHOWROOM_PARAM, ROUTE_NAMES } from '../src/core/params.js'
 import { summary, experience, education, skills } from '../src/data/profile.js'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
@@ -151,7 +151,7 @@ footer{padding:2.5rem 0 3.5rem;border-top:1px solid rgba(255,255,255,.07);color:
     <!-- The showroom parameter skips the front door: this link already says
          which portfolio it means, so index.html must not ask again. (No
          backticks in here: this is inside a JS template literal.) -->
-    <a href="./index.html?${SHOWROOM_PARAM}">Enter the 3D showroom &rarr;</a>
+    <a href="./index.html?${SHOWROOM_PARAM}">${esc(ROUTE_NAMES.showroom)}</a>
   </div>
 </div>
 
@@ -211,7 +211,7 @@ ${skills.map((s) => `      <div>
 
   <footer>
     <p>${esc(OWNER.name)} &middot; ${esc(OWNER.email)}</p>
-    <p>Prefer the interactive version? <a href="./index.html">Enter the 3D showroom</a>.</p>
+    <p>Prefer to walk around it? <a href="./index.html?${SHOWROOM_PARAM}">${esc(ROUTE_NAMES.showroom)}</a>.</p>
   </footer>
 
 </div>

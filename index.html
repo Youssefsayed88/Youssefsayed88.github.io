@@ -43,13 +43,13 @@
 
       <div class="entry__choices">
         <button class="entry__card entry__card--game" id="enter-showroom" type="button">
-          <span class="entry__card-title">Interactive portfolio</span>
+          <span class="entry__card-title"><!--LABEL_SHOWROOM--></span>
           <span class="entry__card-desc">Walk through a 3D showroom and open each project where it stands.</span>
           <span class="entry__card-meta">Needs a landscape screen &middot; a moment to load</span>
         </button>
 
         <a class="entry__card" href="./classic.html">
-          <span class="entry__card-title">Basic portfolio</span>
+          <span class="entry__card-title"><!--LABEL_BASIC--></span>
           <span class="entry__card-desc">Every project on one readable page, with the experience, skills and CV alongside.</span>
           <span class="entry__card-meta">Loads instantly &middot; works anywhere &middot; prints</span>
         </a>
@@ -64,6 +64,17 @@
       <a class="loader__skip" href="./classic.html">or read the plain version</a>
     </div>
   </div>
+
+  <!-- Bottom left: the one corner nothing else claims on a desktop, diagonally
+       opposite the room label it borrows its type from. Fixed rather than part
+       of the HUD, so it stands on the front door as well as inside the
+       showroom — it is a statement about the site, not about one screen. It
+       sits UNDER the rotate panel and the no-JavaScript screen on purpose:
+       those two are the whole message when they are up.
+       On a phone the thumb zone reaches this corner, so a drag can pass over
+       it; pointer-events:none keeps that from being anything more than a
+       faint label behind a translucent stick. -->
+  <p class="wip">Work in progress</p>
 
   <div class="hud">
     <div class="hud__room" id="room-label">Corridor</div>
@@ -83,7 +94,7 @@
          is not about the showroom. It is what a recruiter with four minutes
          wants, so it does not look like the two beside it — see
          .controls__btn--exit. -->
-    <a class="controls__btn controls__btn--exit" href="./classic.html">Skip the game &rarr;</a>
+    <a class="controls__btn controls__btn--exit" href="./classic.html"><!--LABEL_BASIC--></a>
   </div>
 
   <div class="modal" id="modal" hidden>
