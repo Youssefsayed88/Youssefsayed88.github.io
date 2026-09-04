@@ -225,6 +225,21 @@ canvas.webgl {
   letter-spacing:.04em;text-decoration:none;cursor:pointer;opacity:.6;transition:opacity .2s,border-color .2s}
 .controls__btn:hover,.controls__btn:focus-visible{opacity:1;border-color:#22c3e6}
 
+/* The escape hatch, promoted out of the row it was hiding in.
+   It was the third of three identical translucent pills at 60% opacity, over a
+   moving 3D scene — which made the one link a recruiter in a hurry is looking
+   for the least visible thing on the screen. Filled, at full opacity, with the
+   same accent ring the live Open button uses, so it separates from both the
+   scene behind it and the two showroom controls beside it. This is the
+   treatment classic.html already gives its CV link, for the same reason: when
+   one item in a row is the one being looked for, it should not look like a
+   member of the row. */
+.controls__btn--exit{opacity:1;font-weight:600;padding:.45rem 1rem;margin-left:.15rem;
+  background:#22c3e6;color:#10121c;border-color:#22c3e6;
+  box-shadow:0 0 0 5px rgba(34,195,230,.14),0 2px 12px rgba(0,0,0,.35)}
+.controls__btn--exit:hover,.controls__btn--exit:focus-visible{
+  background:#5ad6f0;border-color:#5ad6f0;box-shadow:0 0 0 7px rgba(34,195,230,.2),0 2px 12px rgba(0,0,0,.35)}
+
 /* Above the rotate panel (400), not below it: someone with JavaScript off has a
    problem turning the phone will not solve, and both panels offer the same way
    out to classic.html anyway. */
