@@ -54,6 +54,13 @@ function headTags() {
     ? `<a class="controls__btn" href="./${esc(OWNER.cv)}" target="_blank" rel="noopener noreferrer">CV (PDF)</a>`
     : ''
 
+  // The front door names its owner. Injected for the same reason the <title>
+  // is — one constant, every output — rather than typed into the markup, which
+  // is exactly how index.html came to say "Unity Game Developer" while
+  // classic.html said "Senior Unity Developer".
+  const ownerName = esc(OWNER.name)
+  const ownerTitle = esc(OWNER.title)
+
   return {
     name: 'head-tags',
     transformIndexHtml: {
@@ -63,6 +70,8 @@ function headTags() {
         return html
           .replace('</head>', `${block}\n</head>`)
           .replace('<!--CV_LINK-->', cvLink)
+          .replace('<!--OWNER_NAME-->', ownerName)
+          .replace('<!--OWNER_TITLE-->', ownerTitle)
       },
     },
   }

@@ -8,6 +8,7 @@
 
 import fs from 'node:fs'
 import { OWNER, OG_IMAGE, WINGS, projects, byWing } from '../src/data/projects.js'
+import { PROJECT_PARAM, SHOWROOM_PARAM } from '../src/core/params.js'
 import { summary, experience, education, skills } from '../src/data/profile.js'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
@@ -147,7 +148,10 @@ footer{padding:2.5rem 0 3.5rem;border-top:1px solid rgba(255,255,255,.07);color:
 <div class="bar">
   <div class="wrap">
     <strong>${esc(OWNER.name)}</strong>
-    <a href="./index.html">Enter the 3D showroom &rarr;</a>
+    <!-- The showroom parameter skips the front door: this link already says
+         which portfolio it means, so index.html must not ask again. (No
+         backticks in here: this is inside a JS template literal.) -->
+    <a href="./index.html?${SHOWROOM_PARAM}">Enter the 3D showroom &rarr;</a>
   </div>
 </div>
 
@@ -219,7 +223,7 @@ ${skills.map((s) => `      <div>
 // works with JavaScript off, and this only adds the query form and the
 // highlight on top of it.
 (function () {
-  var id = new URLSearchParams(location.search).get('project')
+  var id = new URLSearchParams(location.search).get('${PROJECT_PARAM}')
     || (location.hash.indexOf('#project-') === 0 ? location.hash.slice(9) : null)
   if (!id) return
   var card = document.getElementById('project-' + id)

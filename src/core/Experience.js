@@ -11,13 +11,9 @@ import Hud from '../ui/Hud.js'
 import Modal from '../ui/Modal.js'
 import Audio from '../ui/Audio.js'
 import Orientation from '../ui/Orientation.js'
-
-// The query parameter that names a single kiosk. `?project=lu-run` is the
-// shareable form of one project: it is what goes into a job application when the
-// point is that ONE piece of work, not the whole building. classic.html answers
-// the same parameter, and main.js carries it through the no-WebGL redirect, so
-// one link resolves on every route.
-const PROJECT_PARAM = 'project'
+// Shared with main.js, which has to read the same parameter before this file
+// has been fetched. See src/core/params.js.
+import { PROJECT_PARAM } from './params.js'
 
 export default class Experience {
   constructor(canvas) {

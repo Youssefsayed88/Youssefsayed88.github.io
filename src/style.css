@@ -181,6 +181,11 @@ canvas.webgl {
 /* ---------- Loader ---------- */
 .loader{position:fixed;inset:0;z-index:200;display:grid;place-items:center;
   background:#1a1f2e;transition:opacity .5s ease}
+/* An author `display` beats the UA rule the `hidden` attribute relies on, so
+   the loader would ignore it. It starts hidden now: the engine is not fetched
+   until the front door is answered, and a progress bar for a download nobody
+   has asked for yet is a lie. */
+.loader[hidden]{display:none}
 .loader.is-done{opacity:0;pointer-events:none}
 .loader__inner{display:flex;flex-direction:column;align-items:center;gap:.9rem;width:min(280px,70vw)}
 .loader__bar{width:100%;height:2px;background:rgba(255,255,255,.12);overflow:hidden;border-radius:2px}
@@ -191,6 +196,47 @@ canvas.webgl {
 .loader__skip{font-size:.75rem;opacity:.42;color:#f2f4f8;text-decoration:underline}
 .loader__skip:hover{opacity:.9}
 
+/* ---------- The front door ---------- */
+/* The first thing anyone sees, and the only screen on this route that is not
+   the showroom. Opaque and above the loader, because until a choice is made
+   there is nothing behind it worth showing. */
+.entry{position:fixed;inset:0;z-index:250;display:grid;place-items:center;
+  background:#1a1f2e;padding:2rem 1.25rem;overflow-y:auto}
+.entry__inner{width:min(46rem,100%);text-align:center}
+.entry__name{margin:0;font-size:clamp(1.6rem,4.4vw,2.4rem);line-height:1.15;letter-spacing:-.01em}
+.entry__role{margin:.35rem 0 0;color:#22c3e6;font-size:.95rem;letter-spacing:.02em}
+.entry__lede{margin:.9rem 0 2rem;opacity:.5;font-size:.85rem}
+
+/* Side by side where there is room, stacked where there is not. The showroom
+   card leads, but neither is the "cancel" of the other — a recruiter choosing
+   the plain page is choosing, not giving up. */
+.entry__choices{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));
+  text-align:left}
+/* text-align explicitly: one card is a <button> and one is an <a>, and the
+   button brings its own centred UA default, so the two would not agree. */
+.entry__card{appearance:none;font:inherit;cursor:pointer;color:inherit;text-decoration:none;
+  text-align:left;-webkit-tap-highlight-color:transparent;
+  display:flex;flex-direction:column;gap:.5rem;
+  padding:1.4rem 1.5rem 1.5rem;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:14px;
+  transition:background .18s ease,border-color .18s ease,transform .18s ease}
+.entry__card:hover,.entry__card:focus-visible{background:rgba(255,255,255,.07);
+  border-color:rgba(34,195,230,.6);transform:translateY(-2px)}
+.entry__card:focus-visible{outline:2px solid #22c3e6;outline-offset:3px}
+.entry__card--game{background:rgba(34,195,230,.1);border-color:rgba(34,195,230,.45)}
+.entry__card--game:hover,.entry__card--game:focus-visible{background:rgba(34,195,230,.16);
+  border-color:#22c3e6}
+.entry__card-title{font-size:1.1rem;font-weight:600}
+.entry__card-desc{color:#b9bfd2;font-size:.88rem;line-height:1.55}
+.entry__card-meta{margin-top:.15rem;color:#7d859c;font-size:.72rem;letter-spacing:.04em}
+
+/* None of the showroom's own furniture belongs on the front door — and the
+   rotate panel below least of all, since it would tell someone to turn a phone
+   they are only being asked a question on. main.js adds `is-showroom` when the
+   engine starts. */
+body:not(.is-showroom) .hud,
+body:not(.is-showroom) .controls{display:none}
+
 /* ---------- Rotate-to-landscape ---------- */
 /* Raised by the media query alone, so it is up before any script has run —
    including over the loading screen, whose z-index it clears. Orientation.js
@@ -198,7 +244,7 @@ canvas.webgl {
    has a lock to offer. */
 .rotate{position:fixed;inset:0;z-index:400;display:none;place-items:center;
   background:#1a1f2e;padding:2rem;text-align:center}
-@media (orientation:portrait) and (pointer:coarse){.rotate{display:grid}}
+@media (orientation:portrait) and (pointer:coarse){body.is-showroom .rotate{display:grid}}
 
 .rotate__inner{display:flex;flex-direction:column;align-items:center;gap:.7rem;max-width:22rem}
 /* A phone turning: portrait outline, rotated a quarter turn and back so the
@@ -219,9 +265,18 @@ canvas.webgl {
 .rotate__skip{margin-top:.2rem;font-size:.75rem;opacity:.42;color:#f2f4f8;text-decoration:underline}
 
 /* ---------- Corner controls ---------- */
-.controls{position:fixed;top:1.5rem;right:1.5rem;z-index:10;display:flex;gap:.5rem;align-items:center}
+/* Doubled from the 0.72rem pills these started as. At that size the row was
+   HUD garnish; these are controls someone is meant to find and hit, and the
+   exit among them is the whole point of the corner.
+   Stacked rather than laid out along the top, which also retires the wrapping
+   this needed as a row: a column is only ever as wide as its widest button, so
+   it can no longer reach across the screen to sit on top of the room label in
+   the opposite corner, at any width. Right-aligned so the ragged left edge
+   points away from the scene. */
+.controls{position:fixed;top:1.5rem;right:1.5rem;z-index:10;display:flex;gap:.6rem;
+  flex-direction:column;align-items:flex-end}
 .controls__btn{appearance:none;background:rgba(18,21,31,.6);border:1px solid rgba(255,255,255,.16);
-  color:#f2f4f8;border-radius:999px;padding:.35rem .8rem;font:inherit;font-size:.72rem;
+  color:#f2f4f8;border-radius:999px;padding:.7rem 1.6rem;font:inherit;font-size:1.44rem;
   letter-spacing:.04em;text-decoration:none;cursor:pointer;opacity:.6;transition:opacity .2s,border-color .2s}
 .controls__btn:hover,.controls__btn:focus-visible{opacity:1;border-color:#22c3e6}
 
@@ -234,11 +289,24 @@ canvas.webgl {
    treatment classic.html already gives its CV link, for the same reason: when
    one item in a row is the one being looked for, it should not look like a
    member of the row. */
-.controls__btn--exit{opacity:1;font-weight:600;padding:.45rem 1rem;margin-left:.15rem;
+.controls__btn--exit{opacity:1;font-weight:600;padding:.9rem 2rem;margin-left:.3rem;
   background:#22c3e6;color:#10121c;border-color:#22c3e6;
-  box-shadow:0 0 0 5px rgba(34,195,230,.14),0 2px 12px rgba(0,0,0,.35)}
+  box-shadow:0 0 0 10px rgba(34,195,230,.14),0 4px 20px rgba(0,0,0,.35)}
 .controls__btn--exit:hover,.controls__btn--exit:focus-visible{
-  background:#5ad6f0;border-color:#5ad6f0;box-shadow:0 0 0 7px rgba(34,195,230,.2),0 2px 12px rgba(0,0,0,.35)}
+  background:#5ad6f0;border-color:#5ad6f0;box-shadow:0 0 0 14px rgba(34,195,230,.2),0 4px 20px rgba(0,0,0,.35)}
+
+/* A row spent the screen's width; a column spends its HEIGHT, and on a phone
+   held sideways there is very little of that. Three of these at full size come
+   down the right edge into the Jump and Open buttons sitting at the bottom of
+   it — two controls overlapping is a bug, not a crowded corner — so on a short
+   viewport they step back to roughly the size they were before. Keyed to
+   height, because that is the axis that ran out. */
+@media (max-height:560px){
+  .controls{gap:.4rem}
+  .controls__btn{padding:.4rem .95rem;font-size:.92rem}
+  .controls__btn--exit{padding:.5rem 1.2rem;margin-left:0;
+    box-shadow:0 0 0 6px rgba(34,195,230,.14),0 2px 12px rgba(0,0,0,.35)}
+}
 
 /* Above the rotate panel (400), not below it: someone with JavaScript off has a
    problem turning the phone will not solve, and both panels offer the same way

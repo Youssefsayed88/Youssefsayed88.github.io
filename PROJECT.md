@@ -1,7 +1,7 @@
 # Youssef Mohamed — Portfolio Showroom
 
-Status document. Last updated 2026-09-04, at commit `b5baf7c` (25 commits),
-plus the uncommitted M10 work described below.
+Status document. Last updated 2026-09-04, at commit `1a49fc0` (27 commits),
+plus the uncommitted M11 work described below.
 
 ---
 
@@ -45,17 +45,21 @@ matchmaking layer" learns about you.
 
 **Stack**: Vite 8.2 · Three.js r185.1 · Rapier 0.20 (WASM) · vanilla JS, no framework
 **Size**: 35 source files, ~5,500 lines (app + scripts + tests)
-**Tests**: 22/22 headless physics + layout checks · 18/18 in-browser checks over CDP
+**Tests**: 22/22 headless physics + layout checks · 19/19 in-browser checks over CDP
 **Deployed**: **yes** — <https://youssefsayed88.github.io>, from `main` via GitHub Actions
 
 ### What the site is
 
-Two parallel routes over the same data:
+A front door onto two parallel routes over the same data:
 
-- **`index.html`** — the 3D showroom. A corridor with three rooms off it, walked in
-  top-down view. Each project is a kiosk you approach and open.
+- **`index.html`** — asks which portfolio you want, then, if you pick the showroom,
+  fetches the engine and starts it. A corridor with three rooms off it, walked in
+  top-down view; each project is a kiosk you approach and open.
 - **`classic.html`** — generated at build time from the same data. Fast, crawlable,
   printable, and the automatic fallback when WebGL is missing.
+
+`?project=<id>` and `?showroom` both skip the front door: each is a link that has
+already answered its question.
 
 ### The world
 
@@ -97,11 +101,11 @@ follow-up question in an interview.
 
 | Asset | Raw | Gzip |
 |---|---|---|
-| Boot JS (blocks first paint) | 2.8 kB | **1.31 kB** |
+| Boot JS (blocks first paint, incl. the front door logic) | 3.3 kB | **1.49 kB** |
 | Engine chunk (Three + app + GLTFLoader) | 863 kB | 207 kB |
 | Rapier WASM (parallel, cacheable) | 2,021 kB | 774 kB |
 | `character.glb` (fetched after first paint) | 464 kB | — |
-| `classic.html` (CSS inlined, one request) | 22.9 kB | 6.4 kB |
+| `classic.html` (CSS inlined, one request) | 23.1 kB | 6.5 kB |
 | `og.jpg` share card (2400×1260) | 274 kB | — |
 | CV PDF (linked, never auto-fetched) | 95 kB | — |
 | Video (7 files, self-hosted) | 68 MB | — |
@@ -368,6 +372,51 @@ pushes the joystick and the Open button off an edge that cannot be scrolled back
 
 Verified on an emulated phone over CDP: portrait raises the panel and reports
 `paused: true`, landscape hides it and resumes, and it survives the round trip.
+
+### M11 — A front door, and the corner controls stood up
+
+**The showroom stopped being compulsory.** Landing on the site started a 3D
+building whether or not that was what the visitor came for, and the way out was
+a corner button they had to notice while it loaded. `index.html` now asks:
+**Interactive portfolio** or **Basic portfolio**, named, described and costed
+("needs a landscape screen · a moment to load" against "loads instantly · works
+anywhere · prints"). Neither is the other's cancel button — a recruiter choosing
+the plain page is choosing, not giving up.
+
+The engine moved behind that choice, which is the part with a number attached:
+**someone who wants the plain page no longer downloads 868 kB of Three.js and
+2 MB of Rapier WASM to be shown a button that takes them away from it.** The
+front door is static markup, so it is on screen at first paint with no script
+involved, and the `<h1>` is now in the HTML a crawler sees rather than only on
+a sign inside the world. The name and title are injected from `OWNER` by the
+same plugin that injects the `<title>`, for the reason recorded in M9: this is
+exactly the kind of place a second copy of the owner's job title takes root.
+
+Two parameters skip the door, because each is a link that has already answered
+it: `?project=<id>`, the shareable form of one kiosk, and `?showroom`, which is
+what classic.html's "Enter the 3D showroom" link now carries — a link that says
+which portfolio it means must not be asked again. Both live in
+`src/core/params.js`, a module of its own precisely because `main.js` has to
+recognise them before the engine that answers them has been fetched;
+`build-classic.mjs` interpolates the same constants, so no route can drift from
+another over the spelling of a link.
+
+`is-showroom` on the body is what tells the stylesheet the game is running. It
+gates the HUD, the corner controls and — the one that matters — the
+rotate-to-landscape panel, which would otherwise have met a visitor on a
+portrait phone with an instruction to turn it before they had been asked whether
+they wanted the 3D at all. On that phone the front door now sits upright, both
+choices reachable, and the rotate panel appears only after the showroom is
+picked. Verified over CDP, in both orientations.
+
+**And the corner controls stack.** Three buttons at twice their old size do not
+fit across the top of a phone; laid out as a column they cannot reach the room
+label in the opposite corner at any width, which retires the wrapping the row
+needed as a guard. A column spends height instead, and on a short viewport the
+bottom of it landed on the Jump and Open buttons — two controls overlapping is a
+bug, not a crowded corner — so under 560px of height they step back to roughly
+their old size. Checked for collisions against the room label, the touch buttons
+and the viewport edges at every width from 480px to 1280px.
 
 ### Media pipeline
 Two scripts, both reading from `projects.js` so neither can drift:

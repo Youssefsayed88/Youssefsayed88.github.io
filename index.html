@@ -27,7 +27,37 @@
 <body>
   <canvas class="webgl"></canvas>
 
-  <div class="loader" id="loader">
+  <!-- The front door. Everyone arriving without a choice already made gets
+       asked which portfolio they want; main.js reveals the loader and fetches
+       the engine only once they pick the showroom, so a visitor who wanted the
+       plain page never downloads 800 kB of Three.js and 2 MB of Rapier. Static
+       markup, so it is on screen at first paint with no script involved — and
+       so the h1 is in the HTML a crawler sees. The name and title are injected
+       from OWNER by vite.config.js for the reason the <title> is: they are
+       facts about the owner, and this must not become a second copy of them. -->
+  <div class="entry" id="entry">
+    <div class="entry__inner">
+      <h1 class="entry__name"><!--OWNER_NAME--></h1>
+      <p class="entry__role"><!--OWNER_TITLE--></p>
+      <p class="entry__lede">Two ways in. The same work either way.</p>
+
+      <div class="entry__choices">
+        <button class="entry__card entry__card--game" id="enter-showroom" type="button">
+          <span class="entry__card-title">Interactive portfolio</span>
+          <span class="entry__card-desc">Walk through a 3D showroom and open each project where it stands.</span>
+          <span class="entry__card-meta">Needs a landscape screen &middot; a moment to load</span>
+        </button>
+
+        <a class="entry__card" href="./classic.html">
+          <span class="entry__card-title">Basic portfolio</span>
+          <span class="entry__card-desc">Every project on one readable page, with the experience, skills and CV alongside.</span>
+          <span class="entry__card-meta">Loads instantly &middot; works anywhere &middot; prints</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="loader" id="loader" hidden>
     <div class="loader__inner">
       <div class="loader__bar"><span></span></div>
       <p class="loader__text">Building the showroom…</p>

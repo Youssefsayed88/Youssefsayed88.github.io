@@ -66,6 +66,53 @@ await cdp.send('Page.navigate', { url: `http://localhost:${PORT}/` })
 // reading zero. Without this the whole harness silently measures nothing.
 await cdp.send('Page.bringToFront')
 
+// 0. The front door. Nobody is dropped into the showroom any more: the site
+//    asks which portfolio they want, and — the part worth asserting, because it
+//    is invisible from the outside — does not fetch the engine until they say.
+{
+  // Waits for the front door to be STYLED, not merely parsed. The markup is in
+  // the HTML, so it exists a beat before the stylesheet that hides the
+  // showroom's chrome behind it has applied — and the first thing asserted
+  // below is a computed style.
+  await waitFor(() => cdp.eval(`(() => {
+    const el = document.getElementById('enter-showroom')
+    return !!el && getComputedStyle(el).borderRadius !== '0px'
+  })()`), 'the front door')
+
+  const door = await cdp.eval(`(() => {
+    const cards = [...document.querySelectorAll('.entry__card')]
+    const engineFetched = performance.getEntriesByType('resource')
+      .some((r) => /Experience|rapier/i.test(r.name))
+    return {
+      choices: cards.map((c) => c.querySelector('.entry__card-title')?.textContent ?? ''),
+      basicHref: cards.find((c) => c.tagName === 'A')?.getAttribute('href') ?? null,
+      started: !!window.experience,
+      engineFetched,
+      // The rotate panel and the HUD are the showroom's own furniture; on the
+      // front door they would be answering a question nobody has asked.
+      chromeHidden: getComputedStyle(document.querySelector('.controls')).display === 'none',
+    }
+  })()`)
+  check('the front door offers both portfolios without loading the engine',
+    door.choices.length === 2 && door.basicHref === './classic.html'
+      && !door.started && !door.engineFetched && door.chromeHidden,
+    `"${door.choices.join('" / "')}", basic -> ${door.basicHref}, ` +
+    `engine fetched: ${door.engineFetched}, showroom chrome hidden: ${door.chromeHidden}`)
+
+  // A real click at the card's own coordinates, for the reason the kiosk prompt
+  // gets one below: element.click() would prove the listener runs, not that the
+  // card is reachable.
+  const box = await cdp.eval(`(() => {
+    const r = document.getElementById('enter-showroom').getBoundingClientRect()
+    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }
+  })()`)
+  for (const type of ['mousePressed', 'mouseReleased']) {
+    await cdp.send('Input.dispatchMouseEvent', {
+      type, x: box.x, y: box.y, button: 'left', clickCount: 1, buttons: type === 'mousePressed' ? 1 : 0,
+    })
+  }
+}
+
 await waitFor(() => cdp.eval('!!(window.experience?.world?.player)'), 'the showroom to boot')
 
 // 1. Booted into WebGL, not the classic fallback.
