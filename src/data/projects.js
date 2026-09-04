@@ -1,6 +1,7 @@
 // SINGLE SOURCE OF TRUTH — the 3D showroom and classic.html both render from this.
 //
-// STATUS OF THE `role` FIELD — all 13 filled, 2026-08-30.
+// STATUS OF THE `role` FIELD — all 14 filled; the first 13 on 2026-08-30,
+// Football is Life on 2026-09-04.
 // Written from Youssef's own answers in a project-by-project interview, NOT
 // inferred from the CV. `cvHint` is kept as provenance: where a hint pointed at
 // something he did not claim, the claim was left out. Three cases worth knowing:
@@ -13,7 +14,7 @@
 // from an employer-level CV bullet: that is inventing attribution.
 //
 // `videoSource` = the file ID the footage was originally pulled from.
-// `video` is a path under public/, self-hosted: 62MB total after re-encoding,
+// `video` is a path under public/, self-hosted: 68MB total after re-encoding,
 // which GitHub Pages carries comfortably and which avoids Drive's iframe,
 // its branding and its "too many requests" quota wall. To move to YouTube or
 // Drive later, swap the path for the embed URL — Modal.js already renders a
@@ -72,6 +73,24 @@ export const WINGS = [
 
 export const projects = [
   // ===== GAMES ===========================================================
+  {
+    id: 'football-is-life',
+    wing: 'games',
+    title: 'Football is Life',
+    blurb: 'First-person striker game: swipe to set aim, power and curl on free kicks, penalties and one-on-ones through a nineteen-match league season.',
+    role: 'Built the entire game end to end — the swipe shooting model, the career mode and its stat progression — and published it to CrazyGames.',
+    // No cvHint: this postdates the CV, and the attribution came from Youssef
+    // directly rather than being matched to a bullet on it.
+    cvHint: null,
+    company: null,
+    image: 'images/football-is-life.webp',
+    video: 'videos/football-is-life.mp4',
+    // Encoded from a local capture, not pulled from Drive like the six above,
+    // so there is no source file id to record.
+    videoSource: null,
+    links: [{ label: 'Play on CrazyGames', url: 'https://www.crazygames.com/game/football-is-life' }],
+    tech: ['Unity', 'C#', 'WebGL'],
+  },
   {
     id: 'lu-run',
     wing: 'games',

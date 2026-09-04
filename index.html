@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <!-- maximum-scale/user-scalable: the showroom is a game, not a document. A
+       pinch on the canvas is already a look-drag, and a zoomed-in viewport
+       pushes the joystick and the Open button off the edge with no way to
+       scroll them back. classic.html keeps its zoom, because that one IS a
+       document. See src/ui/zoom.js for the two halves this tag cannot do. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#1a1f2e">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
 
@@ -53,6 +58,21 @@
       <button class="modal__close" type="button" aria-label="Close">&times;</button>
       <div class="modal__media"></div>
       <div class="modal__body"></div>
+    </div>
+  </div>
+
+  <!-- Held in portrait on a phone or tablet? Turn it. In the markup rather
+       than built by JS, so a CSS media query alone can raise it over the
+       loading screen before any of the engine has arrived. The button is
+       revealed by src/ui/Orientation.js only where the orientation lock it
+       calls actually exists. -->
+  <div class="rotate" id="rotate">
+    <div class="rotate__inner">
+      <div class="rotate__phone" aria-hidden="true"></div>
+      <p class="rotate__text">Turn your device sideways</p>
+      <p class="rotate__sub">The showroom is built for a landscape screen.</p>
+      <button class="rotate__btn" id="rotate-lock" type="button" hidden>Rotate it for me</button>
+      <a class="rotate__skip" href="./classic.html">or read the plain version</a>
     </div>
   </div>
 

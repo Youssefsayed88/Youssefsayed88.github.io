@@ -1,7 +1,7 @@
 # Youssef Mohamed — Portfolio Showroom
 
-Status document. Last updated 2026-09-01, at commit `e1b8b5d` (21 commits),
-plus the uncommitted M9 work described below.
+Status document. Last updated 2026-09-04, at commit `b5baf7c` (25 commits),
+plus the uncommitted M10 work described below.
 
 ---
 
@@ -15,7 +15,7 @@ than your team lead's**.
 
 The starting point was a fork of Shehab ElGendy's portfolio
 (`Desktop/ShehabElGendy.github.io-main`). You worked together, so you share most of
-a project list. **8 of the 13 projects here also appear on his site**, with the same
+a project list. **8 of the 14 projects here also appear on his site**, with the same
 screenshots and the same one-line product descriptions.
 
 A visitor comparing the two would see near-identical galleries. Two things fix that:
@@ -23,7 +23,7 @@ A visitor comparing the two would see near-identical galleries. Two things fix t
 1. **The form.** A walkable showroom instead of a scrolling card grid.
 2. **The attribution.** A `role` line on every project saying what *you* built.
 
-The second matters more than the first. **It is now done** — all 13 written from
+The second matters more than the first. **It is now done** — all 14 written from
 Youssef's own account, project by project.
 A recruiter who reads "Multiplayer educational game teaching robotics" learns about
 the product. One who reads "built the kart customisation system and the PUN
@@ -80,10 +80,10 @@ entirely — hence the emphasis on `role`.
 ### Content completeness
 
 ```
-13 projects
-roles filled  13 / 13     ← done, 2026-08-30
-images        13 / 13     ← done, 2026-09-01
-videos         6 / 13     ← the 6 that had footage; the rest never had any
+14 projects
+roles filled  14 / 14     ← 13 on 2026-08-30, Football is Life on 2026-09-04
+images        14 / 14     ← 13 on 2026-09-01, Football is Life on 2026-09-04
+videos         7 / 14     ← the 7 that had footage; the rest never had any
 ```
 
 The roles came from an interview, not from the CV. Where a `cvHint` pointed at
@@ -97,15 +97,15 @@ follow-up question in an interview.
 
 | Asset | Raw | Gzip |
 |---|---|---|
-| Boot JS (blocks first paint) | 2.6 kB | **1.24 kB** |
+| Boot JS (blocks first paint) | 2.8 kB | **1.31 kB** |
 | Engine chunk (Three + app + GLTFLoader) | 863 kB | 207 kB |
 | Rapier WASM (parallel, cacheable) | 2,021 kB | 774 kB |
 | `character.glb` (fetched after first paint) | 464 kB | — |
-| `classic.html` (CSS inlined, one request) | 21.9 kB | 6.2 kB |
+| `classic.html` (CSS inlined, one request) | 22.9 kB | 6.4 kB |
 | `og.jpg` share card (2400×1260) | 274 kB | — |
 | CV PDF (linked, never auto-fetched) | 95 kB | — |
-| Video (6 files, self-hosted) | 62 MB | — |
-| **`dist/` total** | **65 MB** | — |
+| Video (7 files, self-hosted) | 68 MB | — |
+| **`dist/` total** | **72 MB** | — |
 
 Runtime: 49 draw calls, ~4,020 triangles, 0 console errors. The level shell is
 still 8 of those; the character's 14 skinned meshes account for most of the rest.
@@ -328,12 +328,55 @@ suits the grid on `classic.html`, where rows have to align, but in a single pane
 it threw away a row and a half of the Novel Visualisation collage. Images there
 now keep their own shape, which is the rule the kiosk screen already followed.
 
+### M10 — A fourteenth project, and the phone held the right way up
+
+**Football is Life.** A first-person striker game built end to end and published
+to CrazyGames — the first project here that is entirely Youssef's from design to
+release, and the newest by a year. It leads the Games wing, which now holds six
+kiosks; `kioskPlacements` redistributes the U around the room, so adding it was
+one entry in `projects.js` and nothing else. The 1080p capture was re-encoded
+with the same constants `encode-videos.mjs` uses (38 MB → 6 MB), and the cover
+art arrived as AVIF, a type `encode-images.mjs` had no MIME entry for.
+
+**Landscape, insisted on as far as the web allows.** The camera looks down a
+104-unit corridor; in portrait it sees a wall. There is no API that pins a page
+to landscape — `screen.orientation.lock()` is refused outside fullscreen
+everywhere it exists, and Safari on iOS does not implement it at all — so this is
+both halves of the honest version: a full-screen panel raised by a CSS media
+query, `(orientation: portrait) and (pointer: coarse)`, plus a button that does
+the fullscreen-then-lock dance where the platform offers it. `pointer: coarse` is
+what keeps the panel off a desktop window someone dragged tall and narrow.
+
+The panel is markup in `index.html` rather than something JavaScript builds, so
+it is up from the first paint — over the loading screen, before the 800 kB engine
+behind it has arrived. `Orientation.js` does only the parts CSS cannot: pause the
+world, and drop whatever direction the joystick was holding when the phone was
+turned. `Experience.paused` became a getter over `panelOpen || portrait`, because
+the two reasons to pause must not clear each other — closing a project panel
+while the phone is still upright would otherwise start the game running behind
+the rotate screen.
+
+**Zoom, refused — on the showroom only.** Three pieces, because no single one
+works everywhere: `user-scalable=no, maximum-scale=1` in the viewport tag for
+Chrome on Android; `touch-action: manipulation` for double-tap; and `gesture*`
+listeners in `src/ui/zoom.js` for Safari on iOS, which has ignored `user-scalable`
+since iOS 10 and delivers pinches to the page as those events instead.
+`classic.html` deliberately keeps its zoom — that page is a document someone
+reads, and a recruiter who needs to magnify it must be able to. The showroom is a
+game whose canvas already reads a drag as a look, and where a zoomed viewport
+pushes the joystick and the Open button off an edge that cannot be scrolled back.
+
+Verified on an emulated phone over CDP: portrait raises the panel and reports
+`paused: true`, landscape hides it and resumes, and it survives the round trip.
+
 ### Media pipeline
 Two scripts, both reading from `projects.js` so neither can drift:
 - `scripts/fetch-videos.mjs` — downloads footage, following Drive's >100 MB
   virus-scan interstitial, streaming to disk. No credentials.
 - `scripts/encode-videos.mjs` — re-encodes to web sizes. **274 MB → 62 MB (−77%)**,
-  worst case VR-Connect at 158 MB → 21 MB.
+  worst case VR-Connect at 158 MB → 21 MB. Football is Life was encoded with the
+  same settings a clip at a time (38 MB → 6 MB); its cover art came in as AVIF,
+  which is why `encode-images.mjs` now knows that type.
 
 ---
 
@@ -438,7 +481,7 @@ share previews silently render blank rather than erroring.
   because Node cannot run Vite's WASM-ESM transform for the test. Both are 0.20.0.
 - **ffmpeg on this machine is from 2013.** It works, but a modern build gives better
   quality per byte on exactly the files being shrunk.
-- **62 MB of video in git history** — the cost of self-hosting. Switching to
+- **68 MB of video in git history** — the cost of self-hosting. Switching to
   YouTube/Drive is one line per project; `Modal.js` already renders a bare
   `.mp4`/`.webm` inline and anything else as an iframe.
 - No linter or formatter.
@@ -479,7 +522,7 @@ Gamepad: sticks, A jumps, X opens, L3 or the left trigger sprints.
 
 | Path | Purpose |
 |---|---|
-| `src/data/projects.js` | **Single source of truth.** Owner details, wings, all 13 projects |
+| `src/data/projects.js` | **Single source of truth.** Owner details, wings, all 14 projects |
 | `src/data/profile.js` | CV content for `classic.html`. Nothing here is inferred |
 | `src/world/layout.js` | Pure level geometry — no THREE, no DOM. Shared with the test |
 | `src/world/movement.js` | The whole movement model — walk basis, `SPEED`, and `stepJump` (gravity, coyote, buffer, release cut). Pure; shared with the test |

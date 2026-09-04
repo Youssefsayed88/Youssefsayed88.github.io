@@ -36,7 +36,7 @@ const QUALITY = 0.82
 
 const MIME = {
   '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
-  '.webp': 'image/webp', '.gif': 'image/gif',
+  '.webp': 'image/webp', '.gif': 'image/gif', '.avif': 'image/avif',
 }
 
 const bytes = readFileSync(source)

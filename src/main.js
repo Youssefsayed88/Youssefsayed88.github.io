@@ -1,3 +1,5 @@
+import { preventPinchZoom } from './ui/zoom.js'
+
 const canvas = document.querySelector('canvas.webgl')
 const loader = document.getElementById('loader')
 
@@ -17,11 +19,15 @@ function fail(message) {
   loader.querySelector('.loader__bar').remove()
 }
 
+// Before the WebGL check and the dynamic import, so a pinch during the two
+// seconds of loading screen is refused too.
+preventPinchZoom()
+
 if (!webglAvailable()) {
   // Carry the query string across. A shared `?project=lu-run` has to resolve to
   // that project on the fallback page too — classic.html reads the same
   // parameter — and dropping it here would send exactly the visitor least able
-  // to go looking for it to the top of a thirteen-project page instead.
+  // to go looking for it to the top of a fourteen-project page instead.
   window.location.replace(`./classic.html${window.location.search}`)
 } else {
   try {

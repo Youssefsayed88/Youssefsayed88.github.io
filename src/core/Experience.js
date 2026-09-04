@@ -10,6 +10,7 @@ import { BACKGROUND } from '../world/Materials.js'
 import Hud from '../ui/Hud.js'
 import Modal from '../ui/Modal.js'
 import Audio from '../ui/Audio.js'
+import Orientation from '../ui/Orientation.js'
 
 // The query parameter that names a single kiosk. `?project=lu-run` is the
 // shareable form of one project: it is what goes into a job application when the
@@ -36,7 +37,7 @@ export default class Experience {
     })
     this.audio = new Audio()
     this.modal = new Modal((open, project) => {
-      this.paused = open
+      this.panelOpen = open
       // The panel covers the screen; leaving a joystick under it would both
       // show through the backdrop blur and hold whatever direction the thumb
       // was last pushing.
@@ -48,7 +49,18 @@ export default class Experience {
       this.setUrlProject(open ? project.id : null)
       open ? this.audio.openPanel() : this.audio.closePanel()
     })
-    this.paused = false
+    this.panelOpen = false
+    this.portrait = false
+
+    // Held sideways is a hard requirement of the top-down camera, so portrait
+    // pauses the game the same way an open panel does — see `paused`. The
+    // "turn your device" panel itself is CSS over markup in index.html; this
+    // only stops the world running behind it, and drops whatever direction the
+    // joystick was holding when the phone was turned.
+    this.orientation = new Orientation((portrait) => {
+      this.portrait = portrait
+      if (portrait) this.input.touch.release()
+    })
 
     this.camera = new Camera(this)
     this.renderer = new Renderer(this)
@@ -72,6 +84,15 @@ export default class Experience {
     // the first frame is drawn, so a shared link opens ON its kiosk rather than
     // walking there in front of the visitor.
     this.openDeepLink()
+  }
+
+  // Two things stop the world: an open project panel, and a phone held in
+  // portrait. Both want exactly the same thing from the update loop, and
+  // neither may clear the other's reason for pausing — a panel closing while
+  // the phone is still upright must not start the game up behind the rotate
+  // screen. So this is derived rather than assigned.
+  get paused() {
+    return this.panelOpen || this.portrait
   }
 
   interact() {
@@ -109,8 +130,8 @@ export default class Experience {
     this.input.update()
 
     if (this.paused) {
-      // Drop any drag accumulated behind the modal so the camera does not
-      // lurch when it closes.
+      // Drop any drag accumulated while paused so the camera does not lurch
+      // when the panel closes or the phone comes back to landscape.
       this.input.consumeLook()
     } else {
       this.camera.applyLook(this.input.consumeLook())

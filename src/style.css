@@ -1,6 +1,12 @@
 *, *::before, *::after { box-sizing: border-box; }
 
-html, body { margin: 0; height: 100%; overflow: hidden; background: #12151f; }
+/* `touch-action: manipulation` is the piece of the no-zoom rule that the
+   viewport meta tag cannot do: it is what stops a double tap zooming, on
+   the browsers that ignore `user-scalable=no`. `overscroll-behavior` stops
+   a downward drag turning into pull-to-refresh mid-sprint. See
+   src/ui/zoom.js for the third piece and the reasoning. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: #12151f;
+  touch-action: manipulation; overscroll-behavior: none; }
 body {
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   color: #f2f4f8;
@@ -185,6 +191,33 @@ canvas.webgl {
 .loader__skip{font-size:.75rem;opacity:.42;color:#f2f4f8;text-decoration:underline}
 .loader__skip:hover{opacity:.9}
 
+/* ---------- Rotate-to-landscape ---------- */
+/* Raised by the media query alone, so it is up before any script has run —
+   including over the loading screen, whose z-index it clears. Orientation.js
+   only pauses the game behind it and reveals the button where the platform
+   has a lock to offer. */
+.rotate{position:fixed;inset:0;z-index:400;display:none;place-items:center;
+  background:#1a1f2e;padding:2rem;text-align:center}
+@media (orientation:portrait) and (pointer:coarse){.rotate{display:grid}}
+
+.rotate__inner{display:flex;flex-direction:column;align-items:center;gap:.7rem;max-width:22rem}
+/* A phone turning: portrait outline, rotated a quarter turn and back so the
+   instruction is shown as well as written. */
+.rotate__phone{width:52px;height:86px;border:2px solid #22c3e6;border-radius:9px;
+  margin-bottom:.6rem;animation:rotate-hint 2.6s ease-in-out infinite}
+@keyframes rotate-hint{
+  0%,28%{transform:rotate(0)}
+  46%,78%{transform:rotate(-90deg)}
+  96%,100%{transform:rotate(0)}
+}
+.rotate__text{margin:0;font-size:1.05rem;font-weight:600}
+.rotate__sub{margin:0;font-size:.82rem;opacity:.55;line-height:1.5}
+.rotate__btn{appearance:none;font:inherit;font-size:.82rem;font-weight:600;cursor:pointer;
+  margin-top:.4rem;padding:.55rem 1.1rem;border:0;border-radius:999px;
+  background:#22c3e6;color:#10121c;-webkit-tap-highlight-color:transparent}
+.rotate__btn[hidden]{display:none}
+.rotate__skip{margin-top:.2rem;font-size:.75rem;opacity:.42;color:#f2f4f8;text-decoration:underline}
+
 /* ---------- Corner controls ---------- */
 .controls{position:fixed;top:1.5rem;right:1.5rem;z-index:10;display:flex;gap:.5rem;align-items:center}
 .controls__btn{appearance:none;background:rgba(18,21,31,.6);border:1px solid rgba(255,255,255,.16);
@@ -192,7 +225,10 @@ canvas.webgl {
   letter-spacing:.04em;text-decoration:none;cursor:pointer;opacity:.6;transition:opacity .2s,border-color .2s}
 .controls__btn:hover,.controls__btn:focus-visible{opacity:1;border-color:#22c3e6}
 
-.noscript{position:fixed;inset:0;z-index:300;display:grid;place-items:center;
+/* Above the rotate panel (400), not below it: someone with JavaScript off has a
+   problem turning the phone will not solve, and both panels offer the same way
+   out to classic.html anyway. */
+.noscript{position:fixed;inset:0;z-index:500;display:grid;place-items:center;
   background:#1a1f2e;padding:2rem;text-align:center;font-size:.95rem}
 .noscript a{color:#37cdea}
 
