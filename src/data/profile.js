@@ -6,7 +6,7 @@
 // CV body. OWNER.title in projects.js is the headline shown at the top.
 
 export const summary =
-  'Unity Developer with 2+ years of experience in multiplayer systems and VR development. ' +
+  'Unity Developer with 3+ years of experience in multiplayer systems and VR development. ' +
   'Proven track record of optimizing performance and delivering scalable prototypes, with a ' +
   'solid foundation in computer science and data science.'
 

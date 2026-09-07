@@ -35,7 +35,7 @@ export const OWNER = {
   // which a recruiter would read as the headline contradicting itself. The CV's
   // BODY lists Senior Unity Developer at Appsinnovate, so the name was the only
   // thing that was stale.
-  cv: 'Youssef-Mohamed-Unity-Developer-CV.pdf',
+  cv: 'YoussefMohamed_Unity_Engineer.pdf',
   tagline: 'Multiplayer systems and VR, shipped on mobile and WebGL.',
   email: 'youssefsayed88@gmail.com',
   phone: '+201227248910',
@@ -129,7 +129,7 @@ export const projects = [
     blurb: 'Multiplayer educational game teaching robotics through kart building — bodies, tyres and weapons.',
     role: 'Built the kart customisation system, kart movement, weapon aiming and power-ups, along with the visual effects and UI improvements.',
     cvHint: 'Multiplayer prototypes with Mirror/PUN; "Developed learning experiences and mini games"',
-    company: null,
+    company: 'Appsinnovate',
     image: 'images/robotics.webp',
     video: 'videos/robotics.mp4',
     videoSource: '1QNK3hpy1AStBzry5usKmo-jAtabFyUcE',
@@ -209,7 +209,7 @@ export const projects = [
     blurb: 'Digital twin of a real restaurant — view and interact with the space virtually, backed by live data from the real venue.',
     role: 'Built the camera movement and navigation through the virtual space.',
     cvHint: 'Your own listed Technical Project. "Wrote Graphql and REST API calls" likely applies.',
-    company: null,
+    company: 'Genesis Creations',
     image: 'images/Digital-Twin.webp',
     video: 'videos/digito.mp4',
     videoSource: '1ivv3SsybwivDc-QBTiKNSkA1nfF5S40e',
@@ -225,7 +225,7 @@ export const projects = [
     blurb: 'Co-operative survival shooter with a hidden-impostor mechanic.',
     role: 'Built server creation and matchmaking on the PlayFab SDK, proximity voice chat with Vivox, and the weapon-holding animation IK, integrating those weapons into the weapon system.',
     cvHint: 'Your own project. "Designed 2+ multiplayer prototypes using Mirror/PUN" almost certainly covers this.',
-    company: null,
+    company: 'Genesis Creations',
     image: 'images/biohazard-breakout.webp',
     video: null,
     videoSource: null,
