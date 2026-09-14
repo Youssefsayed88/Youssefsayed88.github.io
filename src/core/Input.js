@@ -46,8 +46,8 @@ export default class Input extends Emitter {
 
       const target = e.target instanceof Element ? e.target : null
 
-      // Keys typed into the project panel belong to it. The video controls answer Space
-      // and the arrows while they have focus, and a jump queued behind the
+      // Keys typed into the project panel belong to it. Plyr answers Space, the
+      // arrows, M and F while the player has focus, and a jump queued behind the
       // panel would fire the moment it closed.
       if (target?.closest('.modal, input, textarea, select')) return
 

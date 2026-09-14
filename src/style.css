@@ -303,6 +303,10 @@ html:not(.is-playing) .hud { display: none; }
 .modal {
   position: fixed; inset: 0; z-index: 100;
   display: grid; place-items: center; padding: 1.5rem;
+  /* Plyr, in the page's colours. */
+  --plyr-color-main: var(--accent);
+  --plyr-video-background: #111114;
+  --plyr-font-family: inherit;
 }
 .modal[hidden] { display: none; }
 
@@ -378,6 +382,11 @@ html:not(.is-playing) .hud { display: none; }
   .modal { padding: 0.75rem; }
   .modal__body { padding: 1.2rem; }
   .modal__title { font-size: 1.3rem; }
+  /* At phone width Plyr lays every control out in one row and the seek bar is
+     squeezed to a stub. The volume slider goes (mute stays, and a phone has
+     volume keys) and so does picture-in-picture. */
+  .modal .plyr__volume input[type="range"],
+  .modal .plyr__controls [data-plyr="pip"] { display: none; }
 }
 
 /* ====================================================================== */

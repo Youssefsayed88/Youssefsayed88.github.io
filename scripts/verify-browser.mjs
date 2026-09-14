@@ -115,6 +115,7 @@ const INSTALL = `window.__v = {
     return {
       open: !document.getElementById('modal').hidden,
       title: document.getElementById('modal-title')?.textContent ?? '',
+      plyr: !!document.querySelector('#modal .plyr .plyr__controls'),
       param: new URLSearchParams(location.search).get('project'),
     }
   },
@@ -314,18 +315,19 @@ await settleAt(1280)
     `from "job-0" (top ${tops.from.toFixed(0)}) to "${b.on}" (top ${tops.now?.toFixed(0)})`)
 }
 
-// 9. Landing on a thumbnail marks it, and E opens it; closing clears the link.
+// 9. Landing on a thumbnail marks it, and E opens it with its video in Plyr;
+//    closing clears the link.
 {
   await place('project-lu-run', { above: 120 })
   await waitFor(() => cdp.eval("window.game.body.on === 'project-lu-run'"), 'the robot to land on LU RUN', 80)
   await sim(0.1)
   const lit = await cdp.eval("document.querySelector('[data-project=\"lu-run\"]').classList.contains('is-target')")
   await press('KeyE', 'e', 69, 0.03)
-  await sim(0.1)
+  await waitFor(async () => (await modal()).plyr, 'the video player to mount', 80)
   const opened = await modal()
-  check('landing on a thumbnail marks it, and E opens that project',
-    lit && opened.open && opened.title === 'LU RUN' && opened.param === 'lu-run',
-    `thumbnail marked ${lit}, panel "${opened.title}", ?project=${opened.param}`)
+  check('landing on a thumbnail marks it, and E opens that project with its video in Plyr',
+    lit && opened.open && opened.title === 'LU RUN' && opened.plyr && opened.param === 'lu-run',
+    `thumbnail marked ${lit}, panel "${opened.title}", Plyr mounted ${opened.plyr}, ?project=${opened.param}`)
 
   await escape()
   await sim(0.2)
@@ -407,7 +409,8 @@ await settleAt(1280)
     `touch controls ${phone.shown}, Jump button ${phone.jump}, horizontal overflow ${phone.overflow}`)
 }
 
-// 15. Nothing threw, nothing 404'd, and nothing left this origin.
+// 15. Nothing threw, nothing 404'd, and nothing left this origin — Plyr's
+//     sprite and blank video default to its CDN, and both are overridden.
 {
   const errors = cdp.events
     .filter((e) => e.method === 'Log.entryAdded' && e.params.entry.level === 'error')
