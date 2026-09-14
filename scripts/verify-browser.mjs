@@ -2,7 +2,8 @@
 // a browser can answer: does the laid-out page form a level every part of which
 // can be reached — and climbed back up from — at every width it will be read
 // at? Does the real input path produce the tuned run and jump? Do landing, the
-// project panel, the portal and the deep links all work end to end?
+// speech bubble, the dwell, the video panel, the portal and the deep links all
+// work end to end?
 //
 //   npm run build && node scripts/verify-browser.mjs
 //
@@ -14,6 +15,8 @@ import { setTimeout as sleep } from 'node:timers/promises'
 import { launchChrome, waitFor, chromePath } from './lib/chrome.mjs'
 import { SPEED, jumpApex } from '../src/game/movement.js'
 import { audit } from '../src/game/reach.js'
+import { BUBBLE_GAP } from '../src/game/bubble.js'
+import { DWELL } from '../src/game/Game.js'
 import { projects } from '../src/data/projects.js'
 import { skills } from '../src/data/profile.js'
 
@@ -121,11 +124,16 @@ const INSTALL = `window.__v = {
       param: new URLSearchParams(location.search).get('project'),
     }
   },
+  bubble() {
+    const el = document.getElementById('bubble')
+    return { shown: !el.hidden, title: el.querySelector('.bubble__title').textContent, side: el.dataset.side ?? null }
+  },
 }; true`
 const install = () => cdp.eval(INSTALL)
 const sim = (seconds) => cdp.eval(`window.__v.sim(${seconds})`)
 const place = (id, opts = {}) => cdp.eval(`window.__v.place(${JSON.stringify(id)}, ${JSON.stringify(opts)})`)
 const modal = () => cdp.eval('window.__v.modal()')
+const bubble = () => cdp.eval('window.__v.bubble()')
 const body = () => cdp.eval('({ ...window.game.body })')
 
 const press = async (code, key, keyCode, holdSeconds = 0.05) => {
@@ -317,29 +325,67 @@ await settleAt(1280)
     `from "job-0" (top ${tops.from.toFixed(0)}) to "${b.on}" (top ${tops.now?.toFixed(0)})`)
 }
 
-// 9. Landing on a thumbnail marks it, and E opens it with its video in Plyr;
-//    closing clears the link.
+// 9. Landing on a thumbnail makes it talk: a speech bubble beside it (or below
+//    it), tail toward it, never over the robot. Standing still opens it, with
+//    the video in Plyr; closing clears the link and does not re-open it.
 {
   await place('project-lu-run', { above: 120 })
   await waitFor(() => cdp.eval("window.game.body.on === 'project-lu-run'"), 'the robot to land on LU RUN', 80)
-  await sim(0.1)
-  const lit = await cdp.eval("document.querySelector('[data-project=\"lu-run\"]').classList.contains('is-target')")
-  await press('KeyE', 'e', 69, 0.03)
+  await sim(0.2)
+  const said = await cdp.eval(`(() => {
+    const b = document.getElementById('bubble')
+    const r = b.getBoundingClientRect()
+    const t = document.querySelector('[data-project="lu-run"]').getBoundingClientRect()
+    const robot = (document.querySelector('.avatar__robot') ?? document.querySelector('.avatar__placeholder')).getBoundingClientRect()
+    const side = b.dataset.side
+    const gap = side === 'right' ? r.left - t.right : side === 'left' ? t.left - r.right : r.top - t.bottom
+    const overlapsRobot = r.left < robot.right && r.right > robot.left && r.top < robot.bottom && r.bottom > robot.top
+    return { shown: !b.hidden, title: b.querySelector('.bubble__title').textContent, side, gap,
+      overlapsRobot, lit: document.querySelector('[data-project="lu-run"]').classList.contains('is-target') }
+  })()`)
+  check('landing on a thumbnail makes it speak: a bubble next to it, tail toward it, clear of the robot',
+    said.shown && said.title === 'LU RUN' && said.lit && !said.overlapsRobot
+      && ['right', 'left', 'below'].includes(said.side) && Math.abs(said.gap - BUBBLE_GAP) < 2,
+    `bubble "${said.title}" on the ${said.side}, ${said.gap.toFixed(1)}px from the thumbnail (want ${BUBBLE_GAP}), ` +
+    `over the robot: ${said.overlapsRobot}, thumbnail marked: ${said.lit}`)
+
+  await waitFor(async () => (await modal()).open, 'standing still to open the panel', 120)
   await waitFor(async () => (await modal()).plyr, 'the video player to mount', 80)
   const opened = await modal()
-  check('landing on a thumbnail marks it, and E opens that project with its video in Plyr',
-    lit && opened.open && opened.title === 'LU RUN' && opened.plyr && opened.param === 'lu-run',
-    `thumbnail marked ${lit}, panel "${opened.title}", Plyr mounted ${opened.plyr}, ?project=${opened.param}`)
+  check(`standing still for ${DWELL}s opens the project, with its video in Plyr`,
+    opened.open && opened.title === 'LU RUN' && opened.plyr && opened.param === 'lu-run',
+    `panel "${opened.title}", Plyr mounted ${opened.plyr}, ?project=${opened.param}`)
 
   await escape()
-  await sim(0.2)
+  await sim(DWELL + 0.6)
   const after = await modal()
-  check('closing the panel clears the link',
+  check('closing the panel clears the link, and standing on the same thumbnail does not re-open it',
     !after.open && after.param === null,
     `panel open ${after.open}, ?project= ${after.param === null ? 'absent' : after.param}`)
 }
 
-// 10. Clicking a thumbnail opens it without playing at all.
+// 10. E opens immediately, and so does a real click on the bubble's button.
+{
+  await place('project-football-is-life')
+  await sim(0.15)
+  await press('KeyE', 'e', 69, 0.03)
+  await sim(0.1)
+  const byKey = await modal()
+  await escape()
+
+  await place('project-sinai-heroes')
+  await sim(0.2)
+  await click('.bubble__open')
+  await sim(0.1)
+  const byClick = await modal()
+  await escape()
+
+  check("E, and a click on the bubble's Open button, open the project underfoot without waiting",
+    byKey.title === 'Football is Life' && byClick.title === 'Sinai Heroes',
+    `E opened "${byKey.title}", the bubble's button opened "${byClick.title}"`)
+}
+
+// 11. Clicking a thumbnail opens it without playing at all.
 {
   await place('hero')
   // Pin the camera and scroll the thumbnail into view, as a visitor with a mouse
@@ -358,7 +404,7 @@ await settleAt(1280)
     clicked.open && clicked.title === 'Digito', `panel "${clicked.title}"`)
 }
 
-// 10b. The video panel holds still while the video plays.
+// 12. The video panel holds still while the video plays.
 //
 // The panel used to scroll as a whole, with the video inside it. As Plyr's
 // controls came and went, the scrollbar did too, the video changed width with
@@ -408,22 +454,22 @@ await settleAt(1280)
   await install()
 }
 
-// 11. The portal takes you back to the top.
+// 13. The portal speaks too, and takes you back to the top.
 {
   await cdp.eval("window.__v.place('ground', { x: (window.game.level.portal.left + window.game.level.portal.right) / 2 })")
   await sim(0.3)
-  const offered = await cdp.eval("window.game.target?.kind === 'portal'")
+  const offered = await bubble()
   await click('#portal')
   await waitFor(() => cdp.eval(
     "window.game.body.on === 'hero' && window.scrollY < 5 && !window.game.warping",
   ), 'the portal to fly the robot back to the name', 160)
   const b = await body()
-  check('standing at the portal targets it, and clicking it flies back to the top',
-    offered && b.on === 'hero',
-    `portal targeted: ${offered}; now on "${b.on}", scrolled to ${await cdp.eval('window.scrollY')}`)
+  check('standing at the portal offers it, and clicking it flies back to the top',
+    offered.shown && offered.title === 'Back to the top' && b.on === 'hero',
+    `bubble "${offered.title}" (${offered.side}); now on "${b.on}", scrolled to ${await cdp.eval('window.scrollY')}`)
 }
 
-// 12. A ?project= link opens on that thumbnail with its panel up.
+// 14. A ?project= link opens on that thumbnail with its panel up.
 {
   await open('/?project=digito')
   await install()
@@ -435,7 +481,7 @@ await settleAt(1280)
     `panel "${landed.title}", robot on "${b.on}"`)
 }
 
-// 13. A stale one lands at the top instead of on an error.
+// 15. A stale one lands at the top instead of on an error.
 {
   await open('/?project=not-a-real-project')
   await install()
@@ -445,23 +491,29 @@ await settleAt(1280)
     !stale.open && stale.param === null, `no panel, parameter ${stale.param === null ? 'dropped' : stale.param}`)
 }
 
-// 14. On a phone the touch controls are up, and nothing overflows sideways.
+// 16. On a phone: the touch controls are up, and a bubble below its thumbnail
+//     is kept on screen above them.
 {
   await viewport(390, 844, true)
   await open('/')
   await install()
   await sim(0.3)
+  await place('project-robotics')
+  await sim(1.0)
   const phone = await cdp.eval(`(() => {
     const root = document.querySelector('.touch')
-    return { shown: !!root && !root.hidden, jump: !!document.querySelector('.touch__btn--jump'),
-      overflow: document.documentElement.scrollWidth > innerWidth }
+    const b = document.getElementById('bubble').getBoundingClientRect()
+    const controls = document.querySelector('.touch__btn--jump').getBoundingClientRect()
+    return { shown: !!root && !root.hidden, bubbleBottom: Math.round(b.bottom), controlsTop: Math.round(controls.top),
+      onScreen: b.top >= 0 && b.bottom <= innerHeight, overflow: document.documentElement.scrollWidth > innerWidth }
   })()`)
-  check('on a phone the joystick and Jump button are up and nothing overflows sideways',
-    phone.shown && phone.jump && !phone.overflow,
-    `touch controls ${phone.shown}, Jump button ${phone.jump}, horizontal overflow ${phone.overflow}`)
+  check('on a phone the touch controls are up, and the bubble stays on screen clear of them',
+    phone.shown && phone.onScreen && phone.bubbleBottom <= phone.controlsTop && !phone.overflow,
+    `touch controls ${phone.shown}, bubble bottom ${phone.bubbleBottom}px vs Jump button top ${phone.controlsTop}px, ` +
+    `on screen ${phone.onScreen}, horizontal overflow ${phone.overflow}`)
 }
 
-// 15. Nothing threw, nothing 404'd, and nothing left this origin — Plyr's
+// 17. Nothing threw, nothing 404'd, and nothing left this origin — Plyr's
 //     sprite and blank video default to its CDN, and both are overridden.
 {
   const errors = cdp.events

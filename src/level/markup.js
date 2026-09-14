@@ -47,9 +47,10 @@ function contacts() {
       <li><a class="lv-chip${c.cv ? ' lv-chip--cv' : ''}" data-platform="contact-${c.id}" href="${esc(c.href)}" ${c.attrs ?? ''}>${esc(c.label)}</a></li>`).join('')
 }
 
-// A project is its thumbnail and nothing else on the page — the details open in
-// the panel. The title and role are still in the markup, visually hidden, so a
-// screen reader and a crawler get what the eye gets from the picture.
+// A project is its thumbnail and nothing else on the page — it says the rest in
+// a speech bubble when the robot lands on it. The title and role are still in
+// the markup, visually hidden, so a screen reader and a crawler get what the eye
+// gets from the picture.
 function thumbnail(p) {
   const media = p.image
     ? `<img src="${esc(p.image)}" alt="" width="480" height="270" loading="lazy" decoding="async">`
@@ -138,6 +139,14 @@ ${WINGS.map(wing).join('')}
 
     <div class="avatar" id="avatar" aria-hidden="true">
       <div class="avatar__placeholder"></div>
+    </div>
+
+    <div class="bubble" id="bubble" hidden aria-live="polite">
+      <p class="bubble__eyebrow"></p>
+      <p class="bubble__title"></p>
+      <p class="bubble__detail"></p>
+      <button class="bubble__open" type="button"><span class="bubble__verb">Open</span><kbd>E</kbd></button>
+      <span class="bubble__dwell" aria-hidden="true"></span>
     </div>
   </main>`
 }

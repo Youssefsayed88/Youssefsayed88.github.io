@@ -1,6 +1,7 @@
 import Time from '../core/Time.js'
 import Input from '../core/Input.js'
 import Hud from '../ui/Hud.js'
+import Bubble from '../ui/Bubble.js'
 import Modal from '../ui/Modal.js'
 import Audio from '../ui/Audio.js'
 import Level from './Level.js'
@@ -10,6 +11,14 @@ import { createBody, stepBody } from './physics.js'
 import { BODY_HALF_WIDTH } from './movement.js'
 import { projects, WINGS } from '../data/projects.js'
 import { PROJECT_PARAM } from '../core/params.js'
+
+// Standing still on a project for this long opens it. Long enough to read the
+// bubble and move on; short enough that waiting is a way in.
+export const DWELL = 1.4
+
+// "Still", in px/s. The walk brakes to a stop in ~0.1 s, so this is only the
+// tail of it.
+const STILL = 12
 
 // Where on the spawn block the robot arrives, from its left edge, and from how
 // high it drops in.
@@ -38,6 +47,13 @@ export default class Game {
     this.audio = new Audio()
     this.hud = new Hud()
 
+    // The touch Open button is the E key's counterpart, so it lights off the
+    // same target the bubble does.
+    this.bubble = new Bubble(root, {
+      onTarget: (target) => this.input.touch.setPrompt(target),
+      onActivate: () => this.interact(),
+    })
+
     this.modal = new Modal((open, project) => {
       // The panel covers the screen; a joystick left under it would hold
       // whatever direction the thumb was last pushing.
@@ -51,6 +67,10 @@ export default class Game {
 
     this.projects = new Map(projects.map((p) => [p.id, p]))
     this.target = null
+    this.dwell = 0
+    // The project whose panel was just open. Standing on it does not re-open it
+    // until the robot has stood somewhere else.
+    this.dismissed = null
     this.warping = false
     this.arriving = false
 
@@ -115,7 +135,7 @@ export default class Game {
       if (step.impact > LOUD_LANDING) this.audio.land(step.impact)
       if (input.move || input.jump || input.drop) this.hud.hideHint()
 
-      this.updateTarget()
+      this.updateTarget(delta)
       this.hud.setRoom(this.level.sectionAt(this.body.y))
     }
 
@@ -124,6 +144,8 @@ export default class Game {
       for (let i = 0; i < this.avatar.footfalls; i++) this.audio.footstep()
     }
 
+    // A bubble hanging below its thumbnail is kept on screen, not just the feet.
+    this.camera.keepVisible = this.bubble.box
     this.camera.update(this.body, delta)
 
     // The portal's flight is over once the camera has reached the top: the
@@ -135,8 +157,8 @@ export default class Game {
     }
   }
 
-  // What the robot is standing at: a project it can open, or the portal.
-  updateTarget() {
+  // What the robot is standing at, and the bubble and dwell that follow from it.
+  updateTarget(delta) {
     const body = this.body
     const platform = body.grounded ? this.level.byId.get(body.on) : null
 
@@ -150,16 +172,32 @@ export default class Game {
       }
     }
 
-    if ((next?.key ?? null) === (this.target?.key ?? null)) return
+    if ((next?.key ?? null) !== (this.target?.key ?? null)) {
+      // The thumbnail underfoot is marked, so which picture is talking is never
+      // in doubt.
+      this.target?.el?.classList.remove('is-target')
+      next?.el?.classList.add('is-target')
+      this.target = next
+      this.dwell = 0
+      if (next?.key !== this.dismissed) this.dismissed = null
+      if (next) {
+        this.bubble.show(describe(next), this.anchorFor(next), this.level.bounds)
+        this.audio.target()
+      } else {
+        this.bubble.hide()
+      }
+    }
 
-    // The thumbnail underfoot is marked, so which one E opens is never in doubt.
-    this.target?.el?.classList.remove('is-target')
-    next?.el?.classList.add('is-target')
-    this.target = next
-    // The touch Open button is the E key's counterpart, so it lights off the
-    // same target.
-    this.input.touch.setPrompt(next && describe(next))
-    if (next) this.audio.target()
+    const waiting = next?.kind === 'project' && next.key !== this.dismissed
+      && Math.abs(body.vx) < STILL && !this.input.move
+    this.dwell = waiting ? this.dwell + delta : 0
+    this.bubble.setDwell(this.dwell / DWELL)
+
+    if (this.dwell >= DWELL) this.interact()
+  }
+
+  anchorFor(target) {
+    return target.kind === 'portal' ? this.level.portal : this.level.byId.get(target.key)
   }
 
   interact() {
@@ -171,6 +209,10 @@ export default class Game {
   openProject(id) {
     const project = this.projects.get(id)
     if (!project || this.paused) return
+
+    if (this.target?.project?.id === id) this.dismissed = this.target.key
+    this.dwell = 0
+    this.bubble.setDwell(0)
     // Stop where it stands, or the robot runs on the spot behind the panel.
     this.body = { ...this.body, vx: 0 }
     this.modal.show(project)
@@ -183,7 +225,7 @@ export default class Game {
     this.warping = true
     this.target?.el?.classList.remove('is-target')
     this.target = null
-    this.input.touch.setPrompt(null)
+    this.bubble.hide()
     this.audio.warp()
     this.avatar.setWarping(true)
 
@@ -197,7 +239,7 @@ export default class Game {
   }
 
   // Keep the robot on the block it was standing on when the layout moves, at the
-  // same fraction of the way along it.
+  // same fraction of the way along it — and the bubble beside its thumbnail.
   reanchor(before) {
     const body = this.body
     if (body.on !== null) {
@@ -210,11 +252,12 @@ export default class Game {
         // Its block no longer exists at this width.
         this.body = this.spawnBody()
       }
-      return
+    } else {
+      const { left, right } = this.level.bounds
+      this.body = { ...body, x: Math.min(right - BODY_HALF_WIDTH, Math.max(left + BODY_HALF_WIDTH, body.x)) }
     }
 
-    const { left, right } = this.level.bounds
-    this.body = { ...body, x: Math.min(right - BODY_HALF_WIDTH, Math.max(left + BODY_HALF_WIDTH, body.x)) }
+    if (this.target) this.bubble.place(this.anchorFor(this.target), this.level.bounds)
   }
 
   // `?project=<id>` stands the robot on that thumbnail with its panel open, the
@@ -232,7 +275,7 @@ export default class Game {
     this.body = createBody((platform.left + platform.right) / 2, platform.top, platform.id)
     this.camera.snap(this.body)
     this.avatar.update(this.body, 0)
-    this.updateTarget()
+    this.updateTarget(0)
     this.openProject(id)
   }
 
@@ -249,7 +292,7 @@ export default class Game {
   }
 }
 
-// What the touch Open button says for a target.
+// What the bubble says for a target.
 function describe(target) {
   if (target.kind === 'portal') {
     return { key: target.key, kind: 'portal', verb: 'Go up', eyebrow: 'Portal', title: 'Back to the top', detail: null }

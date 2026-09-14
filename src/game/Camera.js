@@ -6,6 +6,7 @@
 //
 // The page cannot be scrolled by hand while playing (see `is-playing` in the
 // stylesheet); the camera owns it.
+import { PLAYER_HEIGHT } from './movement.js'
 
 // How quickly the view closes on the robot, per second. Brisk enough that a fall
 // never leaves the robot below the fold.
@@ -17,12 +18,20 @@ const FLY = 3.2
 // Within this many pixels of its target the camera counts as arrived.
 const ARRIVED = 40
 
+// Screen kept clear below a bubble the camera is holding in view: the touch
+// controls on a phone, a margin elsewhere.
+const RESERVE_TOUCH = 190
+const RESERVE = 28
+
 export default class Camera {
   constructor(level) {
     this.level = level
     this.y = window.scrollY
     this.lambda = FOLLOW
     this.settled = true
+    // { top, bottom } in level coordinates — a speech bubble that should stay
+    // on screen along with the robot. Set by Game.js each frame.
+    this.keepVisible = null
   }
 
   // Where the scroll position wants to be for this body.
@@ -33,8 +42,22 @@ export default class Camera {
   // a jump.
   targetFor(body) {
     const vh = window.innerHeight
+    const origin = this.level.origin.top
     const lean = Math.max(-vh * 0.12, Math.min(vh * 0.22, body.verticalVelocity * 0.2))
-    return this.clamp(this.level.origin.top + body.y - vh * 0.55 + lean)
+    let y = origin + body.y - vh * 0.55 + lean
+
+    // A bubble hanging below its thumbnail can end up under the fold, or under
+    // the thumbs on a phone. Scroll down just far enough to show it — but never
+    // so far that the robot, or the top of the bubble, leaves the screen.
+    const keep = this.keepVisible
+    if (keep) {
+      const touch = document.body.classList.contains('has-touch-controls')
+      const needed = origin + keep.bottom + (touch ? RESERVE_TOUCH : RESERVE) - vh
+      const limit = origin + Math.min(keep.top, body.y - PLAYER_HEIGHT) - 24
+      y = Math.max(y, Math.min(needed, limit))
+    }
+
+    return this.clamp(y)
   }
 
   clamp(y) {

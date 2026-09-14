@@ -58,6 +58,9 @@ export default class Level extends Emitter {
         left: box.left,
         right: box.right,
         top: box.top,
+        // Not used by the physics — a platform is only its top edge — but the
+        // speech bubble hangs off the whole thumbnail.
+        bottom: box.bottom,
         solid: el.hasAttribute('data-solid'),
         spawn: el.hasAttribute('data-spawn'),
         project: el.dataset.project ?? null,

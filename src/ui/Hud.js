@@ -1,4 +1,7 @@
-// The section label and the movement hint.
+// The section label and the movement hint — the only screen-fixed text left.
+//
+// What a project has to say is said by the project, in a speech bubble next to
+// its thumbnail: see Bubble.js.
 export default class Hud {
   constructor() {
     this.roomEl = document.getElementById('room-label')

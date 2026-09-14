@@ -278,6 +278,64 @@ html:not(.is-playing) .avatar { display: none; }
 .avatar.is-warping .avatar__placeholder,
 .avatar.is-warping .avatar__robot { transform: scale(0.15); opacity: 0; }
 
+/* ---------- The speech bubble ---------- */
+/* What a project says when the robot lands on it. Positioned by Bubble.js
+   beside the thumbnail (tail pointing sideways) or below it (tail pointing
+   up); `--tail` is where along that edge the tail sits.
+
+   The tail is two triangles: an ink one poking out past the border, and a
+   white one on top of it, a border's width in, which paints over the border
+   where the tail meets it — so the outline runs unbroken into the tail. */
+.bubble {
+  position: absolute; z-index: 6;
+  width: min(17rem, calc(100% - 2 * var(--gutter)));
+  padding: 0.75rem 0.9rem 0.9rem;
+  background: var(--surface); color: var(--ink);
+  border: 2px solid var(--ink); border-radius: 14px;
+  box-shadow: 0 3px 0 rgba(31, 31, 36, 0.1);
+  animation: bubble-in 0.16s ease-out;
+}
+.bubble[hidden], .bubble [hidden] { display: none; }
+@keyframes bubble-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+
+.bubble::before, .bubble::after { content: ""; position: absolute; width: 0; height: 0; border-style: solid; }
+
+.bubble[data-side="right"]::before { left: -13px; top: calc(var(--tail) - 10px); border-width: 10px 13px 10px 0; border-color: transparent var(--ink) transparent transparent; }
+.bubble[data-side="right"]::after  { left: -9px;  top: calc(var(--tail) - 8px);  border-width: 8px 10px 8px 0;  border-color: transparent var(--surface) transparent transparent; }
+
+.bubble[data-side="left"]::before  { right: -13px; top: calc(var(--tail) - 10px); border-width: 10px 0 10px 13px; border-color: transparent transparent transparent var(--ink); }
+.bubble[data-side="left"]::after   { right: -9px;  top: calc(var(--tail) - 8px);  border-width: 8px 0 8px 10px;  border-color: transparent transparent transparent var(--surface); }
+
+.bubble[data-side="below"]::before { top: -13px; left: calc(var(--tail) - 10px); border-width: 0 10px 13px 10px; border-color: transparent transparent var(--ink) transparent; }
+.bubble[data-side="below"]::after  { top: -9px;  left: calc(var(--tail) - 8px);  border-width: 0 8px 10px 8px;  border-color: transparent transparent var(--surface) transparent; }
+
+.bubble__eyebrow { margin: 0; font-size: 0.75rem; color: var(--faint); }
+.bubble__title { margin: 0.05rem 0 0; font-size: 1rem; font-weight: 700; line-height: 1.25; }
+.bubble__detail {
+  margin: 0.3rem 0 0; font-size: 0.84rem; line-height: 1.45; color: var(--muted);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.bubble__open {
+  appearance: none; font: inherit; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  margin-top: 0.65rem; padding: 0.35rem 0.55rem 0.35rem 0.85rem;
+  background: var(--ink); color: var(--surface);
+  border: 0; border-radius: 999px;
+  font-size: 0.85rem; font-weight: 600;
+  -webkit-tap-highlight-color: transparent;
+}
+.bubble__open:hover { background: #3a3a42; }
+.bubble__open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Standing still fills this; full, the project opens. Inside the rounded
+   corners, along the bottom edge. */
+.bubble__dwell {
+  position: absolute; left: 14px; right: 14px; bottom: 5px; height: 3px; border-radius: 2px;
+  background: var(--accent);
+  transform-origin: left center; transform: scaleX(var(--dwell, 0));
+}
+.bubble.is-portal .bubble__dwell { display: none; }
+
 /* ====================================================================== */
 /* HUD                                                                     */
 /* ====================================================================== */
@@ -503,8 +561,8 @@ html:not(.is-playing) #mute { display: none; }
    sits outermost where the thumb rests. */
 .touch__btn--jump { width: 92px; height: 92px; font-size: 0.9rem; order: 2; }
 .touch__btn--open { width: 68px; height: 68px; font-size: 0.78rem; opacity: 0.45; order: 1; }
-/* Lit only while standing on something that opens — the same signal E answers,
-   so it is never a dead control. */
+/* Lit only while standing on something that talks — the same signal as the
+   bubble, so it is never a dead control. */
 .touch__btn--open.is-live { opacity: 1; background: var(--ink); color: var(--surface); }
 .touch__btn:disabled { cursor: default; }
 
@@ -515,6 +573,10 @@ html:not(.is-playing) #mute { display: none; }
   .hud__hint::after { content: "Stick to run \00b7 pull down to drop \00b7 hold Jump to go higher"; font-size: 0.78rem; }
 }
 
+/* With an Open button on screen, the keycap in the bubble is telling a phone
+   about a key it does not have. */
+.has-touch-controls .bubble kbd { display: none; }
+.has-touch-controls .bubble__open { padding-right: 0.85rem; }
 /* The hint lives at the bottom on a desktop; on touch that is where both
    thumbs are. */
 .has-touch-controls .hud { justify-content: flex-start; }

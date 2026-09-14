@@ -13,6 +13,7 @@ import {
 } from './src/game/movement.js'
 import { audit, canReach, CLIMB_HEIGHT, REACH_MARGIN } from './src/game/reach.js'
 import { levelMarkup, sentences } from './src/level/markup.js'
+import { placeBubble, BUBBLE_GAP } from './src/game/bubble.js'
 import { projects } from './src/data/projects.js'
 import { skills, experience, summary } from './src/data/profile.js'
 
@@ -228,15 +229,33 @@ function run(body, platforms, { fps = 60, seconds = 1, intent = () => ({}) } = {
   const ground = /data-platform="ground" data-solid/.test(html)
   const spawn = /data-platform="hero" data-spawn/.test(html)
   const portal = /id="portal"/.test(html)
-  check('the level markup has every project, tag, sentence and bullet as a platform, plus spawn, ground and portal',
+  const bubble = /id="bubble"/.test(html)
+  check('the level markup has every project, tag, sentence and bullet as a platform, plus spawn, ground, portal and bubble',
     missing.length === 0 && projectIds.length === projects.length && tagIds.length === tagCount
       && bulletIds.length === bulletCount && sentenceIds.length === sentences(summary).length
-      && sentenceIds.length > 1 && unique.size === ids.length && ground && spawn && portal,
+      && sentenceIds.length > 1 && unique.size === ids.length && ground && spawn && portal && bubble,
     `${ids.length} platforms (${unique.size} unique): ${projectIds.length}/${projects.length} projects, ` +
     `${tagIds.length}/${tagCount} skill tags, ${bulletIds.length}/${bulletCount} job bullets, ` +
     `${sentenceIds.length} summary sentences` +
     (missing.length ? `, missing: ${missing.join(', ')}` : '') +
-    `; spawn ${spawn}, solid ground ${ground}, portal ${portal}`)
+    `; spawn ${spawn}, solid ground ${ground}, portal ${portal}, bubble ${bubble}`)
+}
+
+// 13. The speech bubble goes beside its thumbnail where there is room, on the
+//     roomier side, and hangs below it where there is not.
+{
+  const bounds = { left: 0, right: 1000, top: 0 }
+  const size = { width: 272, height: 150 }
+  const leftHand = placeBubble({ left: 100, right: 300, top: 500, bottom: 612 }, size, bounds)
+  const rightHand = placeBubble({ left: 700, right: 990, top: 500, bottom: 612 }, size, bounds)
+  const phone = placeBubble({ left: 16, right: 185, top: 500, bottom: 595 },
+    { width: 240, height: 170 }, { left: 0, right: 390, top: 0 })
+  check('the bubble sits beside a thumbnail with room either side, and below one without',
+    leftHand.side === 'right' && leftHand.left === 300 + BUBBLE_GAP
+      && rightHand.side === 'left' && rightHand.left + size.width === 700 - BUBBLE_GAP
+      && phone.side === 'below' && phone.top === 595 + BUBBLE_GAP && phone.left >= 0 && phone.left + 240 <= 390,
+    `left-hand thumbnail: ${leftHand.side} at x=${leftHand.left}; right-hand: ${rightHand.side} at x=${rightHand.left}; ` +
+    `narrow phone column: ${phone.side} at (${phone.left}, ${phone.top})`)
 }
 
 const failed = results.filter((r) => !r.pass)
