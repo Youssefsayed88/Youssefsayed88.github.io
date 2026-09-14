@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-import { matcapMaterial } from './Materials.js'
+import { matcapMaterial } from './matcap.js'
 
 // The visible player: a rigged GLB with baked clips, blended by how fast the
 // character controller is actually moving.
@@ -136,8 +136,8 @@ export default class Character {
       },
       undefined,
       (error) => {
-        // The capsule stays visible and the game stays playable. A missing
-        // character model must never be the reason the showroom does not boot.
+        // The placeholder stays visible and the game stays playable. A missing
+        // character model must never be the reason the game does not start.
         console.warn('[character] could not load the model, keeping the capsule', error)
       },
     )

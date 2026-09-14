@@ -132,7 +132,59 @@ export default class Audio {
     osc.start(t); osc.stop(t + duration + 0.02)
   }
 
-  nearKiosk() { this.tone(880, 0.12, 'triangle', 0.07) }
+  // Landing on something that can be opened: a project, or the portal.
+  target() { this.tone(880, 0.12, 'triangle', 0.07) }
+
+  // A short upward chirp, quiet: it fires on every hop between skill tags.
+  jump() {
+    if (!this.ctx || this.muted) return
+    const t = this.ctx.currentTime
+    const osc = this.ctx.createOscillator()
+    osc.type = 'triangle'
+    osc.frequency.setValueAtTime(330, t)
+    osc.frequency.exponentialRampToValueAtTime(620, t + 0.09)
+    const gain = this.ctx.createGain()
+    gain.gain.setValueAtTime(0.0001, t)
+    gain.gain.exponentialRampToValueAtTime(0.05, t + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.12)
+    osc.connect(gain); gain.connect(this.master)
+    osc.start(t); osc.stop(t + 0.14)
+  }
+
+  // A heavy landing is a footstep with the weight turned up, scaled by how fast
+  // the body arrived. `speed` is px/s; terminal velocity is 1500.
+  land(speed) {
+    if (!this.ctx || this.muted) return
+    const weight = Math.min(1, speed / 1500)
+    const t = this.ctx.currentTime
+    const thump = this.ctx.createOscillator()
+    thump.type = 'sine'
+    thump.frequency.setValueAtTime(120, t)
+    thump.frequency.exponentialRampToValueAtTime(45, t + 0.14)
+    const gain = this.ctx.createGain()
+    gain.gain.setValueAtTime(0.08 + 0.14 * weight, t)
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.18)
+    thump.connect(gain); gain.connect(this.master)
+    thump.start(t); thump.stop(t + 0.2)
+  }
+
+  // The portal: a rising sweep, long enough to cover the flight up the page.
+  warp() {
+    if (!this.ctx || this.muted) return
+    const t = this.ctx.currentTime
+    for (const [from, to, peak] of [[220, 1320, 0.07], [330, 1980, 0.035]]) {
+      const osc = this.ctx.createOscillator()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(from, t)
+      osc.frequency.exponentialRampToValueAtTime(to, t + 0.7)
+      const gain = this.ctx.createGain()
+      gain.gain.setValueAtTime(0.0001, t)
+      gain.gain.exponentialRampToValueAtTime(peak, t + 0.08)
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.85)
+      osc.connect(gain); gain.connect(this.master)
+      osc.start(t); osc.stop(t + 0.9)
+    }
+  }
   openPanel() { this.tone(523.25, 0.16, 'sine', 0.11); this.tone(784, 0.2, 'sine', 0.06) }
   closePanel() { this.tone(392, 0.14, 'sine', 0.09) }
 

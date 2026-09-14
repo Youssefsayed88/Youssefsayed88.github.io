@@ -1,4 +1,4 @@
-// SINGLE SOURCE OF TRUTH — the 3D showroom and classic.html both render from this.
+// SINGLE SOURCE OF TRUTH — the platformer and classic.html both render from this.
 //
 // STATUS OF THE `role` FIELD — all 14 filled; the first 13 on 2026-08-30,
 // Football is Life on 2026-09-04.
@@ -284,7 +284,7 @@ export const projects = [
     role: 'Fine-tuned Stable Diffusion 1.5 and built it into a pipeline with a GPT-2 prompt auto-completion model trained on well-formed Stable Diffusion prompts, plus an upscaling stage.',
     cvHint: 'B.Sc. Computers & AI, Cairo University. Python + generative AI libraries.',
     company: 'Cairo University',
-    // A 2x2 of the pipeline's own output, so the kiosk shows what the model
+    // A 2x2 of the pipeline's own output, so the thumbnail shows what the model
     // produced rather than a screenshot of the notebook that produced it.
     image: 'images/novel-visualisation.webp',
     video: null,

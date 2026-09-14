@@ -1,5 +1,5 @@
-// DOM overlay for a project. Deliberately not rendered into WebGL — an iframe
-// or <video> cannot be a texture, and real DOM keeps the text selectable and
+// DOM overlay for a project. Deliberately not rendered into WebGL — a <video>
+// cannot be a texture worth watching, and real DOM keeps the text selectable and
 // the links reachable by keyboard.
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
@@ -20,7 +20,9 @@ export default class Modal {
     this.root.querySelector('.modal__backdrop').addEventListener('click', () => this.close())
 
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'Escape' && this.open) this.close()
+      // Escape inside a fullscreen video leaves fullscreen; only the next one
+      // closes the panel.
+      if (e.code === 'Escape' && this.open && !document.fullscreenElement) this.close()
     })
   }
 
@@ -32,6 +34,7 @@ export default class Modal {
 
     this.media.innerHTML = this.renderMedia(project)
     this.body.innerHTML = this.renderBody(project)
+    this.panel.scrollTop = 0
 
     this.root.hidden = false
     // Focus the close button so Tab stays inside the dialog and Escape is obvious.
@@ -43,7 +46,7 @@ export default class Modal {
     if (!this.open) return
     this.open = false
     this.root.hidden = true
-    // Drop the iframe/video so audio cannot keep playing behind the scene.
+    // Drop the iframe/video so audio cannot keep playing behind the page.
     this.media.innerHTML = ''
     this.onToggle?.(false, null)
   }
@@ -54,10 +57,9 @@ export default class Modal {
       if (/\.(mp4|webm)$/i.test(p.video)) {
         // The project's own screenshot stands in until play is pressed.
         // `preload="metadata"` is right — these are 3-21 MB and most visitors
-        // will never play them — but on its own it opens the panel on a black
-        // rectangle, which reads as a broken video rather than a paused one.
-        // The image is already being downloaded for the kiosk, so this costs
-        // nothing and is the whole difference between the two readings.
+        // will never play them — but on its own it opens on a black rectangle,
+        // which reads as a broken video rather than a paused one. The image is
+        // already downloaded for the thumbnail, so the poster costs nothing.
         const poster = p.image
           ? ` poster="${esc(import.meta.env.BASE_URL + p.image)}"`
           : ''

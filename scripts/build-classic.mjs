@@ -1,14 +1,14 @@
-// Generates classic.html from the same data the 3D showroom renders.
+// Generates classic.html from the same data the platformer is built from.
 //
 //   node scripts/build-classic.mjs
 //
 // Runs via npm predev/prebuild, so the page can never drift from projects.js.
-// CSS is inlined on purpose: this is the page someone lands on when WebGL is
-// unavailable or they are in a hurry, so it should cost exactly one request.
+// CSS is inlined on purpose: this is the page someone lands on when they are in
+// a hurry or want to print, so it should cost exactly one request.
 
 import fs from 'node:fs'
 import { OWNER, OG_IMAGE, WINGS, projects, byWing } from '../src/data/projects.js'
-import { PROJECT_PARAM, SHOWROOM_PARAM, ROUTE_NAMES } from '../src/core/params.js'
+import { PROJECT_PARAM, ROUTE_NAMES } from '../src/core/params.js'
 import { summary, experience, education, skills } from '../src/data/profile.js'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
@@ -34,7 +34,7 @@ function projectCard(p) {
     p.video && { label: 'Watch video', url: p.video },
   ].filter(Boolean)
 
-  // Same id the showroom answers `?project=` with, so one shared link resolves
+  // Same id the platformer answers `?project=` with, so one shared link resolves
   // on either route. See the deep-link script at the foot of this page.
   return `
       <article class="card" id="project-${esc(p.id)}">
@@ -148,10 +148,7 @@ footer{padding:2.5rem 0 3.5rem;border-top:1px solid rgba(255,255,255,.07);color:
 <div class="bar">
   <div class="wrap">
     <strong>${esc(OWNER.name)}</strong>
-    <!-- The showroom parameter skips the front door: this link already says
-         which portfolio it means, so index.html must not ask again. (No
-         backticks in here: this is inside a JS template literal.) -->
-    <a href="./index.html?${SHOWROOM_PARAM}">${esc(ROUTE_NAMES.showroom)}</a>
+    <a href="./index.html">${esc(ROUTE_NAMES.showroom)}</a>
   </div>
 </div>
 
@@ -211,13 +208,13 @@ ${skills.map((s) => `      <div>
 
   <footer>
     <p>${esc(OWNER.name)} &middot; ${esc(OWNER.email)}</p>
-    <p>Prefer to walk around it? <a href="./index.html?${SHOWROOM_PARAM}">${esc(ROUTE_NAMES.showroom)}</a>.</p>
+    <p>Prefer to play through it? <a href="./index.html">${esc(ROUTE_NAMES.showroom)}</a>.</p>
   </footer>
 
 </div>
 
 <script>
-// Deep links. The showroom answers ?project=<id> by walking you to that kiosk;
+// Deep links. The platformer answers ?project=<id> by standing the robot on that thumbnail;
 // here the same URL scrolls to the same project's card and says which one it
 // meant. Progressive enhancement on purpose — the anchor #project-<id> already
 // works with JavaScript off, and this only adds the query form and the
