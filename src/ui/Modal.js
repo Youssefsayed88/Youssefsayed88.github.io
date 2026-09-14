@@ -44,7 +44,8 @@ export default class Modal {
 
     this.media.innerHTML = this.renderMedia(project)
     this.body.innerHTML = this.renderBody(project)
-    this.panel.scrollTop = 0
+    // The body is the part that scrolls, never the panel: see .modal__body.
+    this.body.scrollTop = 0
 
     this.root.hidden = false
     // Focus the close button so Tab stays inside the dialog and Escape is obvious.

@@ -50,10 +50,12 @@ const check = (name, pass, detail) => {
 }
 
 // SwiftShader gives headless Chrome a real WebGL context, so the robot loads
-// the way it does for a visitor.
+// the way it does for a visitor. Autoplay is allowed so the video check can
+// play footage without a click.
 const { cdp } = await launchChrome({
   port: CDP_PORT,
-  args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--window-size=1280,800'],
+  args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--window-size=1280,800',
+    '--autoplay-policy=no-user-gesture-required'],
 })
 
 await waitFor(() => fetch(`${ORIGIN}/`).then((r) => r.ok), 'the preview server')
@@ -354,6 +356,56 @@ await settleAt(1280)
   await cdp.eval('delete window.game.camera.update')
   check('clicking a thumbnail opens that project directly',
     clicked.open && clicked.title === 'Digito', `panel "${clicked.title}"`)
+}
+
+// 10b. The video panel holds still while the video plays.
+//
+// The panel used to scroll as a whole, with the video inside it. As Plyr's
+// controls came and went, the scrollbar did too, the video changed width with
+// it, and the footage visibly jumped. The video is now outside anything that
+// scrolls; this plays it, sweeps the mouse over it and off it so the controls
+// show and hide, and requires that neither the video's size nor any scrollbar
+// in the panel changed on any frame.
+{
+  const seen = []
+  for (const [w, h] of [[1366, 650], [1280, 800], [1920, 950], [390, 844]]) {
+    await viewport(w, h, w < 500)
+    await open('/?project=lu-run')
+    await waitFor(async () => (await cdp.eval('!!document.querySelector("#modal .plyr .plyr__controls")')), 'the player', 80)
+    await cdp.eval("(async () => { const v = document.querySelector('#modal video'); v.muted = true; await v.play(); return true })()")
+    await cdp.eval(`window.__rec = (() => {
+      const video = document.querySelector('#modal video')
+      const els = [...document.querySelectorAll('.modal__panel, .modal__panel *')]
+      const snapshot = () => [
+        Math.round(video.getBoundingClientRect().width), Math.round(video.getBoundingClientRect().height),
+        ...els.map((el) => el.offsetWidth - el.clientWidth > 2 ? 1 : 0),
+      ].join(',')
+      const states = new Set([snapshot()])
+      let stop = false
+      const tick = () => { states.add(snapshot()); if (!stop) requestAnimationFrame(tick) }
+      requestAnimationFrame(tick)
+      return { done: () => { stop = true; return { states: states.size, time: video.currentTime } } }
+    })(); true`)
+    const box = await cdp.eval("(() => { const r = document.querySelector('#modal video').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, low: r.bottom - 15 } })()")
+    for (let i = 0; i < 3; i++) {
+      for (let k = 0; k < 5; k++) {
+        await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: box.x + k * 9, y: box.y + k * 4 })
+        await sleep(60)
+      }
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: box.x, y: box.low })
+      await sleep(500)
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 3, y: 3 })
+      await sleep(2300)
+    }
+    const r = await cdp.eval('window.__rec.done()')
+    seen.push({ size: `${w}x${h}`, ...r })
+  }
+  check('a playing video keeps its size while the player controls show and hide, at four screen sizes',
+    seen.every((s) => s.states === 1 && s.time > 0.5),
+    seen.map((s) => `${s.size}: ${s.states} layout state${s.states === 1 ? '' : 's'}, played ${s.time.toFixed(1)}s`).join(' · '))
+  await viewport(1280, 800)
+  await open('/')
+  await install()
 }
 
 // 11. The portal takes you back to the top.
