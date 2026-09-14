@@ -69,77 +69,86 @@ const html = `<!DOCTYPE html>
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="${esc(SITE)}/${OG_IMAGE.path}">
 <style>
+/* The platformer's palette, so the two routes read as one site: paper, ink,
+   and the robot's orange as the only accent. The same tokens as :root in
+   src/style.css; this page is one request, so they are copied rather than
+   linked. */
+:root{--bg:#f5f3ee;--surface:#fff;--ink:#1f1f24;--muted:#55555c;--faint:#8b8a90;
+  --rule:#dcd8cf;--accent:#e0782f}
 *,*::before,*::after{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;background:#14161f;color:#e8ebf3;
-  font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;line-height:1.65;
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.6;
   -webkit-font-smoothing:antialiased}
-a{color:#37cdea}
+a{color:inherit}
 .wrap{max-width:960px;margin:0 auto;padding:0 1.25rem}
-.bar{position:sticky;top:0;z-index:5;background:rgba(20,22,31,.9);backdrop-filter:blur(8px);
-  border-bottom:1px solid rgba(255,255,255,.08)}
+.bar{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--rule)}
 .bar .wrap{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding-block:.7rem}
-.bar strong{font-size:.9rem}
-.bar a{font-size:.8rem;text-decoration:none;border:1px solid #37cdea;border-radius:6px;padding:.35rem .8rem}
+.bar strong{font-size:.95rem}
+.bar a{font-size:.85rem;text-decoration:none;border:1.5px solid var(--ink);border-radius:999px;padding:.35rem .9rem}
+.bar a:hover{background:var(--ink);color:var(--surface)}
 header{padding:3.5rem 0 2.5rem}
-h1{margin:0 0 .3rem;font-size:clamp(1.9rem,5vw,2.8rem);line-height:1.1}
-.role{margin:0 0 1rem;color:#37cdea;font-size:1rem;letter-spacing:.02em}
-.summary{margin:0 0 1.4rem;color:#b4bbcd;max-width:62ch}
+h1{margin:0 0 .35rem;font-size:clamp(2rem,5vw,3rem);line-height:1.05;letter-spacing:-.02em}
+.role{margin:0 0 1rem;color:var(--muted);font-size:1.05rem}
+.summary{margin:0 0 1.5rem;color:var(--muted);max-width:62ch}
 .contact{display:flex;flex-wrap:wrap;gap:.5rem;padding:0;margin:0;list-style:none}
-.contact a{display:inline-block;padding:.4rem .85rem;background:rgba(255,255,255,.06);
-  border-radius:999px;font-size:.82rem;text-decoration:none;color:#e8ebf3}
-.contact a:hover{background:#37cdea;color:#10121c}
+.contact a{display:inline-block;padding:.4rem .85rem;background:var(--surface);border:1px solid var(--rule);
+  border-radius:6px;font-size:.85rem;text-decoration:none}
+.contact a:hover{border-color:var(--ink)}
 /* The CV is the one link on this page a recruiter is actively looking for, so
    it is the only one that does not look like the rest of the row. */
-.contact .cv a{background:#37cdea;color:#10121c;font-weight:600}
-.contact .cv a:hover{background:#6fdcf0}
-section{padding:2.25rem 0;border-top:1px solid rgba(255,255,255,.07)}
-h2{margin:0 0 .35rem;font-size:1.35rem}
-.wing-note{margin:0 0 1.4rem;color:#7d859c;font-size:.85rem}
+.contact .cv a{background:var(--ink);border-color:var(--ink);color:var(--surface);font-weight:600}
+.contact .cv a:hover{background:#3a3a42}
+section{padding:2.25rem 0;border-top:1px solid var(--rule)}
+h2{margin:0 0 .25rem;font-size:1.4rem}
+.wing-note{margin:0 0 1.4rem;color:var(--faint);font-size:.88rem}
 .grid{display:grid;gap:1.1rem;grid-template-columns:repeat(auto-fill,minmax(280px,1fr))}
-.card{background:#1b1e2b;border:1px solid rgba(255,255,255,.07);border-radius:12px;overflow:hidden;
-  display:flex;flex-direction:column;
+/* The ink line along the top of each card is the platformer's ledge: the same
+   mark for the same thing, a project. */
+.card{background:var(--surface);border:1px solid var(--rule);border-top:3px solid var(--ink);
+  border-radius:8px;overflow:hidden;display:flex;flex-direction:column;
   /* The bar is sticky, so an anchored card would otherwise land underneath it. */
   scroll-margin-top:4.5rem}
 /* A deep-linked card says so, briefly. Without it, arriving via ?project= just
    scrolls somewhere and leaves you to guess which of the three cards on screen
-   was meant. */
-.card.is-target{border-color:#37cdea;box-shadow:0 0 0 1px #37cdea,0 0 34px rgba(55,205,234,.18)}
+   was meant. The outline is the one the platformer puts round the thumbnail
+   the robot is standing on. */
+.card.is-target{outline:3px solid var(--accent);outline-offset:3px}
 /* aspect-ratio goes on the img, not the container: inside a flex column the
    container's height resolves from the image's intrinsic size and the ratio is
    ignored, which leaves the grid rows ragged. */
-.card__media{background:#10121c;overflow:hidden;flex:none}
+.card__media{background:var(--rule);overflow:hidden;flex:none}
 .card__media img,.card__placeholder{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
-.card__placeholder{display:grid;place-items:center;color:#6b7290;
-  font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;
-  background:repeating-linear-gradient(45deg,#1d2030,#1d2030 10px,#212434 10px,#212434 20px)}
+.card__placeholder{display:grid;place-items:center;color:var(--faint);font-size:.8rem;background:var(--rule)}
 .card__body{padding:1rem 1.1rem 1.15rem;display:flex;flex-direction:column;gap:.5rem;flex:1}
-.card__eyebrow{margin:0;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:#37cdea}
+.card__eyebrow{margin:0;font-size:.8rem;color:var(--faint)}
 .card h3{margin:0;font-size:1.05rem}
-.card__role{margin:0;padding-left:.7rem;border-left:2px solid #37cdea;font-size:.88rem}
-.card__blurb{margin:0;color:#aab1c5;font-size:.88rem}
+.card__role{margin:0;padding-left:.7rem;border-left:3px solid var(--accent);font-size:.9rem}
+.card__blurb{margin:0;color:var(--muted);font-size:.9rem}
 .card__tech{display:flex;flex-wrap:wrap;gap:.3rem;margin:.15rem 0 0;padding:0;list-style:none}
-.card__tech li{padding:.15rem .55rem;background:rgba(255,255,255,.06);border-radius:999px;
-  font-size:.7rem;color:#c3c9db}
-.card__links{margin:auto 0 0;padding-top:.5rem;display:flex;flex-wrap:wrap;gap:.5rem}
-.card__links a{font-size:.8rem;font-weight:600;text-decoration:none}
+.card__tech li{padding:.1rem .55rem;border:1px solid var(--rule);border-radius:999px;
+  font-size:.74rem;color:var(--muted)}
+.card__links{margin:auto 0 0;padding-top:.5rem;display:flex;flex-wrap:wrap;gap:.35rem 1rem}
+.card__links a{font-size:.86rem;font-weight:600;text-underline-offset:3px}
+.card__links a:hover{color:var(--accent)}
 .job{margin-bottom:1.6rem}
-.job h3{margin:0;font-size:1rem}
-.job .meta{margin:.1rem 0 .5rem;color:#7d859c;font-size:.82rem}
-.job ul{margin:0;padding-left:1.1rem;color:#aab1c5;font-size:.89rem}
+.job h3{margin:0;font-size:1.05rem}
+.job .meta{margin:.1rem 0 .5rem;color:var(--faint);font-size:.85rem}
+.job ul{margin:0;padding-left:1.1rem;color:var(--muted);font-size:.92rem}
 .job li{margin-bottom:.25rem}
 .edu{margin:0;padding:0;list-style:none}
-.edu li{margin-bottom:.7rem;font-size:.9rem}
-.edu span{color:#7d859c;font-size:.82rem}
+.edu li{margin-bottom:.7rem;font-size:.92rem}
+.edu span{color:var(--faint);font-size:.85rem}
 .skills{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
-.skills h3{margin:0 0 .4rem;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:#37cdea}
-.skills ul{display:flex;flex-wrap:wrap;gap:.3rem;margin:0;padding:0;list-style:none}
-.skills li{padding:.2rem .6rem;background:rgba(255,255,255,.06);border-radius:999px;font-size:.76rem}
-footer{padding:2.5rem 0 3.5rem;border-top:1px solid rgba(255,255,255,.07);color:#7d859c;font-size:.83rem}
+.skills h3{margin:0 0 .45rem;font-size:.92rem;font-weight:600;color:var(--muted)}
+.skills ul{display:flex;flex-wrap:wrap;gap:.35rem;margin:0;padding:0;list-style:none}
+.skills li{padding:.2rem .6rem;background:var(--surface);border:1px solid var(--rule);border-radius:6px;font-size:.8rem}
+footer{padding:2.5rem 0 3.5rem;border-top:1px solid var(--rule);color:var(--faint);font-size:.85rem}
 @media print{
   body{background:#fff;color:#000}
   .bar,.card__media{display:none}
   a{color:#000}
+  .card{border-top-width:1px}
 }
 </style>
 </head>
