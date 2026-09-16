@@ -500,6 +500,102 @@ html:not(.is-playing) .hud { display: none; }
 .hud__hint.is-hidden { opacity: 0; }
 
 /* ====================================================================== */
+/* Rail                                                                    */
+/* ====================================================================== */
+/* The sections down the right side: a dot each on a track, filled in accent as
+   far down the page as the robot has got. Rail.js sets --progress and marks the
+   current dot. Only the dots take the pointer, so the labels' width never
+   blocks a click on the level underneath; hovering the dots shows every label,
+   and a change of section shows the new one for a moment. Under the door, so it
+   waits its turn. */
+.rail {
+  /* The row per section, the dot column that takes the clicks, the dot, and the
+     track. Everything below is sized from these four. */
+  --rail-row: 3.1rem; --rail-col: 2.6rem; --rail-dot: 14px; --rail-line: 4px;
+  /* Centred, but never so high that it reaches under the corner controls. */
+  position: fixed; z-index: 16; translate: 0 -50%; pointer-events: none;
+  top: max(50%, calc(14rem + var(--rail-count) * var(--rail-row) / 2));
+  right: max(0.9rem, env(safe-area-inset-right));
+}
+.rail__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.rail__list li { animation: rail-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: calc(0.15s + var(--i) * 55ms); }
+@keyframes rail-in { from { opacity: 0; translate: 1.2rem 0; } }
+
+.rail__item {
+  display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem;
+  height: var(--rail-row);
+  color: var(--muted); font-size: 1rem; text-decoration: none;
+}
+.rail__item.is-active { color: var(--ink); font-weight: 600; }
+.rail__item:focus-visible { outline: none; }
+
+.rail__dot {
+  flex: none; display: grid; place-items: center;
+  width: var(--rail-col); height: 100%;
+  pointer-events: auto; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.rail__dot::before {
+  content: ""; width: var(--rail-dot); height: var(--rail-dot); border-radius: 50%;
+  background: var(--bg); border: 2.5px solid var(--faint);
+  transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1), background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.rail__item:hover .rail__dot::before { border-color: var(--ink); transform: scale(1.3); }
+.rail__item:focus-visible .rail__dot::before { outline: 2px solid var(--accent); outline-offset: 4px; }
+.rail__item.is-active .rail__dot::before {
+  background: var(--accent); border-color: var(--accent); transform: scale(1.5);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.rail__label {
+  padding: 0.25rem 0.8rem; border-radius: 999px; white-space: nowrap;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  opacity: 0; translate: 0.6rem 0; pointer-events: none;
+  transition: opacity 0.2s ease, translate 0.2s ease;
+}
+.rail:hover .rail__label,
+.rail:focus-within .rail__label,
+.rail.is-announcing .is-active .rail__label { opacity: 1; translate: 0 0; }
+.rail:hover .rail__label, .rail:focus-within .rail__label { pointer-events: auto; cursor: pointer; }
+
+/* From the middle of the first dot to the middle of the last. */
+.rail__track {
+  position: absolute;
+  top: calc(var(--rail-row) / 2); bottom: calc(var(--rail-row) / 2);
+  right: calc(var(--rail-col) / 2 - var(--rail-line) / 2);
+  width: var(--rail-line); border-radius: var(--rail-line); background: var(--rule); overflow: hidden;
+}
+.rail__fill {
+  position: absolute; inset: 0; background: var(--accent);
+  transform-origin: top; transform: scaleY(var(--progress, 0));
+  transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Without the game the level is an ordinary page, and the rail's anchors glide. */
+html:not(.is-playing) { scroll-behavior: smooth; }
+
+/* Rows close up where the height runs short, so the rail stays clear of the
+   corner controls above it. */
+@media (max-height: 780px) { .rail { --rail-row: 2.6rem; } }
+@media (max-height: 640px) { .rail { --rail-row: 2.15rem; --rail-dot: 12px; } }
+
+/* A phone has no margin beside the level, so the rail sits over the ends of its
+   lines: tucked in tighter, on a backing of its own. */
+@media (max-width: 560px) {
+  .rail { --rail-col: 2.2rem; --rail-dot: 12px; --rail-line: 3px; top: 50%; right: max(0.25rem, env(safe-area-inset-right)); }
+  .rail::before {
+    content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: var(--rail-col);
+    border-radius: 999px; background: color-mix(in srgb, var(--bg) 85%, transparent);
+  }
+  .rail__item { font-size: 0.95rem; }
+}
+
+/* A phone turned sideways has no height to spare beside the corner controls. */
+@media (max-height: 520px) {
+  .rail { display: none; }
+}
+
+/* ====================================================================== */
 /* Modal                                                                   */
 /* ====================================================================== */
 .modal {
@@ -744,4 +840,5 @@ html:not(.is-playing) #mute { display: none; }
     animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
+  html { scroll-behavior: auto !important; }
 }

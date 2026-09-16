@@ -42,7 +42,7 @@ one-line product descriptions. Two things set this one apart:
 
 **Stack**: Vite 8.2 · vanilla JS · Three.js r185 (the robot only) · Plyr 3.8 (the video player only)
 **Physics engine**: none. One-way platforms stepped by hand in `src/game/physics.js`
-**Tests**: 13/13 headless (`npm test`) · 20/20 in-browser over CDP (`npm run verify`)
+**Tests**: 14/14 headless (`npm test`) · 20/20 in-browser over CDP (`npm run verify`)
 **Deployed**: the live site at <https://youssefsayed88.github.io> is still the
 showroom until the `platformer` branch is merged into `main` and pushed. `main` deploys through GitHub
 Actions, and the deploy is gated on `npm test`.
@@ -302,7 +302,7 @@ it are listed in §3.
 
 ```bash
 npm run dev       # regenerates classic.html, then serves on :5173
-npm test          # 13 headless checks: movement, platforms, reach model, markup, bubble placement
+npm test          # 14 headless checks: movement, platforms, reach model, markup, bubble placement, rail
 npm run verify    # builds, then drives real Chrome over CDP: 19 checks
 npm run build     # -> dist/
 npm run classic   # regenerate classic.html only
@@ -335,6 +335,7 @@ Gamepad: stick or d-pad, A jumps, X opens, down drops, L3 or left trigger sprint
 | `src/game/Avatar.js` | The positioned robot element, hidden until the model loads; a capsule only if it never can |
 | `src/robot/` | Three.js robot in a small canvas: `Robot.js`, `Character.js`, `matcap.js` |
 | `src/ui/Hud.js` · `src/ui/Bubble.js` | Section label and hint · the robot's chat bubble about a project or the portal |
+| `src/ui/Rail.js` | The section rail down the right side. A click teleports the robot to that section's first platform. `classic.html` has an inline copy that scrolls smoothly instead |
 | `src/ui/Modal.js` · `src/ui/player.js` | Project panel · Plyr setup |
 | `src/ui/TouchControls.js` | Joystick, Jump, Open |
 | `platformer-smoke.mjs` | Headless checks (`npm test`) |

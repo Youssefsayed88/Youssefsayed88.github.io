@@ -74,6 +74,30 @@ function wing(w) {
     </section>`
 }
 
+// The sections, in page order, for the rail down the right side of both pages.
+// Each id is the section's element id on the level and on classic.html, so the
+// rail's links are ordinary anchors and still work with JavaScript off.
+export const SECTIONS = [
+  { id: 'about', label: 'About' },
+  ...WINGS.filter((w) => byWing(w.id).length).map((w) => ({ id: w.id, label: w.label })),
+  { id: 'experience', label: 'Experience' },
+  { id: 'education', label: 'Education' },
+  { id: 'skills', label: 'Skills' },
+]
+
+// The rail: a dot per section on a track, with a fill that runs down it as the
+// page goes by. Script on either page (src/ui/Rail.js, and its inline copy in
+// build-classic.mjs) moves the fill and marks the current section; on the level
+// a click teleports the robot, on the plain page it scrolls there.
+export function railMarkup() {
+  return `<nav class="rail" id="rail" aria-label="Sections" style="--rail-count:${SECTIONS.length}">
+    <span class="rail__track" aria-hidden="true"><span class="rail__fill"></span></span>
+    <ol class="rail__list">${SECTIONS.map((s, i) => `
+      <li style="--i:${i}"><a class="rail__item" href="#${esc(s.id)}" data-section-id="${esc(s.id)}"><span class="rail__label">${esc(s.label)}</span><span class="rail__dot" aria-hidden="true"></span></a></li>`).join('')}
+    </ol>
+  </nav>`
+}
+
 // The front door: which portfolio do you want? Covers the level until the
 // visitor picks one; the game, and the robot's download, start only on the
 // interactive choice. The basic choice is an ordinary link.
@@ -127,7 +151,7 @@ export function levelMarkup() {
   // `--player-h` is the body's height from movement.js, so the placeholder that
   // stands in until the robot loads is exactly the size of the thing that moves.
   return `<main class="level" id="level" style="--player-h:${PLAYER_HEIGHT}px">
-    <section class="lv-section lv-intro" data-section="About">
+    <section class="lv-section lv-intro" id="about" data-section="About">
       <h1 class="lv-name" data-platform="hero" data-spawn>${esc(OWNER.name)}</h1>
       <p class="lv-line lv-role" data-platform="role">${esc(OWNER.title)} &middot; ${esc(OWNER.location)}</p>
       <div class="lv-summary">${sentences(summary).map((s, i) => `

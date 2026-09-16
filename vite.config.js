@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import { OWNER, OG_IMAGE } from './src/data/projects.js'
 import { ROUTE_NAMES, DOOR_SKIP_PARAMS } from './src/core/params.js'
-import { levelMarkup, doorMarkup, esc } from './src/level/markup.js'
+import { levelMarkup, doorMarkup, railMarkup, esc } from './src/level/markup.js'
 
 const SITE = String(OWNER.site ?? '').replace(/\/+$/, '')
 
@@ -64,6 +64,7 @@ function headTags() {
           .replace('<!--DOOR_CHECK-->', doorCheck)
           .replace('<!--DOOR-->', doorMarkup())
           .replace('<!--LEVEL-->', levelMarkup())
+          .replace('<!--RAIL-->', railMarkup())
           .replace('<!--CV_LINK-->', cvLink)
           .replace(/<!--LABEL_BASIC-->/g, esc(ROUTE_NAMES.basic))
       },
