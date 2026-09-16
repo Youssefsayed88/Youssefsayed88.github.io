@@ -2,6 +2,7 @@ import Time from '../core/Time.js'
 import Input from '../core/Input.js'
 import Hud from '../ui/Hud.js'
 import Bubble from '../ui/Bubble.js'
+import Rail from '../ui/Rail.js'
 import Modal from '../ui/Modal.js'
 import Audio from '../ui/Audio.js'
 import Level from './Level.js'
@@ -46,6 +47,7 @@ export default class Game {
     this.avatar = new Avatar(root)
     this.audio = new Audio()
     this.hud = new Hud()
+    this.rail = new Rail(document.getElementById('rail'), { onSelect: (id) => this.teleport(id) })
 
     // The touch Open button is the E key's counterpart, so it lights off the
     // same target the bubble does.
@@ -137,6 +139,7 @@ export default class Game {
 
       this.updateTarget(delta)
       this.hud.setRoom(this.level.sectionAt(this.body.y))
+      this.rail.update(this.body.y, this.level.sections)
     }
 
     this.avatar.update(this.body, delta)
@@ -226,6 +229,31 @@ export default class Game {
   // drop back onto the name.
   warp() {
     if (this.warping || this.paused) return
+    this.vanish((reduced) => {
+      this.body = this.spawnBody()
+      if (reduced) this.camera.snap(this.body)
+      else this.camera.fly()
+    })
+  }
+
+  // A section picked on the rail: out of sight where it stands, and back in on
+  // that section's first platform, the camera cut straight there.
+  teleport(sectionId) {
+    if (this.warping || this.paused) return
+    this.vanish(() => {
+      const first = document.getElementById(sectionId)?.querySelector('[data-platform]')
+      const platform = first && this.level.byId.get(first.dataset.platform)
+      if (platform) {
+        const x = Math.min(platform.left + SPAWN_INSET, (platform.left + platform.right) / 2)
+        this.body = createBody(x, platform.top, platform.id)
+      }
+      this.camera.snap(this.body)
+    })
+  }
+
+  // The robot shrinks out of sight, then `place` moves it and the camera. It
+  // reappears once the camera has arrived; see update().
+  vanish(place) {
     this.warping = true
     this.target?.el?.classList.remove('is-target')
     this.target = null
@@ -235,9 +263,7 @@ export default class Game {
 
     const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     setTimeout(() => {
-      this.body = this.spawnBody()
-      if (reduced) this.camera.snap(this.body)
-      else this.camera.fly()
+      place(reduced)
       this.arriving = true
     }, reduced ? 0 : WARP_OUT * 1000)
   }

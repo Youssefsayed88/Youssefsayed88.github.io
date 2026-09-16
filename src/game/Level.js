@@ -74,7 +74,7 @@ export default class Level extends Emitter {
     this.origin = { top: origin.top + window.scrollY }
 
     this.sections = [...this.root.querySelectorAll('[data-section]')]
-      .map((el) => ({ label: el.dataset.section, top: relative(el).top }))
+      .map((el) => ({ id: el.id, label: el.dataset.section, top: relative(el).top }))
       .sort((a, b) => a.top - b.top)
 
     this.spawn = this.platforms.find((p) => p.spawn) ?? this.platforms[0] ?? null

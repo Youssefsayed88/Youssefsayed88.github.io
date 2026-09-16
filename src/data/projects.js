@@ -68,7 +68,7 @@ export const OG_IMAGE = {
 export const WINGS = [
   { id: 'games', label: 'Games' },
   { id: 'xr', label: 'XR & Digital Twins' },
-  { id: 'lab', label: 'Lab' },
+  { id: 'prototypes', label: 'Prototypes' },
 ]
 
 export const projects = [
@@ -217,10 +217,10 @@ export const projects = [
     tech: ['Unity', 'GraphQL', 'IoT'],
   },
 
-  // ===== LAB =============================================================
+  // ===== PROTOTYPES ======================================================
   {
     id: 'biohazard-breakout',
-    wing: 'lab',
+    wing: 'prototypes',
     title: 'Biohazard Breakout',
     blurb: 'Co-operative survival shooter with a hidden-impostor mechanic.',
     role: 'Built server creation and matchmaking on the PlayFab SDK, proximity voice chat with Vivox, and the weapon-holding animation IK, integrating those weapons into the weapon system.',
@@ -234,7 +234,7 @@ export const projects = [
   },
   {
     id: 'ballpop',
-    wing: 'lab',
+    wing: 'prototypes',
     title: 'Ballpop!',
     blurb: 'Arcade game where the player keeps the screen from filling up by popping balls and chaining combos. Published to the Play Store.',
     role: 'Built the whole game solo and shipped it to the Play Store.',
@@ -250,7 +250,7 @@ export const projects = [
   },
   {
     id: 'tower-of-hanoi',
-    wing: 'lab',
+    wing: 'prototypes',
     title: 'Tower of Hanoi',
     blurb: 'A browser build of the classic puzzle, written to exercise recursion alongside architectural and design patterns.',
     role: 'Built solo as an exercise in recursion and architecture, structured around the state and command patterns.',
@@ -264,7 +264,7 @@ export const projects = [
   },
   {
     id: 'whack-a-hole',
-    wing: 'lab',
+    wing: 'prototypes',
     title: 'Whack a Hole To Whack a Mole',
     blurb: 'Game jam entry inverting whack-a-mole: open the hole before the mole appears, and you only get three misses.',
     role: 'Designed and built solo for a game jam.',
@@ -278,7 +278,7 @@ export const projects = [
   },
   {
     id: 'novel-viz',
-    wing: 'lab',
+    wing: 'prototypes',
     title: 'Visualising Novels with Generative AI',
     blurb: 'Graduation project: generative models turning novel scenes into visual representations.',
     role: 'Fine-tuned Stable Diffusion 1.5 and built it into a pipeline with a GPT-2 prompt auto-completion model trained on well-formed Stable Diffusion prompts, plus an upscaling stage.',

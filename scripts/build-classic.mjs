@@ -10,6 +10,7 @@ import fs from 'node:fs'
 import { OWNER, OG_IMAGE, WINGS, projects, byWing } from '../src/data/projects.js'
 import { PROJECT_PARAM, PLAY_PARAM, ROUTE_NAMES } from '../src/core/params.js'
 import { summary, experience, education, skills } from '../src/data/profile.js'
+import { railMarkup } from '../src/level/markup.js'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
@@ -206,6 +207,41 @@ h2{margin:0 0 .25rem;font-size:1.4rem}
 .skills h3{margin:0 0 .45rem;font-size:.92rem;font-weight:600;color:var(--muted)}
 .skills ul{display:flex;flex-wrap:wrap;gap:.35rem;margin:0;padding:0;list-style:none}
 .skills li{padding:.2rem .6rem;background:var(--surface);border:1px solid var(--rule);border-radius:6px;font-size:.8rem}
+/* The rail: the level's section dots, from src/style.css. Here a click scrolls
+   smoothly, and the fill follows the scroll position. */
+section,header{scroll-margin-top:3.3rem}
+.rail{--rail-row:3.1rem;--rail-col:2.6rem;--rail-dot:14px;--rail-line:4px;
+  position:fixed;z-index:6;top:50%;translate:0 -50%;pointer-events:none;right:max(.9rem,env(safe-area-inset-right))}
+.rail__list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.rail__list li{animation:rail-in .5s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(.15s + var(--i) * 55ms)}
+@keyframes rail-in{from{opacity:0;translate:1.2rem 0}}
+.rail__item{display:flex;align-items:center;justify-content:flex-end;gap:.5rem;height:var(--rail-row);
+  color:var(--muted);font-size:1rem;text-decoration:none}
+.rail__item.is-active{color:var(--ink);font-weight:600}
+.rail__item:focus-visible{outline:none}
+.rail__dot{flex:none;display:grid;place-items:center;width:var(--rail-col);height:100%;pointer-events:auto;cursor:pointer;
+  -webkit-tap-highlight-color:transparent}
+.rail__dot::before{content:"";width:var(--rail-dot);height:var(--rail-dot);border-radius:50%;background:var(--bg);
+  border:2.5px solid var(--faint);transition:transform .25s cubic-bezier(.3,1.6,.5,1),background-color .25s ease,border-color .25s ease,box-shadow .25s ease}
+.rail__item:hover .rail__dot::before{border-color:var(--ink);transform:scale(1.3)}
+.rail__item:focus-visible .rail__dot::before{outline:2px solid var(--accent);outline-offset:4px}
+.rail__item.is-active .rail__dot::before{background:var(--accent);border-color:var(--accent);transform:scale(1.5);
+  box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 22%,transparent)}
+.rail__label{padding:.25rem .8rem;border-radius:999px;white-space:nowrap;background:color-mix(in srgb,var(--bg) 90%,transparent);
+  opacity:0;translate:.6rem 0;pointer-events:none;transition:opacity .2s ease,translate .2s ease}
+.rail:hover .rail__label,.rail:focus-within .rail__label,.rail.is-announcing .is-active .rail__label{opacity:1;translate:0 0}
+.rail:hover .rail__label,.rail:focus-within .rail__label{pointer-events:auto;cursor:pointer}
+.rail__track{position:absolute;top:calc(var(--rail-row) / 2);bottom:calc(var(--rail-row) / 2);
+  right:calc(var(--rail-col) / 2 - var(--rail-line) / 2);width:var(--rail-line);border-radius:var(--rail-line);
+  background:var(--rule);overflow:hidden}
+.rail__fill{position:absolute;inset:0;background:var(--accent);transform-origin:top;transform:scaleY(var(--progress,0));
+  transition:transform .45s cubic-bezier(.2,.7,.2,1)}
+@media (max-height:780px){.rail{--rail-row:2.6rem}}
+@media (max-height:640px){.rail{--rail-row:2.15rem;--rail-dot:12px}}
+@media (max-width:560px){.rail{--rail-col:2.2rem;--rail-dot:12px;--rail-line:3px;right:max(.25rem,env(safe-area-inset-right))}
+  .rail::before{content:"";position:absolute;top:0;bottom:0;right:0;width:var(--rail-col);border-radius:999px;
+  background:color-mix(in srgb,var(--bg) 85%,transparent)}.rail__item{font-size:.95rem}}
+@media (max-height:520px){.rail{display:none}}
 footer{padding:2.5rem 0 3.5rem;border-top:1px solid var(--rule);color:var(--faint);font-size:.85rem}
 footer a{transition:color .15s ease}
 footer a:hover{color:var(--accent)}
@@ -213,7 +249,7 @@ main:focus{outline:none}
 @media print{
   :root,:root[data-theme]{color-scheme:light;--bg:#fff;--surface:#fff;--ink:#000;--muted:#333;--faint:#555;--rule:#ccc}
   body{background:#fff;color:#000}
-  .bar,.card__media,.skip-link{display:none}
+  .bar,.card__media,.skip-link,.rail{display:none}
   a{color:#000}
   .card{border-top-width:1px}
 }
@@ -235,7 +271,7 @@ main:focus{outline:none}
 
 <main class="wrap" id="main" tabindex="-1">
 
-  <header>
+  <header id="about">
     <h1>${esc(OWNER.name)}</h1>
     <p class="role">${esc(OWNER.title)} &middot; ${esc(OWNER.location)}</p>
     <p class="summary">${esc(summary)}</p>
@@ -294,6 +330,8 @@ ${skills.map((s) => `      <div>
 
 </main>
 
+${railMarkup()}
+
 <script>
 ${THEME_TOGGLE}
 
@@ -309,6 +347,59 @@ ${THEME_TOGGLE}
     })(imgs[i])
   }
   document.body.classList.add('fades-images')
+})()
+
+// The rail. The current section is the last one whose top has passed a line a
+// third of the way down the screen, and the fill runs between dots in
+// proportion; at the foot of the page it is the last section, however short.
+// A click scrolls there smoothly, without a hash in the history.
+;(function () {
+  var rail = document.getElementById('rail')
+  if (!rail) return
+  var items = [].slice.call(rail.querySelectorAll('[data-section-id]'))
+  var targets = items.map(function (a) { return document.getElementById(a.dataset.sectionId) })
+  var reduced = matchMedia('(prefers-reduced-motion: reduce)')
+  var index = -1, timer = 0, queued = false
+
+  function update() {
+    queued = false
+    var y = scrollY + innerHeight / 3
+    var tops = targets.map(function (el) { return el ? el.getBoundingClientRect().top + scrollY : 0 })
+    var last = tops.length - 1
+    var at = 0, progress = 1
+    if (scrollY + innerHeight >= document.documentElement.scrollHeight - 2) at = last
+    else {
+      for (var i = 0; i <= last; i++) if (tops[i] <= y + 1) at = i
+      var span = at < last ? tops[at + 1] - tops[at] : 0
+      var along = span > 0 ? Math.min(1, Math.max(0, (y - tops[at]) / span)) : 0
+      progress = last > 0 ? Math.min(1, (at + along) / last) : 0
+    }
+    rail.style.setProperty('--progress', progress.toFixed(3))
+    if (at === index) return
+    if (index !== -1) {
+      items[index].classList.remove('is-active')
+      items[index].removeAttribute('aria-current')
+      rail.classList.add('is-announcing')
+      clearTimeout(timer)
+      timer = setTimeout(function () { rail.classList.remove('is-announcing') }, 1500)
+    }
+    items[at].classList.add('is-active')
+    items[at].setAttribute('aria-current', 'true')
+    index = at
+  }
+  function queue() { if (!queued) { queued = true; requestAnimationFrame(update) } }
+
+  rail.addEventListener('click', function (event) {
+    var item = event.target.closest('[data-section-id]')
+    var target = item && document.getElementById(item.dataset.sectionId)
+    if (!target) return
+    event.preventDefault()
+    if (event.detail > 0) item.blur()
+    target.scrollIntoView({ behavior: reduced.matches ? 'auto' : 'smooth', block: 'start' })
+  })
+  addEventListener('scroll', queue, { passive: true })
+  addEventListener('resize', queue)
+  update()
 })()
 
 // Deep links. The platformer answers ?project=<id> by standing the robot on that thumbnail;

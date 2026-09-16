@@ -12,7 +12,8 @@ import {
   BODY_HALF_WIDTH, MAX_FALL_SPEED, RISE_GRAVITY, JUMP_SPEED,
 } from './src/game/movement.js'
 import { audit, canReach, CLIMB_HEIGHT, REACH_MARGIN } from './src/game/reach.js'
-import { levelMarkup, sentences } from './src/level/markup.js'
+import { levelMarkup, sentences, railMarkup, SECTIONS } from './src/level/markup.js'
+import { railProgress } from './src/ui/Rail.js'
 import { placeBubble, BUBBLE_GAP } from './src/game/bubble.js'
 import { projects } from './src/data/projects.js'
 import { skills, experience, summary } from './src/data/profile.js'
@@ -252,6 +253,27 @@ function run(body, platforms, { fps = 60, seconds = 1, intent = () => ({}) } = {
       && nearWall.left >= 0 && nearWall.left + 240 <= 390 && Math.abs(tailX - 30) <= 24,
     `mid-level: left ${middle.left}, tail at ${middle.tail}, bottom ${middle.bottom}; ` +
     `robot at x=30 by the wall: left ${nearWall.left}, tail at x=${tailX}`)
+}
+
+// 14. The rail has a link for every section the level has, each pointing at an
+//     element that exists, and its fill runs from the first dot to the last.
+{
+  const html = levelMarkup()
+  const rail = railMarkup()
+  const ids = [...rail.matchAll(/data-section-id="([^"]+)"/g)].map((m) => m[1])
+  const missing = ids.filter((id) => !html.includes(`id="${id}"`))
+  const labels = SECTIONS.map((s) => s.label)
+  const tops = [0, 100, 300, 400]
+  const start = railProgress(0, tops)
+  const between = railProgress(200, tops)
+  const end = railProgress(900, tops)
+  check('the rail links every section of the level, and its fill runs between the dots',
+    ids.length === SECTIONS.length && missing.length === 0 && labels.includes('Prototypes') && !labels.includes('Lab')
+      && start.index === 0 && start.progress === 0
+      && between.index === 1 && Math.abs(between.progress - 0.5) < 1e-9
+      && end.index === 3 && end.progress === 1,
+    `${ids.length} links (${labels.join(', ')})` + (missing.length ? `, no element for: ${missing.join(', ')}` : '') +
+    `; progress at the top ${start.progress}, halfway through the second section ${between.progress.toFixed(2)}, at the foot ${end.progress}`)
 }
 
 const failed = results.filter((r) => !r.pass)

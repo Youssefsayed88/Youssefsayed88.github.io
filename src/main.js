@@ -22,6 +22,7 @@ initThemeToggle(document.getElementById('theme'))
 
 const html = document.documentElement
 const root = document.getElementById('level')
+const rail = document.getElementById('rail')
 
 function startGame() {
   // `is-playing` hands the scroll position to the camera and reveals the HUD,
@@ -45,8 +46,10 @@ if (root) {
   if (door && html.classList.contains('has-door')) {
     // Behind the door, the level cannot be tabbed into or read out.
     root.inert = true
+    if (rail) rail.inert = true
     document.getElementById('door-play').addEventListener('click', () => {
       root.inert = false
+      if (rail) rail.inert = false
       // The robot drops in behind the door as it fades.
       startGame()
       door.classList.add('is-leaving')
