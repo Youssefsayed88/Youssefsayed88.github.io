@@ -19,10 +19,15 @@
   <!-- The visitor's theme, if they picked one, before anything paints. Without
        it the system setting applies through the stylesheet. See src/ui/theme.js. -->
   <script>try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
+  <!-- Asks which portfolio unless the link already chose. See doorMarkup in
+       src/level/markup.js; injected by vite.config.js. -->
+  <!--DOOR_CHECK-->
   <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
   <a class="skip-link" href="./classic.html">Skip the game: read the plain portfolio</a>
+
+  <!--DOOR-->
 
   <!-- The level: the whole portfolio as ordinary markup, generated from
        src/data by src/level/markup.js and injected here by vite.config.js.

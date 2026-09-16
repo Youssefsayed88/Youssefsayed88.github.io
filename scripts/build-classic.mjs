@@ -8,7 +8,7 @@
 
 import fs from 'node:fs'
 import { OWNER, OG_IMAGE, WINGS, projects, byWing } from '../src/data/projects.js'
-import { PROJECT_PARAM, ROUTE_NAMES } from '../src/core/params.js'
+import { PROJECT_PARAM, PLAY_PARAM, ROUTE_NAMES } from '../src/core/params.js'
 import { summary, experience, education, skills } from '../src/data/profile.js'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
@@ -228,7 +228,7 @@ main:focus{outline:none}
     <strong>${esc(OWNER.name)}</strong>
     <div class="bar__actions">
       <button class="theme-toggle" id="theme" type="button" aria-label="Switch to dark theme" hidden>${THEME_ICONS}</button>
-      <a href="./index.html">${esc(ROUTE_NAMES.showroom)}</a>
+      <a href="./index.html?${PLAY_PARAM}">${esc(ROUTE_NAMES.showroom)}</a>
     </div>
   </div>
 </div>
@@ -289,7 +289,7 @@ ${skills.map((s) => `      <div>
 
   <footer>
     <p>${esc(OWNER.name)} &middot; ${esc(OWNER.email)}</p>
-    <p>Prefer to play through it? <a href="./index.html">${esc(ROUTE_NAMES.showroom)}</a>.</p>
+    <p>Prefer to play through it? <a href="./index.html?${PLAY_PARAM}">${esc(ROUTE_NAMES.showroom)}</a>.</p>
   </footer>
 
 </main>
@@ -397,7 +397,7 @@ h1{margin:0 0 .75rem;font-size:clamp(1.8rem,6vw,2.5rem);line-height:1.1;letter-s
   <h1>This platform isn&rsquo;t here.</h1>
   <p class="lede">The link you followed runs off the edge of the level. The page may have moved, or the address has a typo in it.</p>
   <p class="actions">
-    <a class="primary" href="${esc(HOME)}/">Back to the level</a>
+    <a class="primary" href="${esc(HOME)}/?${PLAY_PARAM}">Back to the level</a>
     <a href="${esc(HOME)}/classic.html">${esc(ROUTE_NAMES.basic)}</a>
   </p>
   <p class="small">Looking for something specific? <a href="mailto:${esc(OWNER.email)}">${esc(OWNER.email)}</a></p>

@@ -4,33 +4,60 @@ import { fadeInThumbnails } from './ui/loading.js'
 import Game from './game/Game.js'
 
 // The page is on screen before this runs: the level is plain markup injected at
-// build time, so a visitor is reading the name, the summary and the thumbnails
-// while the script is still arriving. This only turns the page into a level.
+// build time, so it reads before any script arrives. This only turns the page
+// into a level.
 //
-// No loading screen and no front door any more. There is nothing heavy to wait
-// for — the physics is a few comparisons a frame, not a WASM engine — and the one
-// large download, the robot, arrives after the game is already playable. The
-// plain page is still one click away for anyone who wants it, from the corner
-// and from the footer.
+// Unless the link already chose, a front door asks first which portfolio the
+// visitor wants (see doorMarkup in src/level/markup.js). The game is built only
+// once they pick the interactive one, so someone who wanted the plain page never
+// downloads the robot to be shown a button that takes them away from it. No
+// loading screen after that: the physics is a few comparisons a frame, and the
+// robot arrives once the game is already playable.
+
+// How long the door takes to fade off the level once a choice is made.
+const DOOR_FADE = 300
 
 preventPinchZoom()
 initThemeToggle(document.getElementById('theme'))
 
+const html = document.documentElement
 const root = document.getElementById('level')
 
-if (root) {
-  // Presentation only, so it runs whether or not the game starts.
-  fadeInThumbnails(root)
-
+function startGame() {
   // `is-playing` hands the scroll position to the camera and reveals the HUD,
   // the robot and the portal. Set before the game is built, so the first
   // measurement is taken of the page as it will be played.
-  document.documentElement.classList.add('is-playing')
+  html.classList.add('is-playing')
   try {
     window.game = new Game(root)
   } catch (error) {
     // A game that fails to start must leave a page that still reads.
     console.error('[platformer] failed to start', error)
-    document.documentElement.classList.remove('is-playing')
+    html.classList.remove('is-playing')
+  }
+}
+
+if (root) {
+  // Presentation only, so it runs whether or not the game starts.
+  fadeInThumbnails(root)
+
+  const door = document.getElementById('door')
+  if (door && html.classList.contains('has-door')) {
+    // Behind the door, the level cannot be tabbed into or read out.
+    root.inert = true
+    document.getElementById('door-play').addEventListener('click', () => {
+      root.inert = false
+      // The robot drops in behind the door as it fades.
+      startGame()
+      door.classList.add('is-leaving')
+      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      setTimeout(() => {
+        html.classList.remove('has-door')
+        door.remove()
+      }, reduced ? 0 : DOOR_FADE)
+    }, { once: true })
+  } else {
+    door?.remove()
+    startGame()
   }
 }

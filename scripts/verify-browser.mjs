@@ -20,6 +20,7 @@ import { TYPING } from '../src/ui/Bubble.js'
 import { PLAYER_HEIGHT } from '../src/game/movement.js'
 import { DWELL } from '../src/game/Game.js'
 import { projects } from '../src/data/projects.js'
+import { ROUTE_NAMES } from '../src/core/params.js'
 import { skills } from '../src/data/profile.js'
 
 const PORT = 4178
@@ -179,7 +180,7 @@ async function auditHere() {
 // ===========================================================================
 
 await viewport(1280, 800)
-await open('/')
+await open('/?play')
 await install()
 
 // 1. The page is the level, and it is there before any script runs.
@@ -194,12 +195,13 @@ await install()
     playing: document.documentElement.classList.contains('is-playing'),
     wasm: performance.getEntriesByType('resource').some((r) => /\\.wasm/.test(r.name)),
     platforms: window.game.level.platforms.length,
+    door: !!document.getElementById('door') || document.documentElement.classList.contains('has-door'),
   })`)
-  check('the level is in the served HTML and the game starts on it without a physics engine',
+  check('the level is in the served HTML, and a ?play link starts the game on it with no door and no physics engine',
     served.h1 && served.thumbs === projects.length && served.platforms === live.platforms
-      && live.playing && !live.wasm,
+      && live.playing && !live.wasm && !live.door,
     `served: h1 ${served.h1}, ${served.platforms} platforms, ${served.thumbs} thumbnails; ` +
-    `live: ${live.platforms} platforms measured, playing ${live.playing}, WASM fetched ${live.wasm}`)
+    `live: ${live.platforms} platforms measured, playing ${live.playing}, WASM fetched ${live.wasm}, door up ${live.door}`)
 }
 
 // 2. The robot loads and lands on the name.
@@ -453,7 +455,7 @@ await settleAt(1280)
     seen.every((s) => s.states === 1 && s.time > 0.5),
     seen.map((s) => `${s.size}: ${s.states} layout state${s.states === 1 ? '' : 's'}, played ${s.time.toFixed(1)}s`).join(' · '))
   await viewport(1280, 800)
-  await open('/')
+  await open('/?play')
   await install()
 }
 
@@ -498,7 +500,7 @@ await settleAt(1280)
 //     kept on screen, below the corner controls and above the thumbs.
 {
   await viewport(390, 844, true)
-  await open('/')
+  await open('/?play')
   await install()
   await sim(0.3)
   await place('project-robotics')
@@ -519,7 +521,37 @@ await settleAt(1280)
     `on screen ${phone.onScreen}, horizontal overflow ${phone.overflow}`)
 }
 
-// 17. Nothing threw, nothing 404'd, and nothing left this origin — Plyr's
+// 17. Arriving with no choice made, the front door asks which portfolio, and
+//     builds nothing until asked: no game and no robot download. Picking the
+//     interactive one opens onto the level and the robot drops in.
+{
+  await viewport(1280, 800)
+  await cdp.send('Page.navigate', { url: `${ORIGIN}/` })
+  await cdp.send('Page.bringToFront')
+  await waitFor(() => cdp.eval("document.readyState === 'complete'"), 'the front page to load')
+  await sleep(600)
+  const asked = await cdp.eval(`(() => {
+    const door = document.getElementById('door')
+    const r = door ? door.getBoundingClientRect() : null
+    return {
+      covers: !!r && getComputedStyle(door).display !== 'none' && r.width >= innerWidth && r.height >= innerHeight,
+      play: (document.getElementById('door-play')?.textContent ?? '').includes(${JSON.stringify(ROUTE_NAMES.showroom)}),
+      basic: !!door?.querySelector('a[href="./classic.html"]'),
+      game: !!window.game,
+      robot: performance.getEntriesByType('resource').some((e) => /Robot-/.test(e.name)),
+    }
+  })()`)
+  await click('#door-play')
+  await waitFor(() => cdp.eval("!!window.game && !document.getElementById('door') && !document.documentElement.classList.contains('has-door')"),
+    'the door to open onto the level', 80)
+  await waitFor(() => cdp.eval("window.game.body.on === 'hero'"), 'the robot to land on the name', 120)
+  check('the front door offers both portfolios and builds nothing until the interactive one is picked',
+    asked.covers && asked.play && asked.basic && !asked.game && !asked.robot,
+    `door covers the screen ${asked.covers}, interactive choice ${asked.play}, basic link ${asked.basic}; ` +
+    `before choosing: game ${asked.game}, robot fetched ${asked.robot}; after: robot on the name`)
+}
+
+// 18. Nothing threw, nothing 404'd, and nothing left this origin — Plyr's
 //     sprite and blank video default to its CDN, and both are overridden.
 {
   const errors = cdp.events

@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite'
 import { OWNER, OG_IMAGE } from './src/data/projects.js'
-import { ROUTE_NAMES } from './src/core/params.js'
-import { levelMarkup, esc } from './src/level/markup.js'
+import { ROUTE_NAMES, DOOR_SKIP_PARAMS } from './src/core/params.js'
+import { levelMarkup, doorMarkup, esc } from './src/level/markup.js'
 
 const SITE = String(OWNER.site ?? '').replace(/\/+$/, '')
 
@@ -48,6 +48,11 @@ function headTags() {
     ? `<a class="controls__btn" href="./${esc(OWNER.cv)}" target="_blank" rel="noopener noreferrer">CV (PDF)</a>`
     : ''
 
+  // Whether to ask which portfolio, decided before first paint so the door never
+  // flashes up over a level that was already chosen. The parameters that skip
+  // it come from params.js, so this cannot drift from the links that carry them.
+  const doorCheck = `<script>(function(){var q=new URLSearchParams(location.search);if(!${JSON.stringify(DOOR_SKIP_PARAMS)}.some(function(k){return q.has(k)}))document.documentElement.classList.add("has-door")})()</script>`
+
   return {
     name: 'head-tags',
     transformIndexHtml: {
@@ -56,6 +61,8 @@ function headTags() {
         if (!ctx.filename.endsWith('index.html')) return html
         return html
           .replace('</head>', `${block}\n</head>`)
+          .replace('<!--DOOR_CHECK-->', doorCheck)
+          .replace('<!--DOOR-->', doorMarkup())
           .replace('<!--LEVEL-->', levelMarkup())
           .replace('<!--CV_LINK-->', cvLink)
           .replace(/<!--LABEL_BASIC-->/g, esc(ROUTE_NAMES.basic))

@@ -9,11 +9,15 @@
 // build-classic.mjs interpolates the same constant into the page it generates, so
 // no route can drift from another over the spelling of a link.
 //
-// (`showroom` used to live here too, to skip a front door that asked which
-// portfolio you wanted. The platformer IS the page now, readable before any
-// script runs, so there is no door left to skip. An old link that still carries
-// the parameter is simply ignored.)
 export const PROJECT_PARAM = 'project'
+
+// `play` is a link that has already chosen the interactive portfolio, so it
+// skips the front door that asks (see doorMarkup in src/level/markup.js).
+// classic.html's link to the level carries it. So does `project`, which names a
+// thumbnail inside the level. And so does the old showroom's `showroom`: a link
+// shared back then meant the same choice.
+export const PLAY_PARAM = 'play'
+export const DOOR_SKIP_PARAMS = [PLAY_PARAM, PROJECT_PARAM, 'showroom']
 
 // What the two routes are CALLED, in the one place that names them.
 //

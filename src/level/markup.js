@@ -74,6 +74,36 @@ function wing(w) {
     </section>`
 }
 
+// The front door: which portfolio do you want? Covers the level until the
+// visitor picks one; the game, and the robot's download, start only on the
+// interactive choice. The basic choice is an ordinary link.
+//
+// Shown only when the inline check in index.html's head adds `has-door` to
+// <html> — before first paint, and never without JavaScript, where the
+// interactive choice could do nothing and the level underneath is already a
+// readable page.
+export function doorMarkup() {
+  return `<section class="door" id="door" aria-labelledby="door-title">
+    <div class="door__inner">
+      <p class="door__name" id="door-title">${esc(OWNER.name)}</p>
+      <p class="door__role">${esc(OWNER.title)} &middot; ${esc(OWNER.location)}</p>
+      <p class="door__lede">Two ways in. The same work either way.</p>
+      <div class="door__choices">
+        <button class="door__card door__card--play" id="door-play" type="button">
+          <span class="door__title">${esc(ROUTE_NAMES.showroom)}<span class="door__arrow" aria-hidden="true">&rarr;</span></span>
+          <span class="door__desc">Play through it as a platformer. A robot jumps down the page, and tells you about each project it lands on.</span>
+          <span class="door__meta">Keyboard, touch or gamepad &middot; a moment to load</span>
+        </button>
+        <a class="door__card" href="./classic.html">
+          <span class="door__title">${esc(ROUTE_NAMES.basic)}<span class="door__arrow" aria-hidden="true">&rarr;</span></span>
+          <span class="door__desc">Every project on one readable page, with the experience, skills and CV alongside.</span>
+          <span class="door__meta">Loads instantly &middot; works anywhere &middot; prints</span>
+        </a>
+      </div>
+    </div>
+  </section>`
+}
+
 export function levelMarkup() {
   const jobs = experience.map((job, i) => `
         <div class="lv-job">

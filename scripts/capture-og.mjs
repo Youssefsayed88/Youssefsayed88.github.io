@@ -55,7 +55,7 @@ await cdp.send('Emulation.setDeviceMetricsOverride', {
   width: OG_IMAGE.logical.width, height: OG_IMAGE.logical.height,
   deviceScaleFactor: OG_IMAGE.scale, mobile: false,
 })
-await cdp.send('Page.navigate', { url: `${ORIGIN}/` })
+await cdp.send('Page.navigate', { url: `${ORIGIN}/?play` })
 await cdp.send('Page.bringToFront')   // headless throttles rAF on a background page
 
 await waitFor(() => cdp.eval('!!window.game'), 'the game to start')

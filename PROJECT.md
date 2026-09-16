@@ -42,7 +42,7 @@ one-line product descriptions. Two things set this one apart:
 
 **Stack**: Vite 8.2 · vanilla JS · Three.js r185 (the robot only) · Plyr 3.8 (the video player only)
 **Physics engine**: none. One-way platforms stepped by hand in `src/game/physics.js`
-**Tests**: 13/13 headless (`npm test`) · 19/19 in-browser over CDP (`npm run verify`)
+**Tests**: 13/13 headless (`npm test`) · 20/20 in-browser over CDP (`npm run verify`)
 **Deployed**: the live site at <https://youssefsayed88.github.io> is still the
 showroom until the `platformer` branch is merged into `main` and pushed. `main` deploys through GitHub
 Actions, and the deploy is gated on `npm test`.
@@ -50,15 +50,18 @@ Actions, and the deploy is gated on `npm test`.
 ### Routes
 
 - **`index.html`**: the platformer. The level markup is generated from the data at
-  build time, so it is on screen before any script runs. There is no front door
-  and no loading screen. The game starts on the page as it is, and the robot model
-  arrives afterwards.
+  build time, so it is in the page before any script runs. A **front door** covers
+  it first and asks which portfolio: Interactive or Basic. Nothing is built, and
+  the robot is not downloaded, until Interactive is picked; then the door fades
+  and the robot drops in. No loading screen. The door is skipped by `?play`
+  (what classic.html and the 404 page link with), `?project=`, and old
+  `?showroom` links, and it never shows without JavaScript.
 - **`classic.html`**: the plain page, generated from the same data. It is reached
   from the **Basic Portfolio** button in the corner and from the level's footer.
 
 `?project=<id>` works on both routes. On the platformer it stands the robot on
 that thumbnail with the panel open. On the plain page it scrolls to that project's
-card. Old `?showroom` links are ignored harmlessly.
+card.
 
 ### How the level works
 

@@ -68,6 +68,65 @@ a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outlin
 }
 .skip-link:focus { transform: none; }
 
+/* ---------- The front door ---------- */
+/* Which portfolio? Over the level until a choice is made. Only with
+   `has-door` on <html>, which the inline check in the head adds before first
+   paint, so without JavaScript this is never shown. Under the corner controls,
+   so the theme toggle and the CV stay reachable; the corner's own Basic
+   Portfolio button steps aside, since the door offers it. */
+.door { display: none; }
+html.has-door { overflow: hidden; }
+html.has-door .door {
+  display: grid; place-items: center;
+  position: fixed; inset: 0; z-index: 18;
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 7.5rem var(--gutter) 3rem;
+  background: var(--bg);
+  transition: opacity 0.3s ease;
+}
+html.has-door .door.is-leaving { opacity: 0; pointer-events: none; }
+html.has-door .controls__btn--exit { display: none; }
+
+.door__inner { width: min(46rem, 100%); }
+.door__name {
+  margin: 0; font-size: clamp(2.2rem, 6.5vw, 4rem); font-weight: 700;
+  line-height: 1; letter-spacing: -0.02em;
+}
+.door__role { margin: 0.8rem 0 0; color: var(--muted); font-size: clamp(0.95rem, 2vw, 1.1rem); }
+.door__lede { margin: 2.25rem 0 1.1rem; font-size: 1.05rem; }
+
+.door__choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+@media (max-width: 620px) {
+  .door__choices { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  html.has-door .door { padding-top: 5rem; }
+}
+
+/* Each choice wears the level's ledge along its top. */
+.door__card {
+  appearance: none; font: inherit; color: inherit; text-align: left; text-decoration: none; cursor: pointer;
+  position: relative; display: flex; flex-direction: column; gap: 0.5rem;
+  margin: 0; padding: 1.4rem 1.3rem 1.2rem;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.door__card::before {
+  content: ""; position: absolute; left: -1px; right: -1px; top: -1px;
+  height: var(--ledge); border-radius: 10px 10px 0 0;
+  background: var(--ink);
+}
+.door__card--play::before { background: var(--accent); }
+.door__card:hover, .door__card:focus-visible {
+  border-color: var(--ink); box-shadow: 0 8px 22px var(--shadow); transform: translateY(-2px);
+}
+.door__title { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; font-size: 1.2rem; font-weight: 700; }
+.door__arrow { color: var(--faint); transition: color 0.15s ease, transform 0.15s ease; }
+.door__card:hover .door__arrow, .door__card:focus-visible .door__arrow { color: var(--accent); transform: translateX(3px); }
+.door__desc { color: var(--muted); font-size: 0.93rem; line-height: 1.55; }
+.door__meta { margin-top: auto; padding-top: 0.4rem; color: var(--faint); font-size: 0.8rem; }
+
 /* While the game runs, the camera owns the scroll position: no wheel, no
    swipe, no pull-to-refresh halfway down a fall. Without `is-playing` — no
    JavaScript, or a game that failed to start — this is an ordinary page that
