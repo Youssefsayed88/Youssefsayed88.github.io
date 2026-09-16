@@ -29,7 +29,7 @@ const TURN_TOWARD_VIEWER = 0.5
 const TURN_RATE = 12
 
 export default class Robot {
-  constructor(container, { onReady } = {}) {
+  constructor(container, { onReady, onError } = {}) {
     const width = Math.round(PLAYER_HEIGHT * FRAME.width)
     const above = Math.round(PLAYER_HEIGHT * FRAME.above)
     const below = Math.round(PLAYER_HEIGHT * FRAME.below)
@@ -70,7 +70,7 @@ export default class Robot {
     this.yaw = yawFor(1)
     this.root.rotation.y = this.yaw
 
-    this.character = new Character(this.root, { onReady })
+    this.character = new Character(this.root, { onReady, onError })
   }
 
   // `speed` and `verticalVelocity` are the body's, in px/s with y down.

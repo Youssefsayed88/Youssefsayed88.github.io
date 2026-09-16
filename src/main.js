@@ -1,4 +1,6 @@
 import { preventPinchZoom } from './ui/zoom.js'
+import { initThemeToggle } from './ui/theme.js'
+import { fadeInThumbnails } from './ui/loading.js'
 import Game from './game/Game.js'
 
 // The page is on screen before this runs: the level is plain markup injected at
@@ -12,10 +14,14 @@ import Game from './game/Game.js'
 // and from the footer.
 
 preventPinchZoom()
+initThemeToggle(document.getElementById('theme'))
 
 const root = document.getElementById('level')
 
 if (root) {
+  // Presentation only, so it runs whether or not the game starts.
+  fadeInThumbnails(root)
+
   // `is-playing` hands the scroll position to the camera and reveals the HUD,
   // the robot and the portal. Set before the game is built, so the first
   // measurement is taken of the page as it will be played.

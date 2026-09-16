@@ -1,9 +1,10 @@
 // What the body looks like on the page.
 //
-// A positioned element inside the level whose origin is the feet. Until the
-// robot arrives it shows a placeholder the size of the body, which is the whole
-// character on a device without WebGL — the platformer does not need 3D to be
-// played, only to look like itself.
+// A positioned element inside the level whose origin is the feet. Nothing is
+// drawn until the robot arrives — a stand-in capsule that is then swapped out
+// reads as a glitch. The capsule is shown only where the robot can never
+// arrive (no WebGL, or the model failed to load): there it is the whole
+// character, and an invisible player would be worse.
 
 // Below this horizontal speed the robot keeps facing the way it last moved,
 // instead of flicking round on the last scraps of a stop.
@@ -24,7 +25,11 @@ export default class Avatar {
     this.facing = 1
     this.robot = null
 
-    if (!webglAvailable()) return
+    const fallBack = () => this.el.classList.add('no-robot')
+    if (!webglAvailable()) {
+      fallBack()
+      return
+    }
 
     // Dynamic, so Three.js and the model are fetched after the page is already
     // on screen and playable.
@@ -32,10 +37,12 @@ export default class Avatar {
       .then(({ default: Robot }) => {
         this.robot = new Robot(this.el, {
           onReady: () => this.el.classList.add('has-robot'),
+          onError: fallBack,
         })
       })
       .catch((error) => {
-        console.warn('[avatar] could not load the robot, keeping the placeholder', error)
+        console.warn('[avatar] could not load the robot, showing the capsule', error)
+        fallBack()
       })
   }
 

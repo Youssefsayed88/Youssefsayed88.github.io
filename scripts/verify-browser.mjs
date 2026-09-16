@@ -16,6 +16,8 @@ import { launchChrome, waitFor, chromePath } from './lib/chrome.mjs'
 import { SPEED, jumpApex } from '../src/game/movement.js'
 import { audit } from '../src/game/reach.js'
 import { BUBBLE_GAP } from '../src/game/bubble.js'
+import { TYPING } from '../src/ui/Bubble.js'
+import { PLAYER_HEIGHT } from '../src/game/movement.js'
 import { DWELL } from '../src/game/Game.js'
 import { projects } from '../src/data/projects.js'
 import { skills } from '../src/data/profile.js'
@@ -126,7 +128,7 @@ const INSTALL = `window.__v = {
   },
   bubble() {
     const el = document.getElementById('bubble')
-    return { shown: !el.hidden, title: el.querySelector('.bubble__title').textContent, side: el.dataset.side ?? null }
+    return { shown: !el.hidden, title: el.querySelector('.bubble__title').textContent }
   },
 }; true`
 const install = () => cdp.eval(INSTALL)
@@ -325,29 +327,30 @@ await settleAt(1280)
     `from "job-0" (top ${tops.from.toFixed(0)}) to "${b.on}" (top ${tops.now?.toFixed(0)})`)
 }
 
-// 9. Landing on a thumbnail makes it talk: a speech bubble beside it (or below
-//    it), tail toward it, never over the robot. Standing still opens it, with
-//    the video in Plyr; closing clears the link and does not re-open it.
+// 9. Landing on a thumbnail makes the robot talk: typing dots, then a chat
+//    bubble over its head with the tail pointing down at it, which follows it
+//    along the thumbnail. Standing still opens the project, with the video in
+//    Plyr; closing clears the link and does not re-open it.
 {
-  await place('project-lu-run', { above: 120 })
-  await waitFor(() => cdp.eval("window.game.body.on === 'project-lu-run'"), 'the robot to land on LU RUN', 80)
-  await sim(0.2)
-  const said = await cdp.eval(`(() => {
+  const reading = `(() => {
     const b = document.getElementById('bubble')
     const r = b.getBoundingClientRect()
-    const t = document.querySelector('[data-project="lu-run"]').getBoundingClientRect()
-    const robot = (document.querySelector('.avatar__robot') ?? document.querySelector('.avatar__placeholder')).getBoundingClientRect()
-    const side = b.dataset.side
-    const gap = side === 'right' ? r.left - t.right : side === 'left' ? t.left - r.right : r.top - t.bottom
-    const overlapsRobot = r.left < robot.right && r.right > robot.left && r.top < robot.bottom && r.bottom > robot.top
-    return { shown: !b.hidden, title: b.querySelector('.bubble__title').textContent, side, gap,
-      overlapsRobot, lit: document.querySelector('[data-project="lu-run"]').classList.contains('is-target') }
-  })()`)
-  check('landing on a thumbnail makes it speak: a bubble next to it, tail toward it, clear of the robot',
-    said.shown && said.title === 'LU RUN' && said.lit && !said.overlapsRobot
-      && ['right', 'left', 'below'].includes(said.side) && Math.abs(said.gap - BUBBLE_GAP) < 2,
-    `bubble "${said.title}" on the ${said.side}, ${said.gap.toFixed(1)}px from the thumbnail (want ${BUBBLE_GAP}), ` +
-    `over the robot: ${said.overlapsRobot}, thumbnail marked: ${said.lit}`)
+    const tail = b.querySelector('.bubble__tail').getBoundingClientRect()
+    const feet = document.getElementById('avatar').getBoundingClientRect()
+    return { shown: !b.hidden, typing: b.classList.contains('is-typing'), title: b.querySelector('.bubble__title').textContent,
+      headClear: feet.top - ${PLAYER_HEIGHT} - r.bottom, tailOff: (tail.left + tail.right) / 2 - feet.left,
+      lit: document.querySelector('[data-project="lu-run"]').classList.contains('is-target') }
+  })()`
+  await place('project-lu-run', { above: 120 })
+  await waitFor(() => cdp.eval("window.game.body.on === 'project-lu-run'"), 'the robot to land on LU RUN', 80)
+  const first = await cdp.eval(reading)
+  await sim(TYPING + 0.15)
+  const said = await cdp.eval(reading)
+  check('landing on a thumbnail makes the robot speak: typing, then a bubble over its head, tail on the robot',
+    first.shown && first.typing && said.shown && !said.typing && said.title === 'LU RUN' && said.lit
+      && Math.abs(said.headClear - BUBBLE_GAP) < 2 && Math.abs(said.tailOff) < 2,
+    `typing first: ${first.typing}; bubble "${said.title}" ${said.headClear.toFixed(1)}px above the head ` +
+    `(want ${BUBBLE_GAP}), tail ${said.tailOff.toFixed(1)}px from the robot's middle, thumbnail marked: ${said.lit}`)
 
   await waitFor(async () => (await modal()).open, 'standing still to open the panel', 120)
   await waitFor(async () => (await modal()).plyr, 'the video player to mount', 80)
@@ -374,7 +377,7 @@ await settleAt(1280)
   await escape()
 
   await place('project-sinai-heroes')
-  await sim(0.2)
+  await sim(TYPING + 0.2)
   await click('.bubble__open')
   await sim(0.1)
   const byClick = await modal()
@@ -466,7 +469,7 @@ await settleAt(1280)
   const b = await body()
   check('standing at the portal offers it, and clicking it flies back to the top',
     offered.shown && offered.title === 'Back to the top' && b.on === 'hero',
-    `bubble "${offered.title}" (${offered.side}); now on "${b.on}", scrolled to ${await cdp.eval('window.scrollY')}`)
+    `bubble "${offered.title}"; now on "${b.on}", scrolled to ${await cdp.eval('window.scrollY')}`)
 }
 
 // 14. A ?project= link opens on that thumbnail with its panel up.
@@ -491,8 +494,8 @@ await settleAt(1280)
     !stale.open && stale.param === null, `no panel, parameter ${stale.param === null ? 'dropped' : stale.param}`)
 }
 
-// 16. On a phone: the touch controls are up, and a bubble below its thumbnail
-//     is kept on screen above them.
+// 16. On a phone: the touch controls are up, and the bubble over the robot is
+//     kept on screen, below the corner controls and above the thumbs.
 {
   await viewport(390, 844, true)
   await open('/')
@@ -504,12 +507,15 @@ await settleAt(1280)
     const root = document.querySelector('.touch')
     const b = document.getElementById('bubble').getBoundingClientRect()
     const controls = document.querySelector('.touch__btn--jump').getBoundingClientRect()
-    return { shown: !!root && !root.hidden, bubbleBottom: Math.round(b.bottom), controlsTop: Math.round(controls.top),
+    const corner = document.querySelector('.controls').getBoundingClientRect()
+    return { shown: !!root && !root.hidden, bubbleTop: Math.round(b.top), cornerBottom: Math.round(corner.bottom),
+      bubbleBottom: Math.round(b.bottom), controlsTop: Math.round(controls.top),
       onScreen: b.top >= 0 && b.bottom <= innerHeight, overflow: document.documentElement.scrollWidth > innerWidth }
   })()`)
   check('on a phone the touch controls are up, and the bubble stays on screen clear of them',
-    phone.shown && phone.onScreen && phone.bubbleBottom <= phone.controlsTop && !phone.overflow,
-    `touch controls ${phone.shown}, bubble bottom ${phone.bubbleBottom}px vs Jump button top ${phone.controlsTop}px, ` +
+    phone.shown && phone.onScreen && phone.bubbleTop >= phone.cornerBottom
+      && phone.bubbleBottom <= phone.controlsTop && !phone.overflow,
+    `touch controls ${phone.shown}, bubble top ${phone.bubbleTop}px vs corner controls bottom ${phone.cornerBottom}px, bubble bottom ${phone.bubbleBottom}px vs Jump button top ${phone.controlsTop}px, ` +
     `on screen ${phone.onScreen}, horizontal overflow ${phone.overflow}`)
 }
 

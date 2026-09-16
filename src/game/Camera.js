@@ -6,7 +6,6 @@
 //
 // The page cannot be scrolled by hand while playing (see `is-playing` in the
 // stylesheet); the camera owns it.
-import { PLAYER_HEIGHT } from './movement.js'
 
 // How quickly the view closes on the robot, per second. Brisk enough that a fall
 // never leaves the robot below the fold.
@@ -18,10 +17,15 @@ const FLY = 3.2
 // Within this many pixels of its target the camera counts as arrived.
 const ARRIVED = 40
 
-// Screen kept clear below a bubble the camera is holding in view: the touch
-// controls on a phone, a margin elsewhere.
+// Screen kept clear below the feet while the camera holds a bubble in view: the
+// touch controls on a phone, a margin elsewhere.
 const RESERVE_TOUCH = 190
 const RESERVE = 28
+
+// And above the bubble: the corner controls and section label on a phone, a
+// margin elsewhere.
+const RESERVE_TOP_TOUCH = 120
+const RESERVE_TOP = 24
 
 export default class Camera {
   constructor(level) {
@@ -46,15 +50,16 @@ export default class Camera {
     const lean = Math.max(-vh * 0.12, Math.min(vh * 0.22, body.verticalVelocity * 0.2))
     let y = origin + body.y - vh * 0.55 + lean
 
-    // A bubble hanging below its thumbnail can end up under the fold, or under
-    // the thumbs on a phone. Scroll down just far enough to show it — but never
-    // so far that the robot, or the top of the bubble, leaves the screen.
+    // The bubble over the robot's head can reach above the top of the screen,
+    // or under the corner controls on a phone. Scroll up just far enough to
+    // show it, but never so far that the feet drop under the touch controls
+    // or past the bottom of the screen.
     const keep = this.keepVisible
     if (keep) {
       const touch = document.body.classList.contains('has-touch-controls')
-      const needed = origin + keep.bottom + (touch ? RESERVE_TOUCH : RESERVE) - vh
-      const limit = origin + Math.min(keep.top, body.y - PLAYER_HEIGHT) - 24
-      y = Math.max(y, Math.min(needed, limit))
+      const wanted = origin + keep.top - (touch ? RESERVE_TOP_TOUCH : RESERVE_TOP)
+      const lowest = origin + body.y + (touch ? RESERVE_TOUCH : RESERVE) - vh
+      y = Math.min(y, Math.max(wanted, lowest))
     }
 
     return this.clamp(y)

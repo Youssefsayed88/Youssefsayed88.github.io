@@ -241,21 +241,17 @@ function run(body, platforms, { fps = 60, seconds = 1, intent = () => ({}) } = {
     `; spawn ${spawn}, solid ground ${ground}, portal ${portal}, bubble ${bubble}`)
 }
 
-// 13. The speech bubble goes beside its thumbnail where there is room, on the
-//     roomier side, and hangs below it where there is not.
+// 13. The speech bubble sits over the robot's head with its tail on the robot,
+//     and slides along to stay inside the level beside a wall.
 {
-  const bounds = { left: 0, right: 1000, top: 0 }
-  const size = { width: 272, height: 150 }
-  const leftHand = placeBubble({ left: 100, right: 300, top: 500, bottom: 612 }, size, bounds)
-  const rightHand = placeBubble({ left: 700, right: 990, top: 500, bottom: 612 }, size, bounds)
-  const phone = placeBubble({ left: 16, right: 185, top: 500, bottom: 595 },
-    { width: 240, height: 170 }, { left: 0, right: 390, top: 0 })
-  check('the bubble sits beside a thumbnail with room either side, and below one without',
-    leftHand.side === 'right' && leftHand.left === 300 + BUBBLE_GAP
-      && rightHand.side === 'left' && rightHand.left + size.width === 700 - BUBBLE_GAP
-      && phone.side === 'below' && phone.top === 595 + BUBBLE_GAP && phone.left >= 0 && phone.left + 240 <= 390,
-    `left-hand thumbnail: ${leftHand.side} at x=${leftHand.left}; right-hand: ${rightHand.side} at x=${rightHand.left}; ` +
-    `narrow phone column: ${phone.side} at (${phone.left}, ${phone.top})`)
+  const middle = placeBubble({ x: 500, top: 400 }, 272, { left: 0, right: 1000 })
+  const nearWall = placeBubble({ x: 30, top: 400 }, 240, { left: 0, right: 390 })
+  const tailX = nearWall.left + nearWall.tail
+  check('the bubble sits over the robot, tail pointing at it, and stays inside the level by a wall',
+    middle.left === 500 - 136 && middle.tail === 136 && middle.bottom === 400 - BUBBLE_GAP
+      && nearWall.left >= 0 && nearWall.left + 240 <= 390 && Math.abs(tailX - 30) <= 24,
+    `mid-level: left ${middle.left}, tail at ${middle.tail}, bottom ${middle.bottom}; ` +
+    `robot at x=30 by the wall: left ${nearWall.left}, tail at x=${tailX}`)
 }
 
 const failed = results.filter((r) => !r.pass)

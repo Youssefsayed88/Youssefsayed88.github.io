@@ -142,11 +142,15 @@ ${WINGS.map(wing).join('')}
     </div>
 
     <div class="bubble" id="bubble" hidden aria-live="polite">
-      <p class="bubble__eyebrow"></p>
-      <p class="bubble__title"></p>
-      <p class="bubble__detail"></p>
-      <button class="bubble__open" type="button"><span class="bubble__verb">Open</span><kbd>E</kbd></button>
+      <span class="bubble__typing" aria-hidden="true"><i></i><i></i><i></i></span>
+      <div class="bubble__message">
+        <p class="bubble__eyebrow"></p>
+        <p class="bubble__title"></p>
+        <p class="bubble__detail"></p>
+        <button class="bubble__open" type="button"><span class="bubble__verb">Open</span><kbd>E</kbd></button>
+      </div>
       <span class="bubble__dwell" aria-hidden="true"></span>
+      <svg class="bubble__tail" viewBox="0 0 22 12" aria-hidden="true"><path class="bubble__tail-fill" d="M0 0C6 0 10 3 11 12C12 3 16 0 22 0Z"/><path class="bubble__tail-line" d="M0 0.5C6 0.5 10 3 11 12C12 3 16 0.5 22 0.5"/></svg>
     </div>
   </main>`
 }

@@ -90,15 +90,15 @@ card. Old `?showroom` links are ignored harmlessly.
 
 ### Projects: a speech bubble, then the panel
 
-Landing on a thumbnail outlines it, and the thumbnail **speaks**. A speech bubble
-appears beside it with its tail pointing at it, showing the title, the wing and
-company, the role line, and an Open button.
+Landing on a thumbnail outlines it, and the **robot speaks** about it. A chat
+bubble pops up over the robot's head, tail pointing down at it: a moment of
+typing dots (`TYPING`, 0.35 s), then the title, the wing and company, the role
+line, and an Open button.
 
-- The bubble goes on whichever side has room.
-- On a phone's narrow columns it hangs below the thumbnail instead.
-- It never goes above, because the robot stands there and would seem to be the
-  one talking.
-- The camera keeps a below-thumbnail bubble clear of the touch controls.
+- The bubble follows the robot as it walks along the thumbnail.
+- Near a wall it slides to stay inside the level; the tail still points at the robot.
+- The camera keeps it on screen, below the corner controls and, on touch, with
+  the feet clear of the touch controls.
 
 Opening the project takes one more step:
 
@@ -215,7 +215,7 @@ Requested on 2026-09-14, after playing the first version:
 |---|---|
 | Be able to jump back up to an earlier platform | The audit gained a third question: can every platform climb back to the top? It is checked at 17 widths. Platforms were made short to pass it (§2), and the jump was raised from 190 to 220 px |
 | A much simpler look than the sci-fi one | Light paper and ink, with one warm accent taken from the robot. Plain ledge lines; no glow, blur or uppercase labels; the portal is a plain arched door. Every colour is a token in `:root`, so a dark variant is a few lines |
-| Make the popup look like the project is talking | `src/ui/Bubble.js` and `src/game/bubble.js`: a speech bubble anchored to the thumbnail (§2). The screen-fixed card is gone |
+| Make the popup look like the project is talking | `src/ui/Bubble.js` and `src/game/bubble.js`: a chat bubble over the robot's head (§2). The screen-fixed card is gone |
 | Stop the scrollbar flickering over the video | Reproduced, then fixed; see below |
 
 **The flicker, reproduced before it was fixed.**
@@ -325,13 +325,13 @@ Gamepad: stick or d-pad, A jumps, X opens, down drops, L3 or left trigger sprint
 | `src/game/movement.js` | The movement model and its constants, in px. Pure |
 | `src/game/physics.js` | One-way platforms, drop-through, swept landing. Pure |
 | `src/game/reach.js` | Can the body get from one platform to another? The layout audit, in both directions. Pure |
-| `src/game/bubble.js` | Where the speech bubble goes relative to its thumbnail. Pure |
+| `src/game/bubble.js` | Where the chat bubble goes over the robot's head. Pure |
 | `src/game/Level.js` | Measures `[data-platform]` elements; re-measures on reflow |
 | `src/game/Game.js` | The loop: input → physics → card / dwell → avatar → camera; portal; deep links |
 | `src/game/Camera.js` | Scroll-position camera |
-| `src/game/Avatar.js` | The positioned robot element, with placeholder until the model loads |
+| `src/game/Avatar.js` | The positioned robot element, hidden until the model loads; a capsule only if it never can |
 | `src/robot/` | Three.js robot in a small canvas: `Robot.js`, `Character.js`, `matcap.js` |
-| `src/ui/Hud.js` · `src/ui/Bubble.js` | Section label and hint · the speech bubble a project or the portal speaks in |
+| `src/ui/Hud.js` · `src/ui/Bubble.js` | Section label and hint · the robot's chat bubble about a project or the portal |
 | `src/ui/Modal.js` · `src/ui/player.js` | Project panel · Plyr setup |
 | `src/ui/TouchControls.js` | Joystick, Jump, Open |
 | `platformer-smoke.mjs` | Headless checks (`npm test`) |

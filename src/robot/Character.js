@@ -109,7 +109,7 @@ export default class Character {
   // `parent` is the player's root group; the model hangs off it at the capsule's
   // feet, so the physics body stays the thing that moves and this only ever
   // follows it.
-  constructor(parent, { onReady } = {}) {
+  constructor(parent, { onReady, onError } = {}) {
     this.group = new THREE.Group()
     this.group.rotation.y = MODEL_FACING
     this.group.visible = false
@@ -136,9 +136,10 @@ export default class Character {
       },
       undefined,
       (error) => {
-        // The placeholder stays visible and the game stays playable. A missing
+        // The capsule stands in and the game stays playable. A missing
         // character model must never be the reason the game does not start.
-        console.warn('[character] could not load the model, keeping the capsule', error)
+        console.warn('[character] could not load the model, showing the capsule', error)
+        onError?.(error)
       },
     )
   }

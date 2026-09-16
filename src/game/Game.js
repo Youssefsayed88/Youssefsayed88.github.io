@@ -8,7 +8,7 @@ import Level from './Level.js'
 import Camera from './Camera.js'
 import Avatar from './Avatar.js'
 import { createBody, stepBody } from './physics.js'
-import { BODY_HALF_WIDTH } from './movement.js'
+import { BODY_HALF_WIDTH, PLAYER_HEIGHT } from './movement.js'
 import { projects, WINGS } from '../data/projects.js'
 import { PROJECT_PARAM } from '../core/params.js'
 
@@ -144,7 +144,10 @@ export default class Game {
       for (let i = 0; i < this.avatar.footfalls; i++) this.audio.footstep()
     }
 
-    // A bubble hanging below its thumbnail is kept on screen, not just the feet.
+    // The bubble follows the robot along the thumbnail, and the camera keeps it
+    // on screen along with the feet.
+    this.bubble.tick(delta)
+    this.bubble.place(this.speaker(), this.level.bounds)
     this.camera.keepVisible = this.bubble.box
     this.camera.update(this.body, delta)
 
@@ -181,7 +184,7 @@ export default class Game {
       this.dwell = 0
       if (next?.key !== this.dismissed) this.dismissed = null
       if (next) {
-        this.bubble.show(describe(next), this.anchorFor(next), this.level.bounds)
+        this.bubble.show(describe(next), this.speaker(), this.level.bounds)
         this.audio.target()
       } else {
         this.bubble.hide()
@@ -196,8 +199,9 @@ export default class Game {
     if (this.dwell >= DWELL) this.interact()
   }
 
-  anchorFor(target) {
-    return target.kind === 'portal' ? this.level.portal : this.level.byId.get(target.key)
+  // Where the bubble points: the middle of the robot and the top of its head.
+  speaker() {
+    return { x: this.body.x, top: this.body.y - PLAYER_HEIGHT }
   }
 
   interact() {
@@ -239,7 +243,7 @@ export default class Game {
   }
 
   // Keep the robot on the block it was standing on when the layout moves, at the
-  // same fraction of the way along it — and the bubble beside its thumbnail.
+  // same fraction of the way along it — and the bubble over its head.
   reanchor(before) {
     const body = this.body
     if (body.on !== null) {
@@ -257,7 +261,10 @@ export default class Game {
       this.body = { ...body, x: Math.min(right - BODY_HALF_WIDTH, Math.max(left + BODY_HALF_WIDTH, body.x)) }
     }
 
-    if (this.target) this.bubble.place(this.anchorFor(this.target), this.level.bounds)
+    if (this.target) {
+      this.bubble.measure()
+      this.bubble.place(this.speaker(), this.level.bounds)
+    }
   }
 
   // `?project=<id>` stands the robot on that thumbnail with its panel open, the

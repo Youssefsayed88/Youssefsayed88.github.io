@@ -1,9 +1,14 @@
 *, *::before, *::after { box-sizing: border-box; }
 
-/* A plain, light page: paper, ink, and one warm accent taken from the robot.
-   Every colour is a token here, so a darker variant is these lines and
-   nothing else. */
+/* A plain page: paper, ink, and one warm accent taken from the robot. Every
+   colour is a token here, and the dark variant below redefines only these.
+
+   Dark follows the system unless the visitor picked a theme with the toggle,
+   which sets data-theme on <html> (see src/ui/theme.js, and the inline script
+   in index.html's head that applies it before first paint). The dark tokens
+   appear twice because a media query and an attribute cannot share a block. */
 :root {
+  color-scheme: light;
   --bg: #f5f3ee;
   --ground: #ebe7de;
   --surface: #ffffff;
@@ -12,9 +17,29 @@
   --faint: #8b8a90;
   --rule: #dcd8cf;
   --accent: #e0782f;
+  /* A filled ink button, hovered; a surface button, hovered. */
+  --ink-hover: #3a3a42;
+  --surface-hover: #efece5;
+  --shadow: rgba(31, 31, 36, 0.1);
   /* The line along the top of every platform. */
   --ledge: 3px;
   --gutter: clamp(1rem, 4vw, 2rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #17171b; --ground: #1f1f24; --surface: #24242a;
+    --ink: #ecebe6; --muted: #b4b3b9; --faint: #8e8d94; --rule: #3a3a42;
+    --accent: #f0913c; --ink-hover: #cfcdc6; --surface-hover: #2f2f36;
+    --shadow: rgba(0, 0, 0, 0.35);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #17171b; --ground: #1f1f24; --surface: #24242a;
+  --ink: #ecebe6; --muted: #b4b3b9; --faint: #8e8d94; --rule: #3a3a42;
+  --accent: #f0913c; --ink-hover: #cfcdc6; --surface-hover: #2f2f36;
+  --shadow: rgba(0, 0, 0, 0.35);
 }
 
 /* `overflow-anchor: none`: the camera sets the scroll position every frame, and
@@ -29,6 +54,19 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 a { color: inherit; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The first thing Tab reaches. The level is played with the arrow keys, so
+   for someone on a keyboard or a screen reader the useful skip is past the
+   game altogether, to the plain page with the same content. */
+.skip-link {
+  position: fixed; top: 0.75rem; left: 0.75rem; z-index: 200;
+  padding: 0.55rem 1rem; border-radius: 6px;
+  background: var(--ink); color: var(--surface);
+  font-size: 0.9rem; font-weight: 600; text-decoration: none;
+  transform: translateY(calc(-100% - 1rem));
+}
+.skip-link:focus { transform: none; }
 
 /* While the game runs, the camera owns the scroll position: no wheel, no
    swipe, no pull-to-refresh halfway down a fall. Without `is-playing` — no
@@ -120,7 +158,12 @@ html.is-playing .level { touch-action: none; }
 }
 .lv-chip:hover { border-color: var(--ink); }
 .lv-chip--cv { background: var(--ink); border-color: var(--ink); color: var(--surface); font-weight: 600; }
-.lv-chip--cv:hover { background: #3a3a42; }
+.lv-chip--cv:hover { background: var(--ink-hover); border-color: var(--ink-hover); }
+
+/* Every button and link that changes on hover eases into it. */
+.lv-chip, .portal, .bubble__open, .modal__close, .modal__links a, .controls__btn, .lv-ground__info a {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
 
 /* ---------- Headings ---------- */
 /* At least half the width, so a heading always reaches under the lowest
@@ -178,7 +221,20 @@ html.is-playing .level { touch-action: none; }
 /* Fixed shape before the image arrives, so a lazy thumbnail decoding cannot
    move a platform out from under the robot. */
 .lv-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
-.lv-thumb:hover img { filter: brightness(1.06); }
+.lv-thumb img { transition: filter 0.15s ease; }
+.lv-thumb:hover img { filter: brightness(1.08); }
+
+/* Loading: a thumbnail shimmers until its image has decoded, then fades in.
+   Only once src/ui/loading.js has marked the images that were already loaded,
+   so with JavaScript off nothing is ever hidden. Opacity and a background
+   only: the box is already its final size, so no platform moves. */
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+.fades-images .lv-thumb:has(img:not(.is-loaded)) {
+  background: linear-gradient(100deg, var(--rule) 40%, var(--surface-hover) 50%, var(--rule) 60%) 0 0 / 200% 100%;
+  animation: shimmer 1.3s linear infinite;
+}
+.fades-images .lv-thumb img { opacity: 0; transition: opacity 0.35s ease, filter 0.15s ease; }
+.fades-images .lv-thumb img.is-loaded { opacity: 1; }
 .lv-thumb:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 /* The one doing the talking. An outline, so it cannot move the layout. */
 .lv-thumb.is-target { outline: 3px solid var(--accent); outline-offset: 3px; }
@@ -221,6 +277,7 @@ html.is-playing .level { touch-action: none; }
   padding: 1.75rem var(--gutter) 3rem;
   background: var(--ground);
 }
+.lv-ground__info a:hover { color: var(--accent); }
 .lv-ground__info { max-width: 26rem; color: var(--muted); font-size: 0.9rem; }
 .lv-ground__info p { margin: 0 0 0.45rem; }
 .lv-ground__info strong { color: var(--ink); font-weight: 600; }
@@ -255,66 +312,95 @@ html:not(.is-playing) .portal { display: none; }
 }
 html:not(.is-playing) .avatar { display: none; }
 
-/* The body until the robot's model arrives, and on a device with no WebGL. */
+/* The capsule: only where the robot can never arrive (no WebGL, or the model
+   failed to load), since there it is the whole character. Nothing stands in
+   while the model is on its way. See Avatar.js. */
 .avatar__placeholder {
+  display: none;
   position: absolute; bottom: 0;
   left: calc(var(--player-h) * -0.22);
   width: calc(var(--player-h) * 0.44); height: var(--player-h);
   border-radius: 999px;
   background: #f0913c;
 }
+.avatar.no-robot .avatar__placeholder { display: block; }
 .avatar__placeholder::after {
   content: ""; position: absolute; top: 17%; right: 8%;
   width: 48%; height: 13%; border-radius: 999px;
-  background: var(--ink);
+  /* The robot's visor, the same in either theme. */
+  background: #1f1f24;
 }
 .is-facing-left .avatar__placeholder::after { right: auto; left: 8%; }
-.avatar.has-robot .avatar__placeholder { display: none; }
 
-.avatar__robot { position: absolute; display: block; }
+/* The robot fades in when its model is ready, instead of popping in. Before
+   the warp rule, so a warp still wins. */
+.avatar__robot { position: absolute; display: block; opacity: 0; }
+.avatar.has-robot .avatar__robot { opacity: 1; }
 
 .avatar__placeholder,
-.avatar__robot { transform-origin: 50% 100%; transition: transform 0.22s ease-in, opacity 0.22s ease-in; }
+.avatar__robot { transform-origin: 50% 100%; transition: transform 0.22s ease-in, opacity 0.3s ease-in; }
 .avatar.is-warping .avatar__placeholder,
 .avatar.is-warping .avatar__robot { transform: scale(0.15); opacity: 0; }
 
 /* ---------- The speech bubble ---------- */
-/* What a project says when the robot lands on it. Positioned by Bubble.js
-   beside the thumbnail (tail pointing sideways) or below it (tail pointing
-   up); `--tail` is where along that edge the tail sits.
+/* The robot talking about what it is standing on, as a chat message over its
+   head. Bubble.js sets `left` and `top` every frame so it follows the robot
+   along the thumbnail; `top` is the bottom of the bubble (the `translate`
+   lifts it by its own height, so the bubble grows upward and never needs
+   measuring to sit on the robot), and `--tail` is where along the bottom the
+   tail points down at the robot's head.
 
-   The tail is two triangles: an ink one poking out past the border, and a
-   white one on top of it, a border's width in, which paints over the border
-   where the tail meets it — so the outline runs unbroken into the tail. */
+   It opens with a moment of "typing" dots, then the message. */
 .bubble {
   position: absolute; z-index: 6;
   width: min(17rem, calc(100% - 2 * var(--gutter)));
-  padding: 0.75rem 0.9rem 0.9rem;
+  translate: 0 -100%;
+  padding: 0.7rem 0.95rem 1rem;
   background: var(--surface); color: var(--ink);
-  border: 2px solid var(--ink); border-radius: 14px;
-  box-shadow: 0 3px 0 rgba(31, 31, 36, 0.1);
-  animation: bubble-in 0.16s ease-out;
+  border: 1px solid var(--rule); border-radius: 20px;
+  box-shadow: 0 8px 22px var(--shadow), 0 1px 3px var(--shadow);
+  /* Pops out of the tail, where the robot's head is. */
+  transform-origin: var(--tail, 50%) calc(100% + 12px);
+  animation: bubble-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.25);
 }
 .bubble[hidden], .bubble [hidden] { display: none; }
-@keyframes bubble-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes bubble-in { from { opacity: 0; transform: translateY(8px) scale(0.85); } to { opacity: 1; transform: none; } }
 
-.bubble::before, .bubble::after { content: ""; position: absolute; width: 0; height: 0; border-style: solid; }
+/* A curved chat tail: filled with the bubble's colour, outlined on its two
+   outer edges only, and overlapping the border by a pixel so the outline runs
+   into it unbroken. */
+.bubble__tail {
+  position: absolute; bottom: -11px; left: calc(var(--tail, 50%) - 11px);
+  width: 22px; height: 12px; overflow: visible;
+}
+.bubble__tail-fill { fill: var(--surface); }
+.bubble__tail-line { fill: none; stroke: var(--rule); stroke-width: 1; }
 
-.bubble[data-side="right"]::before { left: -13px; top: calc(var(--tail) - 10px); border-width: 10px 13px 10px 0; border-color: transparent var(--ink) transparent transparent; }
-.bubble[data-side="right"]::after  { left: -9px;  top: calc(var(--tail) - 8px);  border-width: 8px 10px 8px 0;  border-color: transparent var(--surface) transparent transparent; }
+/* Typing: the bubble shrinks to three bouncing dots. */
+.bubble__typing { display: none; gap: 5px; padding: 0.3rem 0.15rem 0.15rem; }
+.bubble.is-typing { width: auto; }
+.bubble.is-typing .bubble__typing { display: flex; }
+.bubble.is-typing .bubble__message,
+.bubble.is-typing .bubble__dwell { display: none; }
+.bubble__typing i {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--faint);
+  animation: typing 0.9s ease-in-out infinite;
+}
+.bubble__typing i:nth-child(2) { animation-delay: 0.15s; }
+.bubble__typing i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing { 0%, 60%, 100% { transform: none; opacity: 0.5; } 30% { transform: translateY(-4px); opacity: 1; } }
 
-.bubble[data-side="left"]::before  { right: -13px; top: calc(var(--tail) - 10px); border-width: 10px 0 10px 13px; border-color: transparent transparent transparent var(--ink); }
-.bubble[data-side="left"]::after   { right: -9px;  top: calc(var(--tail) - 8px);  border-width: 8px 0 8px 10px;  border-color: transparent transparent transparent var(--surface); }
+.bubble__message { animation: message-in 0.18s ease-out; }
+@keyframes message-in { from { opacity: 0; } to { opacity: 1; } }
 
-.bubble[data-side="below"]::before { top: -13px; left: calc(var(--tail) - 10px); border-width: 0 10px 13px 10px; border-color: transparent transparent var(--ink) transparent; }
-.bubble[data-side="below"]::after  { top: -9px;  left: calc(var(--tail) - 8px);  border-width: 0 8px 10px 8px;  border-color: transparent transparent var(--surface) transparent; }
-
-.bubble__eyebrow { margin: 0; font-size: 0.75rem; color: var(--faint); }
-.bubble__title { margin: 0.05rem 0 0; font-size: 1rem; font-weight: 700; line-height: 1.25; }
+.bubble__eyebrow { margin: 0; font-size: 0.72rem; font-weight: 600; color: var(--faint); }
+.bubble__title { margin: 0.1rem 0 0; font-size: 1rem; font-weight: 700; line-height: 1.25; }
 .bubble__detail {
   margin: 0.3rem 0 0; font-size: 0.84rem; line-height: 1.45; color: var(--muted);
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
+/* A quick reply, the way a chat offers one. */
 .bubble__open {
   appearance: none; font: inherit; cursor: pointer;
   display: inline-flex; align-items: center; gap: 0.45rem;
@@ -324,13 +410,12 @@ html:not(.is-playing) .avatar { display: none; }
   font-size: 0.85rem; font-weight: 600;
   -webkit-tap-highlight-color: transparent;
 }
-.bubble__open:hover { background: #3a3a42; }
-.bubble__open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bubble__open:hover { background: var(--ink-hover); }
 
 /* Standing still fills this; full, the project opens. Inside the rounded
    corners, along the bottom edge. */
 .bubble__dwell {
-  position: absolute; left: 14px; right: 14px; bottom: 5px; height: 3px; border-radius: 2px;
+  position: absolute; left: 18px; right: 18px; bottom: 6px; height: 3px; border-radius: 2px;
   background: var(--accent);
   transform-origin: left center; transform: scaleX(var(--dwell, 0));
 }
@@ -349,7 +434,7 @@ html:not(.is-playing) .hud { display: none; }
 .hud__room { align-self: flex-start; font-size: 0.85rem; color: var(--muted); }
 .hud__hint {
   padding: 0.3rem 0.7rem; border-radius: 999px;
-  background: rgba(245, 243, 238, 0.9);
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
   font-size: 0.82rem; color: var(--muted); text-align: center;
   transition: opacity 0.6s ease;
 }
@@ -405,7 +490,7 @@ html:not(.is-playing) .hud { display: none; }
   border: 1.5px solid var(--ink); border-radius: 50%;
   font-size: 1.2rem; line-height: 1; cursor: pointer;
 }
-.modal__close:hover { background: var(--ink); color: var(--surface); }
+.modal__close:hover, .modal__close:focus-visible { background: var(--ink); color: var(--surface); }
 
 .modal__media { flex: none; background: #111114; }
 /* Capped so a tall panel on a short screen still leaves the title in view;
@@ -448,7 +533,7 @@ html:not(.is-playing) .hud { display: none; }
   border-radius: 6px;
   font-size: 0.88rem; font-weight: 600; text-decoration: none;
 }
-.modal__links a:hover { background: #3a3a42; }
+.modal__links a:hover, .modal__links a:focus-visible { background: var(--ink-hover); }
 
 @media (max-width: 620px) {
   .modal { padding: 0.75rem; }
@@ -484,24 +569,35 @@ html:not(.is-playing) .hud { display: none; }
   font: inherit; font-size: 0.95rem;
   text-decoration: none; cursor: pointer;
 }
-.controls__btn:hover, .controls__btn:focus-visible { background: #efece5; }
+.controls__btn:hover, .controls__btn:focus-visible { background: var(--surface-hover); }
+
+/* The theme toggle: a round icon button, so a phone's row of corner controls
+   still fits on one line. Hidden until theme.js has wired it, since it does
+   nothing without JavaScript. */
+.controls__btn--icon { display: grid; place-items: center; width: 2.6rem; height: 2.6rem; padding: 0; }
+.controls__btn--icon[hidden] { display: none; }
+.theme-toggle svg { width: 1.15rem; height: 1.15rem; }
+.theme-toggle[data-current="dark"] .theme-toggle__moon,
+.theme-toggle:not([data-current="dark"]) .theme-toggle__sun { display: none; }
 /* Sound means nothing on a page with no game running. The CV and the way out
    still do. */
 html:not(.is-playing) #mute { display: none; }
 
 /* The way out, filled so it is the one a recruiter in a hurry finds. */
 .controls__btn--exit { background: var(--ink); color: var(--surface); font-weight: 600; }
-.controls__btn--exit:hover, .controls__btn--exit:focus-visible { background: #3a3a42; }
+.controls__btn--exit:hover, .controls__btn--exit:focus-visible { background: var(--ink-hover); }
 
 @media (max-height: 560px) {
   .controls { gap: 0.35rem; }
   .controls__btn { padding: 0.35rem 0.85rem; font-size: 0.85rem; }
+  .controls__btn--icon { width: 2.1rem; height: 2.1rem; padding: 0; }
 }
 
 /* A phone held upright: a row across the top, and the HUD drops below it. */
 @media (max-width: 560px) {
   .controls { left: 1rem; right: 1rem; top: max(0.75rem, env(safe-area-inset-top)); flex-direction: row; justify-content: flex-end; flex-wrap: wrap; gap: 0.4rem; }
   .controls__btn { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+  .controls__btn--icon { width: 2.05rem; height: 2.05rem; padding: 0; }
   .hud { padding-top: calc(max(0.75rem, env(safe-area-inset-top)) + 2.7rem); }
 }
 
@@ -527,7 +623,7 @@ html:not(.is-playing) #mute { display: none; }
 .touch__base {
   position: absolute; left: 38%; top: 70%; width: 112px; height: 112px;
   transform: translate(-50%, -50%);
-  border-radius: 50%; background: rgba(255, 255, 255, 0.6); border: 1.5px solid rgba(31, 31, 36, 0.35);
+  border-radius: 50%; background: color-mix(in srgb, var(--surface) 60%, transparent); border: 1.5px solid color-mix(in srgb, var(--ink) 35%, transparent);
   opacity: 0.7; transition: opacity 0.18s ease;
 }
 .touch__base.is-active { opacity: 1; }
@@ -551,7 +647,7 @@ html:not(.is-playing) #mute { display: none; }
 }
 .touch__btn {
   pointer-events: auto; touch-action: none; appearance: none; font: inherit; font-weight: 600;
-  color: var(--ink); background: rgba(255, 255, 255, 0.85); border: 1.5px solid var(--ink);
+  color: var(--ink); background: color-mix(in srgb, var(--surface) 85%, transparent); border: 1.5px solid var(--ink);
   border-radius: 50%; display: grid; place-items: center; cursor: pointer;
   -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
 }

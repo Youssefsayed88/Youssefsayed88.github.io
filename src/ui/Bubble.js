@@ -1,13 +1,19 @@
 import { placeBubble } from '../game/bubble.js'
 
-// The speech bubble: what a project says when the robot lands on it.
+// The speech bubble: the robot saying what it is standing on.
 //
-// It lives inside the level, next to the thumbnail it belongs to, so it scrolls
-// with it and its tail can point at it. Title, where it was built, the role
-// line, and an Open button. Opening is still one step more than landing — E,
-// the button, the touch Open button, or standing still while the bar along the
-// bottom fills (see DWELL in Game.js) — so dropping through a shelf on the way
-// down never throws a panel in anyone's face.
+// A chat message over the robot's head, inside the level so it scrolls with the
+// page, and moved along with the robot every frame while it walks the length
+// of a thumbnail. It opens with a moment of typing dots, then the title, where
+// it was built, the role line, and an Open button. Opening is still one step
+// more than landing — E, the button, the touch Open button, or standing still
+// while the bar along the bottom fills (see DWELL in Game.js) — so dropping
+// through a shelf on the way down never throws a panel in anyone's face.
+
+// How long the typing dots show, in game seconds. Short: it is a flourish, not
+// a wait, and dropping down a shelf passes through several of these.
+export const TYPING = 0.35
+
 export default class Bubble {
   // `onTarget` mirrors the bubble onto the touch Open button, which is the same
   // affordance. `onActivate` fires when the bubble's own button is pressed.
@@ -17,6 +23,11 @@ export default class Bubble {
     this.onActivate = onActivate
     this.key = null
     this.dwell = -1
+    this.typing = 0
+    // The bubble's size, measured when its content or state changes rather than
+    // every frame.
+    this.size = null
+    this.placed = ''
     // The bubble's vertical extent in level coordinates, for the camera.
     this.box = null
 
@@ -41,9 +52,9 @@ export default class Bubble {
     return !!this.el && !this.el.hidden
   }
 
-  // `target` is { key, kind, verb, eyebrow, title, detail }; `anchor` is the
-  // platform or portal it belongs to.
-  show(target, anchor, bounds) {
+  // `target` is { key, kind, verb, eyebrow, title, detail }; `speaker` is
+  // { x, top }, the robot's middle and the top of its head.
+  show(target, speaker, bounds) {
     if (!this.el) return
     if (target.key !== this.key) {
       this.key = target.key
@@ -56,28 +67,60 @@ export default class Bubble {
       this.parts.open.setAttribute('aria-label', `${target.verb} ${target.title}`)
       this.dwell = -1
       this.setDwell(0)
+
+      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+      this.typing = reduced ? 0 : TYPING
+      this.el.classList.toggle('is-typing', this.typing > 0)
+      // Pop in again even when it goes straight from one target to the next:
+      // the animation only restarts if a style pass sees it hidden in between.
+      if (!this.el.hidden) {
+        this.el.hidden = true
+        void this.el.offsetWidth
+      }
       this.el.hidden = false
+      this.measure()
       this.onTarget?.(target)
     }
-    this.place(anchor, bounds)
+    this.place(speaker, bounds)
   }
 
-  // Re-run on every show and whenever the layout moves under it.
-  place(anchor, bounds) {
-    if (!this.visible || !anchor) return
-    const size = { width: this.el.offsetWidth, height: this.el.offsetHeight }
-    const at = placeBubble(anchor, size, bounds)
-    this.el.style.left = `${at.left}px`
-    this.el.style.top = `${at.top}px`
-    this.el.style.setProperty('--tail', `${at.tail}px`)
-    this.el.dataset.side = at.side
-    this.box = { top: at.top, bottom: at.top + size.height }
+  // Game time, so the dots last as long at any frame rate and in a test.
+  tick(delta) {
+    if (!this.visible || this.typing <= 0) return
+    this.typing -= delta
+    if (this.typing > 0) return
+    this.el.classList.remove('is-typing')
+    this.measure()
+  }
+
+  measure() {
+    this.size = { width: this.el.offsetWidth, height: this.el.offsetHeight }
+    this.placed = ''
+  }
+
+  // Every frame while it is up, and whenever the layout moves under it.
+  place(speaker, bounds) {
+    if (!this.visible || !speaker || !this.size) return
+    const at = placeBubble(speaker, this.size.width, bounds)
+    const left = Math.round(at.left)
+    const bottom = Math.round(at.bottom)
+    const tail = Math.round(at.tail)
+    this.box = { top: bottom - this.size.height, bottom }
+
+    // Standing still is most of the time a bubble is up; write nothing then.
+    const key = `${left},${bottom},${tail}`
+    if (key === this.placed) return
+    this.placed = key
+    this.el.style.left = `${left}px`
+    this.el.style.top = `${bottom}px`
+    this.el.style.setProperty('--tail', `${tail}px`)
   }
 
   hide() {
     if (!this.el || this.key === null) return
     this.key = null
     this.box = null
+    this.typing = 0
     // A hidden button that still holds focus would keep Space bound to it.
     if (this.el.contains(document.activeElement)) document.activeElement.blur()
     this.el.hidden = true

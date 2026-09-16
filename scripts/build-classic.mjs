@@ -24,6 +24,53 @@ const socials = [
   OWNER.itch && { label: 'itch.io', url: OWNER.itch },
 ].filter(Boolean)
 
+// The palette and theme handling shared by the two pages this script writes,
+// classic.html and 404.html. The same tokens as :root in src/style.css, dark
+// variant included; each page is one request, so they are copied rather than
+// linked. A theme picked on any page is under the same storage key.
+const TOKENS = `:root{color-scheme:light;--bg:#f5f3ee;--surface:#fff;--ink:#1f1f24;--muted:#55555c;--faint:#8b8a90;
+  --rule:#dcd8cf;--accent:#e0782f;--ink-hover:#3a3a42;--surface-hover:#efece5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#17171b;--surface:#24242a;
+  --ink:#ecebe6;--muted:#b4b3b9;--faint:#8e8d94;--rule:#3a3a42;--accent:#f0913c;--ink-hover:#cfcdc6;--surface-hover:#2f2f36}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#17171b;--surface:#24242a;
+  --ink:#ecebe6;--muted:#b4b3b9;--faint:#8e8d94;--rule:#3a3a42;--accent:#f0913c;--ink-hover:#cfcdc6;--surface-hover:#2f2f36}
+*,*::before,*::after{box-sizing:border-box}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.skip-link{position:absolute;top:.6rem;left:.6rem;z-index:50;padding:.5rem .95rem;border-radius:6px;
+  background:var(--ink);color:var(--surface);font-size:.9rem;font-weight:600;text-decoration:none;
+  transform:translateY(calc(-100% - 1rem))}
+.skip-link:focus{transform:none}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;
+  animation-iteration-count:1!important;transition-duration:.001ms!important}html{scroll-behavior:auto!important}}`
+
+// Applies a stored pick before first paint; goes in the head.
+const THEME_EARLY = `<script>try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>`
+
+const THEME_ICONS = `<svg class="theme-toggle__moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"/></svg><svg class="theme-toggle__sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>`
+
+// The toggle's wiring, inline: src/ui/theme.js without modules.
+const THEME_TOGGLE = `(function () {
+  var button = document.getElementById('theme')
+  if (!button) return
+  var root = document.documentElement
+  var system = matchMedia('(prefers-color-scheme: dark)')
+  function current() { return root.dataset.theme || (system.matches ? 'dark' : 'light') }
+  function render() {
+    var theme = current()
+    button.dataset.current = theme
+    button.setAttribute('aria-label', theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme')
+  }
+  button.addEventListener('click', function () {
+    var next = current() === 'dark' ? 'light' : 'dark'
+    root.dataset.theme = next
+    try { localStorage.setItem('theme', next) } catch (e) {}
+    render()
+  })
+  system.addEventListener('change', render)
+  render()
+  button.hidden = false
+})()`
+
 function projectCard(p) {
   const media = p.image
     ? `<img src="${esc(p.image)}" alt="${esc(p.title)}" loading="lazy" width="480" height="270">`
@@ -68,14 +115,11 @@ const html = `<!DOCTYPE html>
 <meta property="og:image:height" content="${OG_IMAGE.height}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="${esc(SITE)}/${OG_IMAGE.path}">
+${THEME_EARLY}
 <style>
 /* The platformer's palette, so the two routes read as one site: paper, ink,
-   and the robot's orange as the only accent. The same tokens as :root in
-   src/style.css; this page is one request, so they are copied rather than
-   linked. */
-:root{--bg:#f5f3ee;--surface:#fff;--ink:#1f1f24;--muted:#55555c;--faint:#8b8a90;
-  --rule:#dcd8cf;--accent:#e0782f}
-*,*::before,*::after{box-sizing:border-box}
+   and the robot's orange as the only accent. */
+${TOKENS}
 html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--ink);
   font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.6;
@@ -85,8 +129,16 @@ a{color:inherit}
 .bar{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--rule)}
 .bar .wrap{display:flex;justify-content:space-between;align-items:center;gap:1rem;padding-block:.7rem}
 .bar strong{font-size:.95rem}
-.bar a{font-size:.85rem;text-decoration:none;border:1.5px solid var(--ink);border-radius:999px;padding:.35rem .9rem}
-.bar a:hover{background:var(--ink);color:var(--surface)}
+.bar__actions{display:flex;align-items:center;gap:.5rem}
+.bar a,.theme-toggle{font:inherit;font-size:.85rem;text-decoration:none;color:var(--ink);background:none;
+  border:1.5px solid var(--ink);border-radius:999px;padding:.35rem .9rem;cursor:pointer;
+  transition:background-color .15s ease,color .15s ease,border-color .15s ease}
+.bar a:hover,.bar a:focus-visible{background:var(--ink);color:var(--surface)}
+.theme-toggle{display:grid;place-items:center;width:2.1rem;height:2.1rem;padding:0}
+.theme-toggle[hidden]{display:none}
+.theme-toggle:hover,.theme-toggle:focus-visible{background:var(--surface-hover)}
+.theme-toggle svg{width:1rem;height:1rem}
+.theme-toggle[data-current="dark"] .theme-toggle__moon,.theme-toggle:not([data-current="dark"]) .theme-toggle__sun{display:none}
 header{padding:3.5rem 0 2.5rem}
 h1{margin:0 0 .35rem;font-size:clamp(2rem,5vw,3rem);line-height:1.05;letter-spacing:-.02em}
 .role{margin:0 0 1rem;color:var(--muted);font-size:1.05rem}
@@ -94,11 +146,12 @@ h1{margin:0 0 .35rem;font-size:clamp(2rem,5vw,3rem);line-height:1.05;letter-spac
 .contact{display:flex;flex-wrap:wrap;gap:.5rem;padding:0;margin:0;list-style:none}
 .contact a{display:inline-block;padding:.4rem .85rem;background:var(--surface);border:1px solid var(--rule);
   border-radius:6px;font-size:.85rem;text-decoration:none}
-.contact a:hover{border-color:var(--ink)}
+.contact a{transition:background-color .15s ease,border-color .15s ease}
+.contact a:hover,.contact a:focus-visible{border-color:var(--ink)}
 /* The CV is the one link on this page a recruiter is actively looking for, so
    it is the only one that does not look like the rest of the row. */
 .contact .cv a{background:var(--ink);border-color:var(--ink);color:var(--surface);font-weight:600}
-.contact .cv a:hover{background:#3a3a42}
+.contact .cv a:hover,.contact .cv a:focus-visible{background:var(--ink-hover);border-color:var(--ink-hover)}
 section{padding:2.25rem 0;border-top:1px solid var(--rule)}
 h2{margin:0 0 .25rem;font-size:1.4rem}
 .wing-note{margin:0 0 1.4rem;color:var(--faint);font-size:.88rem}
@@ -118,6 +171,15 @@ h2{margin:0 0 .25rem;font-size:1.4rem}
    container's height resolves from the image's intrinsic size and the ratio is
    ignored, which leaves the grid rows ragged. */
 .card__media{background:var(--rule);overflow:hidden;flex:none}
+/* Loading: a shimmer until the image decodes, then a fade. Only once the
+   script at the foot of the page has marked what was already loaded, so with
+   JavaScript off nothing is hidden. */
+@keyframes shimmer{from{background-position:100% 0}to{background-position:-100% 0}}
+.fades-images .card__media:has(img:not(.is-loaded)){
+  background:linear-gradient(100deg,var(--rule) 40%,var(--surface-hover) 50%,var(--rule) 60%) 0 0/200% 100%;
+  animation:shimmer 1.3s linear infinite}
+.fades-images .card__media img{opacity:0;transition:opacity .35s ease}
+.fades-images .card__media img.is-loaded{opacity:1}
 .card__media img,.card__placeholder{width:100%;aspect-ratio:16/9;object-fit:cover;display:block}
 .card__placeholder{display:grid;place-items:center;color:var(--faint);font-size:.8rem;background:var(--rule)}
 .card__body{padding:1rem 1.1rem 1.15rem;display:flex;flex-direction:column;gap:.5rem;flex:1}
@@ -130,7 +192,8 @@ h2{margin:0 0 .25rem;font-size:1.4rem}
   font-size:.74rem;color:var(--muted)}
 .card__links{margin:auto 0 0;padding-top:.5rem;display:flex;flex-wrap:wrap;gap:.35rem 1rem}
 .card__links a{font-size:.86rem;font-weight:600;text-underline-offset:3px}
-.card__links a:hover{color:var(--accent)}
+.card__links a{transition:color .15s ease}
+.card__links a:hover,.card__links a:focus-visible{color:var(--accent)}
 .job{margin-bottom:1.6rem}
 .job h3{margin:0;font-size:1.05rem}
 .job .meta{margin:.1rem 0 .5rem;color:var(--faint);font-size:.85rem}
@@ -144,9 +207,13 @@ h2{margin:0 0 .25rem;font-size:1.4rem}
 .skills ul{display:flex;flex-wrap:wrap;gap:.35rem;margin:0;padding:0;list-style:none}
 .skills li{padding:.2rem .6rem;background:var(--surface);border:1px solid var(--rule);border-radius:6px;font-size:.8rem}
 footer{padding:2.5rem 0 3.5rem;border-top:1px solid var(--rule);color:var(--faint);font-size:.85rem}
+footer a{transition:color .15s ease}
+footer a:hover{color:var(--accent)}
+main:focus{outline:none}
 @media print{
+  :root,:root[data-theme]{color-scheme:light;--bg:#fff;--surface:#fff;--ink:#000;--muted:#333;--faint:#555;--rule:#ccc}
   body{background:#fff;color:#000}
-  .bar,.card__media{display:none}
+  .bar,.card__media,.skip-link{display:none}
   a{color:#000}
   .card{border-top-width:1px}
 }
@@ -154,14 +221,19 @@ footer{padding:2.5rem 0 3.5rem;border-top:1px solid var(--rule);color:var(--fain
 </head>
 <body>
 
+<a class="skip-link" href="#main">Skip to content</a>
+
 <div class="bar">
   <div class="wrap">
     <strong>${esc(OWNER.name)}</strong>
-    <a href="./index.html">${esc(ROUTE_NAMES.showroom)}</a>
+    <div class="bar__actions">
+      <button class="theme-toggle" id="theme" type="button" aria-label="Switch to dark theme" hidden>${THEME_ICONS}</button>
+      <a href="./index.html">${esc(ROUTE_NAMES.showroom)}</a>
+    </div>
   </div>
 </div>
 
-<div class="wrap">
+<main class="wrap" id="main" tabindex="-1">
 
   <header>
     <h1>${esc(OWNER.name)}</h1>
@@ -220,15 +292,31 @@ ${skills.map((s) => `      <div>
     <p>Prefer to play through it? <a href="./index.html">${esc(ROUTE_NAMES.showroom)}</a>.</p>
   </footer>
 
-</div>
+</main>
 
 <script>
+${THEME_TOGGLE}
+
+// Thumbnails fade in once decoded. What is already loaded is marked first, in
+// the same task, so nothing on screen blinks out.
+;(function () {
+  var imgs = document.querySelectorAll('.card__media img')
+  for (var i = 0; i < imgs.length; i++) {
+    (function (img) {
+      function done() { img.classList.add('is-loaded') }
+      if (img.complete) done()
+      else { img.addEventListener('load', done); img.addEventListener('error', done) }
+    })(imgs[i])
+  }
+  document.body.classList.add('fades-images')
+})()
+
 // Deep links. The platformer answers ?project=<id> by standing the robot on that thumbnail;
 // here the same URL scrolls to the same project's card and says which one it
 // meant. Progressive enhancement on purpose — the anchor #project-<id> already
 // works with JavaScript off, and this only adds the query form and the
 // highlight on top of it.
-(function () {
+;(function () {
   var id = new URLSearchParams(location.search).get('${PROJECT_PARAM}')
     || (location.hash.indexOf('#project-') === 0 ? location.hash.slice(9) : null)
   if (!id) return
@@ -243,6 +331,81 @@ ${skills.map((s) => `      <div>
 `
 
 fs.writeFileSync('classic.html', html)
+
+// 404.html, for any address on the site that does not exist. GitHub Pages
+// serves it at whatever path was asked for, so a relative link would resolve
+// against a directory that is not there: every URL here is absolute, from
+// OWNER.site. Written to public/, so Vite copies it to the root of dist.
+//
+// The scene is the level's own vocabulary: a ledge that ends, the robot at its
+// edge looking over, and the portal door on the far side.
+const HOME = SITE || '.'
+const notFound = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Page not found — ${esc(OWNER.name)}</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="${esc(HOME)}/favicon.svg" type="image/svg+xml">
+${THEME_EARLY}
+<style>
+${TOKENS}
+body{margin:0;min-height:100vh;min-height:100svh;display:grid;place-items:center;padding:2rem 1.25rem;
+  background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+main{width:100%;max-width:32rem}
+.scene{display:block;width:min(20rem,100%);height:auto;margin:0 0 2rem;overflow:visible}
+.scene .ledge{fill:var(--ink)}
+.scene .arc{fill:none;stroke:var(--faint);stroke-width:2;stroke-dasharray:3 7;stroke-linecap:round;
+  animation:march 1.6s linear infinite}
+.scene .door{fill:var(--surface);stroke:var(--ink);stroke-width:3}
+.scene .door-arrow{fill:var(--accent);font:600 16px system-ui,sans-serif}
+/* Peering over the edge: a lean from the feet, and back. */
+.scene .bot{transform-box:fill-box;transform-origin:50% 100%;animation:peer 3.2s ease-in-out infinite}
+@keyframes peer{0%,45%,100%{transform:none}60%,85%{transform:rotate(9deg)}}
+@keyframes march{to{stroke-dashoffset:-20}}
+.code{margin:0 0 .35rem;color:var(--faint);font-size:.85rem;font-weight:600;letter-spacing:.04em}
+h1{margin:0 0 .75rem;font-size:clamp(1.8rem,6vw,2.5rem);line-height:1.1;letter-spacing:-.02em}
+.lede{margin:0 0 1.75rem;color:var(--muted)}
+.actions{display:flex;flex-wrap:wrap;gap:.6rem;margin:0 0 2rem}
+.actions a{padding:.6rem 1.1rem;border:1.5px solid var(--ink);border-radius:999px;font-size:.95rem;
+  text-decoration:none;transition:background-color .15s ease,border-color .15s ease,color .15s ease}
+.actions a:hover,.actions a:focus-visible{background:var(--surface-hover)}
+.actions .primary{background:var(--ink);color:var(--surface);font-weight:600}
+.actions .primary:hover,.actions .primary:focus-visible{background:var(--ink-hover);border-color:var(--ink-hover)}
+.small{margin:0;color:var(--faint);font-size:.85rem}
+.small a{transition:color .15s ease}
+.small a:hover{color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+  <svg class="scene" viewBox="0 0 320 128" aria-hidden="true">
+    <path class="arc" d="M134 52 Q200 -14 266 40"/>
+    <rect class="ledge" x="0" y="104" width="130" height="3" rx="1.5"/>
+    <rect class="ledge" x="226" y="104" width="94" height="3" rx="1.5"/>
+    <g class="bot">
+      <rect x="96" y="36" width="30" height="68" rx="15" fill="#f0913c"/>
+      <rect x="111" y="47" width="14" height="9" rx="4.5" fill="#1f1f24"/>
+    </g>
+    <path class="door" d="M256 104 V72 a17 17 0 0 1 34 0 V104"/>
+    <text class="door-arrow" x="273" y="92" text-anchor="middle">&uarr;</text>
+  </svg>
+  <p class="code">404</p>
+  <h1>This platform isn&rsquo;t here.</h1>
+  <p class="lede">The link you followed runs off the edge of the level. The page may have moved, or the address has a typo in it.</p>
+  <p class="actions">
+    <a class="primary" href="${esc(HOME)}/">Back to the level</a>
+    <a href="${esc(HOME)}/classic.html">${esc(ROUTE_NAMES.basic)}</a>
+  </p>
+  <p class="small">Looking for something specific? <a href="mailto:${esc(OWNER.email)}">${esc(OWNER.email)}</a></p>
+</main>
+</body>
+</html>
+`
+fs.writeFileSync('public/404.html', notFound)
 
 // The crawl files are generated here too, from the same OWNER.site constant.
 //
