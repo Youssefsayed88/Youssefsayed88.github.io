@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-import { matcapMaterial } from './Materials.js'
+import { matcapMaterial } from './matcap.js'
 
 // The visible player: a rigged GLB with baked clips, blended by how fast the
 // character controller is actually moving.
@@ -109,7 +109,7 @@ export default class Character {
   // `parent` is the player's root group; the model hangs off it at the capsule's
   // feet, so the physics body stays the thing that moves and this only ever
   // follows it.
-  constructor(parent, { onReady } = {}) {
+  constructor(parent, { onReady, onError } = {}) {
     this.group = new THREE.Group()
     this.group.rotation.y = MODEL_FACING
     this.group.visible = false
@@ -136,9 +136,10 @@ export default class Character {
       },
       undefined,
       (error) => {
-        // The capsule stays visible and the game stays playable. A missing
-        // character model must never be the reason the showroom does not boot.
-        console.warn('[character] could not load the model, keeping the capsule', error)
+        // The capsule stands in and the game stays playable. A missing
+        // character model must never be the reason the game does not start.
+        console.warn('[character] could not load the model, showing the capsule', error)
+        onError?.(error)
       },
     )
   }

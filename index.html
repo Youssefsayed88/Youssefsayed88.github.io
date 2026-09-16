@@ -2,98 +2,57 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- maximum-scale/user-scalable: the showroom is a game, not a document. A
-       pinch on the canvas is already a look-drag, and a zoomed-in viewport
-       pushes the joystick and the Open button off the edge with no way to
-       scroll them back. classic.html keeps its zoom, because that one IS a
+  <!-- maximum-scale/user-scalable: the platformer is a game, and a zoomed-in
+       viewport pushes the joystick and the Jump button off the edge with no way
+       to scroll them back. classic.html keeps its zoom, because that one IS a
        document. See src/ui/zoom.js for the two halves this tag cannot do. -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#1a1f2e">
+  <meta name="theme-color" content="#f5f3ee">
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
 
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary_large_image">
   <!-- The title, description, og:url and og:image are injected from OWNER by
        vite.config.js. The URLs must be ABSOLUTE for any share card to resolve
-       them, and the title has to say what classic.html says: both were a second
-       place to edit when OWNER changed, and the title had already drifted. -->
+       them, and the title has to say what classic.html says. -->
 
-  <!-- No canonical to classic.html: Vite resolves link hrefs as assets and would
-       emit a second copy of the page. Crawlers reach it via the visible link
-       below, and it carries its own title/description/OG tags. -->
-
+  <!-- The visitor's theme, if they picked one, before anything paints. Without
+       it the system setting applies through the stylesheet. See src/ui/theme.js. -->
+  <script>try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}</script>
+  <!-- Asks which portfolio unless the link already chose. See doorMarkup in
+       src/level/markup.js; injected by vite.config.js. -->
+  <!--DOOR_CHECK-->
   <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
-  <canvas class="webgl"></canvas>
+  <a class="skip-link" href="./classic.html">Skip the game: read the plain portfolio</a>
 
-  <!-- The front door. Everyone arriving without a choice already made gets
-       asked which portfolio they want; main.js reveals the loader and fetches
-       the engine only once they pick the showroom, so a visitor who wanted the
-       plain page never downloads 800 kB of Three.js and 2 MB of Rapier. Static
-       markup, so it is on screen at first paint with no script involved — and
-       so the h1 is in the HTML a crawler sees. The name and title are injected
-       from OWNER by vite.config.js for the reason the <title> is: they are
-       facts about the owner, and this must not become a second copy of them. -->
-  <div class="entry" id="entry">
-    <div class="entry__inner">
-      <h1 class="entry__name"><!--OWNER_NAME--></h1>
-      <p class="entry__role"><!--OWNER_TITLE--></p>
-      <p class="entry__lede">Two ways in. The same work either way.</p>
+  <!--DOOR-->
 
-      <div class="entry__choices">
-        <button class="entry__card entry__card--game" id="enter-showroom" type="button">
-          <span class="entry__card-title"><!--LABEL_SHOWROOM--></span>
-          <span class="entry__card-desc">Walk through a 3D showroom and open each project where it stands.</span>
-          <span class="entry__card-meta">Needs a landscape screen &middot; a moment to load</span>
-        </button>
+  <!-- The level: the whole portfolio as ordinary markup, generated from
+       src/data by src/level/markup.js and injected here by vite.config.js.
+       Every block in it is a platform. On screen at first paint, readable with
+       JavaScript off, and the h1 is in the HTML a crawler sees. -->
+  <!--LEVEL-->
 
-        <a class="entry__card" href="./classic.html">
-          <span class="entry__card-title"><!--LABEL_BASIC--></span>
-          <span class="entry__card-desc">Every project on one readable page, with the experience, skills and CV alongside.</span>
-          <span class="entry__card-meta">Loads instantly &middot; works anywhere &middot; prints</span>
-        </a>
-      </div>
-    </div>
-  </div>
-
-  <div class="loader" id="loader" hidden>
-    <div class="loader__inner">
-      <div class="loader__bar"><span></span></div>
-      <p class="loader__text">Building the showroom…</p>
-      <a class="loader__skip" href="./classic.html">or read the plain version</a>
-    </div>
-  </div>
-
-  <!-- Bottom left: the one corner nothing else claims on a desktop, diagonally
-       opposite the room label it borrows its type from. Fixed rather than part
-       of the HUD, so it stands on the front door as well as inside the
-       showroom — it is a statement about the site, not about one screen. It
-       sits UNDER the rotate panel and the no-JavaScript screen on purpose:
-       those two are the whole message when they are up.
-       On a phone the thumb zone reaches this corner, so a drag can pass over
-       it; pointer-events:none keeps that from being anything more than a
-       faint label behind a translucent stick. -->
   <p class="wip">Work in progress</p>
 
   <div class="hud">
-    <div class="hud__room" id="room-label">Corridor</div>
-    <div class="hud__center">
-      <button class="hud__prompt" id="prompt" type="button" hidden></button>
-      <div class="hud__hint" id="hint">WASD / arrows to move &middot; shift to sprint &middot; drag to look &middot; space to jump</div>
-    </div>
+    <div class="hud__room" id="room-label">About</div>
+    <div class="hud__hint" id="hint">&larr; &rarr; to run &middot; shift to sprint &middot; space to jump &middot; &darr; to drop through</div>
   </div>
 
   <div class="controls">
+    <button class="controls__btn controls__btn--icon theme-toggle" id="theme" type="button" aria-label="Switch to dark theme" hidden>
+      <svg class="theme-toggle__moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"/></svg>
+      <svg class="theme-toggle__sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
     <button class="controls__btn" id="mute" type="button" aria-pressed="true">Sound on</button>
-    <!-- Filled from OWNER.cv by vite.config.js, for the same reason the title
-         is: the filename is data, and this must not become a second copy of it.
-         Removed entirely if OWNER.cv is unset. -->
+    <!-- Filled from OWNER.cv by vite.config.js. Removed entirely if unset. -->
     <!--CV_LINK-->
-    <!-- The way OUT of the showroom, and the only control in this corner that
-         is not about the showroom. It is what a recruiter with four minutes
-         wants, so it does not look like the two beside it — see
-         .controls__btn--exit. -->
+    <!-- The way out to the plain page, and the one control here that is not
+         about the game. What a recruiter with four minutes wants, so it does
+         not look like the two beside it — see .controls__btn--exit. -->
     <a class="controls__btn controls__btn--exit" href="./classic.html"><!--LABEL_BASIC--></a>
   </div>
 
@@ -106,24 +65,9 @@
     </div>
   </div>
 
-  <!-- Held in portrait on a phone or tablet? Turn it. In the markup rather
-       than built by JS, so a CSS media query alone can raise it over the
-       loading screen before any of the engine has arrived. The button is
-       revealed by src/ui/Orientation.js only where the orientation lock it
-       calls actually exists. -->
-  <div class="rotate" id="rotate">
-    <div class="rotate__inner">
-      <div class="rotate__phone" aria-hidden="true"></div>
-      <p class="rotate__text">Turn your device sideways</p>
-      <p class="rotate__sub">The showroom is built for a landscape screen.</p>
-      <button class="rotate__btn" id="rotate-lock" type="button" hidden>Rotate it for me</button>
-      <a class="rotate__skip" href="./classic.html">or read the plain version</a>
-    </div>
-  </div>
-
   <noscript>
     <div class="noscript">
-      This showroom needs JavaScript. <a href="./classic.html">Read the plain version instead.</a>
+      The platformer needs JavaScript, but everything is still here to scroll through &mdash; or <a href="./classic.html">read the plain version</a>.
     </div>
   </noscript>
 

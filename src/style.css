@@ -1,412 +1,747 @@
 *, *::before, *::after { box-sizing: border-box; }
 
-/* `touch-action: manipulation` is the piece of the no-zoom rule that the
-   viewport meta tag cannot do: it is what stops a double tap zooming, on
-   the browsers that ignore `user-scalable=no`. `overscroll-behavior` stops
-   a downward drag turning into pull-to-refresh mid-sprint. See
-   src/ui/zoom.js for the third piece and the reasoning. */
-html, body { margin: 0; height: 100%; overflow: hidden; background: #12151f;
-  touch-action: manipulation; overscroll-behavior: none; }
+/* A plain page: paper, ink, and one warm accent taken from the robot. Every
+   colour is a token here, and the dark variant below redefines only these.
+
+   Dark follows the system unless the visitor picked a theme with the toggle,
+   which sets data-theme on <html> (see src/ui/theme.js, and the inline script
+   in index.html's head that applies it before first paint). The dark tokens
+   appear twice because a media query and an attribute cannot share a block. */
+:root {
+  color-scheme: light;
+  --bg: #f5f3ee;
+  --ground: #ebe7de;
+  --surface: #ffffff;
+  --ink: #1f1f24;
+  --muted: #55555c;
+  --faint: #8b8a90;
+  --rule: #dcd8cf;
+  --accent: #e0782f;
+  /* A filled ink button, hovered; a surface button, hovered. */
+  --ink-hover: #3a3a42;
+  --surface-hover: #efece5;
+  --shadow: rgba(31, 31, 36, 0.1);
+  /* The line along the top of every platform. */
+  --ledge: 3px;
+  --gutter: clamp(1rem, 4vw, 2rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #17171b; --ground: #1f1f24; --surface: #24242a;
+    --ink: #ecebe6; --muted: #b4b3b9; --faint: #8e8d94; --rule: #3a3a42;
+    --accent: #f0913c; --ink-hover: #cfcdc6; --surface-hover: #2f2f36;
+    --shadow: rgba(0, 0, 0, 0.35);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #17171b; --ground: #1f1f24; --surface: #24242a;
+  --ink: #ecebe6; --muted: #b4b3b9; --faint: #8e8d94; --rule: #3a3a42;
+  --accent: #f0913c; --ink-hover: #cfcdc6; --surface-hover: #2f2f36;
+  --shadow: rgba(0, 0, 0, 0.35);
+}
+
+/* `overflow-anchor: none`: the camera sets the scroll position every frame, and
+   the browser's scroll anchoring would otherwise "correct" it whenever a lazy
+   thumbnail decodes above the fold. */
+html { background: var(--bg); overflow-anchor: none; }
 body {
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  color: #f2f4f8;
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: var(--ink);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
+a { color: inherit; }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-canvas.webgl {
-  position: fixed; inset: 0;
-  width: 100%; height: 100%;
-  display: block; outline: none;
-  touch-action: none;
+/* The first thing Tab reaches. The level is played with the arrow keys, so
+   for someone on a keyboard or a screen reader the useful skip is past the
+   game altogether, to the plain page with the same content. */
+.skip-link {
+  position: fixed; top: 0.75rem; left: 0.75rem; z-index: 200;
+  padding: 0.55rem 1rem; border-radius: 6px;
+  background: var(--ink); color: var(--surface);
+  font-size: 0.9rem; font-weight: 600; text-decoration: none;
+  transform: translateY(calc(-100% - 1rem));
+}
+.skip-link:focus { transform: none; }
+
+/* ---------- The front door ---------- */
+/* Which portfolio? Over the level until a choice is made. Only with
+   `has-door` on <html>, which the inline check in the head adds before first
+   paint, so without JavaScript this is never shown. Under the corner controls,
+   so the theme toggle and the CV stay reachable; the corner's own Basic
+   Portfolio button steps aside, since the door offers it. */
+.door { display: none; }
+html.has-door { overflow: hidden; }
+html.has-door .door {
+  display: grid; place-items: center;
+  position: fixed; inset: 0; z-index: 18;
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 7.5rem var(--gutter) 3rem;
+  background: var(--bg);
+  transition: opacity 0.3s ease;
+}
+html.has-door .door.is-leaving { opacity: 0; pointer-events: none; }
+html.has-door .controls__btn--exit { display: none; }
+
+.door__inner { width: min(46rem, 100%); }
+.door__name {
+  margin: 0; font-size: clamp(2.2rem, 6.5vw, 4rem); font-weight: 700;
+  line-height: 1; letter-spacing: -0.02em;
+}
+.door__role { margin: 0.8rem 0 0; color: var(--muted); font-size: clamp(0.95rem, 2vw, 1.1rem); }
+.door__lede { margin: 2.25rem 0 1.1rem; font-size: 1.05rem; }
+
+.door__choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+@media (max-width: 620px) {
+  .door__choices { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  html.has-door .door { padding-top: 5rem; }
 }
 
-/* ---------- HUD ---------- */
+/* Each choice wears the level's ledge along its top. */
+.door__card {
+  appearance: none; font: inherit; color: inherit; text-align: left; text-decoration: none; cursor: pointer;
+  position: relative; display: flex; flex-direction: column; gap: 0.5rem;
+  margin: 0; padding: 1.4rem 1.3rem 1.2rem;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.door__card::before {
+  content: ""; position: absolute; left: -1px; right: -1px; top: -1px;
+  height: var(--ledge); border-radius: 10px 10px 0 0;
+  background: var(--ink);
+}
+.door__card--play::before { background: var(--accent); }
+.door__card:hover, .door__card:focus-visible {
+  border-color: var(--ink); box-shadow: 0 8px 22px var(--shadow); transform: translateY(-2px);
+}
+.door__title { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; font-size: 1.2rem; font-weight: 700; }
+.door__arrow { color: var(--faint); transition: color 0.15s ease, transform 0.15s ease; }
+.door__card:hover .door__arrow, .door__card:focus-visible .door__arrow { color: var(--accent); transform: translateX(3px); }
+.door__desc { color: var(--muted); font-size: 0.93rem; line-height: 1.55; }
+.door__meta { margin-top: auto; padding-top: 0.4rem; color: var(--faint); font-size: 0.8rem; }
+
+/* While the game runs, the camera owns the scroll position: no wheel, no
+   swipe, no pull-to-refresh halfway down a fall. Without `is-playing` — no
+   JavaScript, or a game that failed to start — this is an ordinary page that
+   scrolls. `touch-action: manipulation` stops a double tap zooming; see
+   src/ui/zoom.js for the rest of the no-zoom rule. */
+html.is-playing { overflow: hidden; overscroll-behavior: none; touch-action: manipulation; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+kbd {
+  display: inline-grid; place-items: center;
+  min-width: 1.35rem; height: 1.35rem; padding: 0 0.25rem;
+  border: 1px solid currentColor; border-radius: 4px;
+  font: inherit; font-size: 0.68rem; font-weight: 600; line-height: 1;
+}
+
+/* ====================================================================== */
+/* The level                                                               */
+/* ====================================================================== */
+/* Every vertical distance below is a jump, in both directions. The body
+   clears JUMP_HEIGHT (220px) and the reach audit counts on 85% of that,
+   CLIMB_HEIGHT = 187px, so the rule for the whole page is: from any
+   platform's top to the top of something you could climb to from it, less
+   than 187px. Platforms are kept short for that reason (see markup.js), and
+   the gaps between them are small. scripts/verify-browser.mjs measures the
+   real layout across a sweep of widths and fails on any platform that cannot
+   be climbed back up from. */
+
+.level {
+  position: relative;
+  max-width: 1080px;
+  margin: 0 auto;
+  /* Sky above the name, for the robot to drop in from and the corner controls
+     to sit in. */
+  padding: 8rem var(--gutter) 0;
+}
+/* A phone stacks the corner controls, the section label and the two-line touch
+   hint across the top, and the camera cannot scroll above the page — so the
+   sky is tall enough that the robot arrives below all of it. */
+@media (max-width: 560px) {
+  .level { padding-top: 12.5rem; }
+}
+/* A drag on the level is never a scroll while playing. On the level only, so
+   the project panel above it can still be swiped. */
+html.is-playing .level { touch-action: none; }
+
+/* The ledge: a plain line exactly as wide as the platform the physics measured. */
+[data-platform] { position: relative; }
+[data-platform]::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0;
+  height: var(--ledge); border-radius: 2px;
+  background: var(--ink);
+  pointer-events: none;
+}
+
+/* Section gaps are small on purpose: the step from a section's heading back up
+   to the lowest thing above it is this gap plus that thing's height. */
+.lv-section { margin-top: 2.75rem; }
+.lv-intro { margin-top: 0; }
+
+/* A line of text that is a platform: the ledge, then the words under it. As
+   wide as its text, so every line has an edge to walk off. */
+.lv-line { width: fit-content; max-width: 100%; margin: 0; padding-top: 0.55rem; }
+.lv-meta { display: block; color: var(--faint); font-size: 0.85rem; font-weight: 400; }
+
+/* ---------- About ---------- */
+.lv-name {
+  width: fit-content; margin: 0; padding-top: 0.6rem;
+  font-size: clamp(2.2rem, 6.5vw, 4rem); line-height: 1; letter-spacing: -0.02em;
+}
+.lv-role { margin-top: 1.1rem; color: var(--muted); font-size: clamp(0.95rem, 2vw, 1.1rem); }
+
+.lv-summary {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1.75rem;
+  max-width: 36rem; margin-top: 2.5rem;
+  font-size: 1rem; line-height: 1.6;
+}
+
+.lv-contact { list-style: none; margin: 2.5rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2rem 1.75rem; }
+.lv-chip {
+  display: inline-block;
+  padding: 0.6rem 0.9rem 0.45rem;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 6px;
+  font-size: 0.9rem; text-decoration: none;
+}
+.lv-chip:hover { border-color: var(--ink); }
+.lv-chip--cv { background: var(--ink); border-color: var(--ink); color: var(--surface); font-weight: 600; }
+.lv-chip--cv:hover { background: var(--ink-hover); border-color: var(--ink-hover); }
+
+/* Every button and link that changes on hover eases into it. */
+.lv-chip, .portal, .bubble__open, .modal__close, .modal__links a, .controls__btn, .lv-ground__info a {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+/* ---------- Headings ---------- */
+/* At least half the width, so a heading always reaches under the lowest
+   thumbnail of the shelf above it — the heading is how you climb back onto
+   that shelf — while leaving room at its end to fall past. */
+.lv-heading {
+  width: fit-content; min-width: min(60%, 22rem);
+  margin: 0; padding-top: 0.55rem;
+  font-size: clamp(1.35rem, 3vw, 1.8rem); line-height: 1.2;
+}
+.lv-heading small { display: block; margin-top: 0.1rem; font-size: 0.85rem; font-weight: 400; color: var(--faint); }
+
+/* ---------- Project shelves ---------- */
+/* The staircase. Every other column sits half a row lower than its
+   neighbours, so each thumbnail is a half-row hop from one above it.
+
+   The offset is written in the thumbnail's own proportions. A grid item's
+   percentage margin resolves against the width of its grid area — the column
+   — so `100% * 9 / 32` is half a 16:9 thumbnail's height at whatever width
+   the column is, and the half row gap on top of it completes the half row.
+
+   The column count is what keeps a thumbnail short enough to climb over:
+   four across a desktop, three on a tablet, two on a phone. At the widest
+   each count reaches, a thumbnail is ~140px tall, and that plus a section gap
+   is the tallest step on the page. */
+.lv-shelf {
+  --row-gap: 2rem;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--row-gap) 2rem;
+  align-items: start;
+  margin-top: 2.25rem;
+}
+.lv-thumb:nth-child(2n) { margin-top: calc(100% * 9 / 32 + var(--row-gap) / 2); }
+
+@media (max-width: 859px) {
+  .lv-shelf { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--row-gap) 1.75rem; }
+  .lv-thumb:nth-child(2n) { margin-top: 0; }
+  .lv-thumb:nth-child(3n + 2) { margin-top: calc(100% * 9 / 32 + var(--row-gap) / 2); }
+}
+@media (max-width: 559px) {
+  .lv-shelf { --row-gap: 1.75rem; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--row-gap) 1rem; }
+  .lv-thumb:nth-child(3n + 2) { margin-top: 0; }
+  .lv-thumb:nth-child(2n) { margin-top: calc(100% * 9 / 32 + var(--row-gap) / 2); }
+}
+
+.lv-thumb {
+  appearance: none; font: inherit; color: inherit;
+  display: block; width: 100%; aspect-ratio: 16 / 9;
+  margin: 0; padding: 0; border: 0; border-radius: 6px;
+  background: var(--rule);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+/* Fixed shape before the image arrives, so a lazy thumbnail decoding cannot
+   move a platform out from under the robot. */
+.lv-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 6px; }
+.lv-thumb img { transition: filter 0.15s ease; }
+.lv-thumb:hover img { filter: brightness(1.08); }
+
+/* Loading: a thumbnail shimmers until its image has decoded, then fades in.
+   Only once src/ui/loading.js has marked the images that were already loaded,
+   so with JavaScript off nothing is ever hidden. Opacity and a background
+   only: the box is already its final size, so no platform moves. */
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+.fades-images .lv-thumb:has(img:not(.is-loaded)) {
+  background: linear-gradient(100deg, var(--rule) 40%, var(--surface-hover) 50%, var(--rule) 60%) 0 0 / 200% 100%;
+  animation: shimmer 1.3s linear infinite;
+}
+.fades-images .lv-thumb img { opacity: 0; transition: opacity 0.35s ease, filter 0.15s ease; }
+.fades-images .lv-thumb img.is-loaded { opacity: 1; }
+.lv-thumb:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+/* The one doing the talking. An outline, so it cannot move the layout. */
+.lv-thumb.is-target { outline: 3px solid var(--accent); outline-offset: 3px; }
+.lv-thumb__empty {
+  display: grid; place-items: center; height: 100%; border-radius: 6px;
+  color: var(--faint); font-size: 0.8rem;
+}
+
+/* ---------- Experience and education ---------- */
+.lv-jobs { margin-top: 1.75rem; }
+.lv-job + .lv-job { margin-top: 2.25rem; }
+.lv-job__head { font-size: 1.05rem; }
+.lv-points, .lv-list { list-style: none; margin: 0; padding: 0; }
+/* One bullet per platform, indented under its company. Stacked straight down,
+   so climbing a job is jumping up through each line to the one above. */
+.lv-points { display: flex; flex-direction: column; align-items: flex-start; gap: 1.1rem; margin: 1.25rem 0 0 1.5rem; }
+.lv-points .lv-line { max-width: min(40rem, 100%); color: var(--muted); font-size: 0.95rem; }
+.lv-list { display: flex; flex-direction: column; align-items: flex-start; gap: 1.5rem; margin-top: 1.75rem; }
+.lv-edu strong { font-weight: 600; }
+
+/* ---------- Skills ---------- */
+/* One column: two would put a group's label out of jumping range of the
+   heading above the other one. */
+.lv-skills { display: flex; flex-direction: column; gap: 2.25rem; margin-top: 1.75rem; }
+.lv-skill-label { width: fit-content; margin: 0; padding-top: 0.55rem; font-size: 0.95rem; color: var(--muted); font-weight: 600; }
+.lv-tags { list-style: none; margin: 1.5rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 1.6rem 1.75rem; }
+.lv-tag {
+  padding: 0.55rem 0.8rem 0.4rem;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 6px;
+  font-size: 0.88rem;
+}
+
+/* ---------- The ground ---------- */
+/* Out through the gutter to the level's full width: the level's own box is
+   the world, and the floor has to reach both of its walls or the robot could
+   walk off the end of it. `data-solid`, so it cannot be dropped through. */
+.lv-ground {
+  margin: 4rem calc(-1 * var(--gutter)) 0;
+  min-height: max(14rem, 30vh);
+  padding: 1.75rem var(--gutter) 3rem;
+  background: var(--ground);
+}
+.lv-ground__info a:hover { color: var(--accent); }
+.lv-ground__info { max-width: 26rem; color: var(--muted); font-size: 0.9rem; }
+.lv-ground__info p { margin: 0 0 0.45rem; }
+.lv-ground__info strong { color: var(--ink); font-weight: 600; }
+
+/* ---------- The portal ---------- */
+/* A door standing on the ground. A button: tap or click it from anywhere, or
+   stand in it and press E / Open. */
+.portal {
+  position: absolute; bottom: 100%; right: max(var(--gutter), 8%);
+  width: 3.5rem; height: 4.5rem;
+  margin: 0; padding: 0;
+  display: grid; place-items: center;
+  background: var(--surface); color: var(--ink);
+  border: var(--ledge) solid var(--ink); border-bottom: 0; border-radius: 1.75rem 1.75rem 0 0;
+  appearance: none; font: inherit; font-size: 1.35rem; line-height: 1; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.portal:hover, .portal:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
+.portal__label {
+  position: absolute; left: 50%; bottom: calc(100% + 0.4rem); transform: translateX(-50%);
+  white-space: nowrap; font-size: 0.78rem; color: var(--muted);
+}
+html:not(.is-playing) .portal { display: none; }
+
+/* ---------- The robot ---------- */
+/* A zero-size box whose origin is the feet; Avatar.js moves it with a
+   transform. Inside the level, so it scrolls with the platforms instead of
+   chasing them. */
+.avatar {
+  position: absolute; left: 0; top: 0; width: 0; height: 0;
+  z-index: 5; pointer-events: none; will-change: transform;
+}
+html:not(.is-playing) .avatar { display: none; }
+
+/* The capsule: only where the robot can never arrive (no WebGL, or the model
+   failed to load), since there it is the whole character. Nothing stands in
+   while the model is on its way. See Avatar.js. */
+.avatar__placeholder {
+  display: none;
+  position: absolute; bottom: 0;
+  left: calc(var(--player-h) * -0.22);
+  width: calc(var(--player-h) * 0.44); height: var(--player-h);
+  border-radius: 999px;
+  background: #f0913c;
+}
+.avatar.no-robot .avatar__placeholder { display: block; }
+.avatar__placeholder::after {
+  content: ""; position: absolute; top: 17%; right: 8%;
+  width: 48%; height: 13%; border-radius: 999px;
+  /* The robot's visor, the same in either theme. */
+  background: #1f1f24;
+}
+.is-facing-left .avatar__placeholder::after { right: auto; left: 8%; }
+
+/* The robot fades in when its model is ready, instead of popping in. Before
+   the warp rule, so a warp still wins. */
+.avatar__robot { position: absolute; display: block; opacity: 0; }
+.avatar.has-robot .avatar__robot { opacity: 1; }
+
+.avatar__placeholder,
+.avatar__robot { transform-origin: 50% 100%; transition: transform 0.22s ease-in, opacity 0.3s ease-in; }
+.avatar.is-warping .avatar__placeholder,
+.avatar.is-warping .avatar__robot { transform: scale(0.15); opacity: 0; }
+
+/* ---------- The speech bubble ---------- */
+/* The robot talking about what it is standing on, as a chat message over its
+   head. Bubble.js sets `left` and `top` every frame so it follows the robot
+   along the thumbnail; `top` is the bottom of the bubble (the `translate`
+   lifts it by its own height, so the bubble grows upward and never needs
+   measuring to sit on the robot), and `--tail` is where along the bottom the
+   tail points down at the robot's head.
+
+   It opens with a moment of "typing" dots, then the message. */
+.bubble {
+  position: absolute; z-index: 6;
+  width: min(17rem, calc(100% - 2 * var(--gutter)));
+  translate: 0 -100%;
+  padding: 0.7rem 0.95rem 1rem;
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--rule); border-radius: 20px;
+  box-shadow: 0 8px 22px var(--shadow), 0 1px 3px var(--shadow);
+  /* Pops out of the tail, where the robot's head is. */
+  transform-origin: var(--tail, 50%) calc(100% + 12px);
+  animation: bubble-in 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.25);
+}
+.bubble[hidden], .bubble [hidden] { display: none; }
+@keyframes bubble-in { from { opacity: 0; transform: translateY(8px) scale(0.85); } to { opacity: 1; transform: none; } }
+
+/* A curved chat tail: filled with the bubble's colour, outlined on its two
+   outer edges only, and overlapping the border by a pixel so the outline runs
+   into it unbroken. */
+.bubble__tail {
+  position: absolute; bottom: -11px; left: calc(var(--tail, 50%) - 11px);
+  width: 22px; height: 12px; overflow: visible;
+}
+.bubble__tail-fill { fill: var(--surface); }
+.bubble__tail-line { fill: none; stroke: var(--rule); stroke-width: 1; }
+
+/* Typing: the bubble shrinks to three bouncing dots. */
+.bubble__typing { display: none; gap: 5px; padding: 0.3rem 0.15rem 0.15rem; }
+.bubble.is-typing { width: auto; }
+.bubble.is-typing .bubble__typing { display: flex; }
+.bubble.is-typing .bubble__message,
+.bubble.is-typing .bubble__dwell { display: none; }
+.bubble__typing i {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--faint);
+  animation: typing 0.9s ease-in-out infinite;
+}
+.bubble__typing i:nth-child(2) { animation-delay: 0.15s; }
+.bubble__typing i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typing { 0%, 60%, 100% { transform: none; opacity: 0.5; } 30% { transform: translateY(-4px); opacity: 1; } }
+
+.bubble__message { animation: message-in 0.18s ease-out; }
+@keyframes message-in { from { opacity: 0; } to { opacity: 1; } }
+
+.bubble__eyebrow { margin: 0; font-size: 0.72rem; font-weight: 600; color: var(--faint); }
+.bubble__title { margin: 0.1rem 0 0; font-size: 1rem; font-weight: 700; line-height: 1.25; }
+.bubble__detail {
+  margin: 0.3rem 0 0; font-size: 0.84rem; line-height: 1.45; color: var(--muted);
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* A quick reply, the way a chat offers one. */
+.bubble__open {
+  appearance: none; font: inherit; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 0.45rem;
+  margin-top: 0.65rem; padding: 0.35rem 0.55rem 0.35rem 0.85rem;
+  background: var(--ink); color: var(--surface);
+  border: 0; border-radius: 999px;
+  font-size: 0.85rem; font-weight: 600;
+  -webkit-tap-highlight-color: transparent;
+}
+.bubble__open:hover { background: var(--ink-hover); }
+
+/* Standing still fills this; full, the project opens. Inside the rounded
+   corners, along the bottom edge. */
+.bubble__dwell {
+  position: absolute; left: 18px; right: 18px; bottom: 6px; height: 3px; border-radius: 2px;
+  background: var(--accent);
+  transform-origin: left center; transform: scaleX(var(--dwell, 0));
+}
+.bubble.is-portal .bubble__dwell { display: none; }
+
+/* ====================================================================== */
+/* HUD                                                                     */
+/* ====================================================================== */
 .hud {
-  position: fixed; inset: 0;
+  position: fixed; inset: 0; z-index: 15;
   pointer-events: none;
   padding: 1.5rem;
   display: flex; flex-direction: column; justify-content: space-between; align-items: center;
 }
-.hud__room {
-  align-self: flex-start;
-  font-size: 0.75rem; letter-spacing: 0.18em; text-transform: uppercase;
-  opacity: 0.55;
-}
-.hud__center { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
-
-/* A real button, so it needs its own pointer-events: the HUD around it is
-   inert on purpose, otherwise the whole overlay would swallow the look-drag. */
-.hud__prompt {
-  pointer-events: auto;
-  appearance: none; font: inherit; cursor: pointer;
-  display: flex; align-items: center; gap: 0.55rem;
-  padding: 0.5rem 0.6rem 0.5rem 1rem;
-  background: rgba(16, 18, 28, 0.82);
-  border: 1px solid rgba(34, 195, 230, 0.4);
-  border-radius: 999px;
-  color: inherit;
-  font-size: 0.9rem;
-  -webkit-tap-highlight-color: transparent;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
-  animation: prompt-in 0.18s ease-out;
-}
-.hud__prompt[hidden] { display: none; }
-.hud__prompt:hover { background: rgba(34, 195, 230, 0.16); border-color: rgba(34, 195, 230, 0.85); }
-.hud__prompt:active { transform: scale(0.97); }
-.hud__prompt:focus-visible { outline: 2px solid #22c3e6; outline-offset: 3px; }
-
-.hud__prompt-verb { opacity: 0.6; }
-.hud__prompt-name { font-weight: 600; }
-
-/* The keycap is a hint now, not the instruction, so it sits after the label
-   and steps back to match. */
-.hud__prompt kbd {
-  display: grid; place-items: center;
-  min-width: 1.6rem; height: 1.6rem;
-  background: rgba(34, 195, 230, 0.16); color: #22c3e6;
-  border: 1px solid rgba(34, 195, 230, 0.45);
-  border-radius: 6px;
-  font: inherit; font-size: 0.72rem; font-weight: 700;
-}
-.hud__prompt:hover kbd { background: #22c3e6; color: #10121c; border-color: #22c3e6; }
-@keyframes prompt-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-
+html:not(.is-playing) .hud { display: none; }
+.hud__room { align-self: flex-start; font-size: 0.85rem; color: var(--muted); }
 .hud__hint {
-  font-size: 0.8rem; opacity: 0.4;
+  padding: 0.3rem 0.7rem; border-radius: 999px;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  font-size: 0.82rem; color: var(--muted); text-align: center;
   transition: opacity 0.6s ease;
 }
 .hud__hint.is-hidden { opacity: 0; }
 
-/* ---------- Modal ---------- */
-.modal { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 1.5rem; }
+/* ====================================================================== */
+/* Modal                                                                   */
+/* ====================================================================== */
+.modal {
+  position: fixed; inset: 0; z-index: 100;
+  display: grid; place-items: center; padding: 1.5rem;
+  /* Plyr, in the page's colours. */
+  --plyr-color-main: var(--accent);
+  --plyr-video-background: #111114;
+  --plyr-font-family: inherit;
+}
 .modal[hidden] { display: none; }
 
 .modal__backdrop {
   position: absolute; inset: 0;
-  background: rgba(10, 11, 18, 0.78);
-  backdrop-filter: blur(6px);
+  background: rgba(31, 31, 36, 0.5);
   animation: fade-in 0.2s ease-out;
 }
 
+/* The panel never scrolls — only its body does.
+   This is the fix for a video that kept flickering. The panel used to scroll
+   as a whole, with the video inside it sized to the panel's width. Whenever
+   the content sat within a few pixels of the height limit, the scrollbar
+   appeared, the panel narrowed by its width, the 16:9 video lost a few pixels
+   of height, the content fitted, the scrollbar vanished, the video grew back —
+   and round again, every frame. So the video now sits outside anything that
+   scrolls, capped in height so there is always room for the text, and the
+   text scrolls under it with its gutter reserved whether or not it needs one. */
 .modal__panel {
   position: relative;
+  display: flex; flex-direction: column;
   width: min(860px, 100%);
-  max-height: min(90vh, 780px);
-  overflow-y: auto;
-  background: #191c28;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 14px;
-  animation: panel-in 0.22s cubic-bezier(0.2, 0.8, 0.3, 1);
+  max-height: min(92vh, 820px);
+  overflow: hidden;
+  background: var(--surface); color: var(--ink);
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgba(31, 31, 36, 0.25);
+  animation: panel-in 0.2s ease-out;
 }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes panel-in { from { opacity: 0; transform: translateY(14px) scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes panel-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 
 .modal__close {
-  position: absolute; top: 0.85rem; right: 0.85rem; z-index: 2;
+  position: absolute; top: 0.75rem; right: 0.75rem; z-index: 5;
   width: 2rem; height: 2rem;
   display: grid; place-items: center;
-  background: rgba(10, 11, 18, 0.7);
-  color: #f2f4f8;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 50%;
+  background: var(--surface); color: var(--ink);
+  border: 1.5px solid var(--ink); border-radius: 50%;
   font-size: 1.2rem; line-height: 1; cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
 }
-.modal__close:hover { background: #22c3e6; color: #10121c; border-color: #22c3e6; }
+.modal__close:hover, .modal__close:focus-visible { background: var(--ink); color: var(--surface); }
 
-.modal__media { background: #10121c; border-radius: 14px 14px 0 0; overflow: hidden; }
+.modal__media { flex: none; background: #111114; }
+/* Capped so a tall panel on a short screen still leaves the title in view;
+   `contain`, so a portrait capture is letterboxed rather than cropped. */
 .modal__video {
   display: block; width: 100%;
-  aspect-ratio: 16 / 9;
-  border: 0; object-fit: cover;
+  aspect-ratio: 16 / 9; max-height: min(54vh, 484px);
+  border: 0; object-fit: contain; background: #111114;
 }
-/* The image keeps its own shape instead of being cropped to 16:9 — the same
-   rule the kiosk screen already follows, and for the same reason. `cover` on a
-   square or portrait capture throws away the top and bottom of it: the Novel
-   Visualisation card is a 2x2 grid of the model's output and lost a row and a
-   half of it. Letterboxing against the panel's own background costs nothing;
-   showing three quarters of the picture costs the picture.
-   The height cap keeps a tall image from pushing the title below the fold. */
 .modal__image {
   display: block; width: 100%;
-  max-height: min(58vh, 500px);
+  max-height: min(50vh, 460px);
   border: 0; object-fit: contain;
-  background: #10121c;
+  background: #111114;
 }
 .modal__image--empty {
   display: grid; place-items: center;
   aspect-ratio: 16 / 9;
-  color: #6b7290; font-size: 0.85rem; letter-spacing: 0.08em; text-transform: uppercase;
-  background: repeating-linear-gradient(45deg, #1d2030, #1d2030 10px, #212434 10px, #212434 20px);
+  color: #9a9aa0; font-size: 0.9rem;
 }
 
-.modal__body { padding: 1.5rem 1.75rem 1.75rem; }
-.modal__eyebrow {
-  margin: 0 0 0.4rem;
-  font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase;
-  color: #22c3e6;
+.modal__body {
+  flex: 1 1 auto; min-height: 0;
+  overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 1.4rem 1.75rem 1.75rem;
 }
+.modal__eyebrow { margin: 0 0 0.3rem; font-size: 0.82rem; color: var(--faint); }
 .modal__title { margin: 0 0 0.6rem; font-size: 1.6rem; line-height: 1.2; }
-.modal__role {
-  margin: 0 0 0.75rem; padding-left: 0.8rem;
-  border-left: 2px solid #22c3e6;
-  font-size: 0.95rem;
-}
-.modal__blurb { margin: 0 0 1.1rem; color: #b9bfd2; line-height: 1.6; font-size: 0.95rem; }
+.modal__role { margin: 0 0 0.75rem; padding-left: 0.8rem; border-left: 3px solid var(--accent); font-size: 0.98rem; }
+.modal__blurb { margin: 0 0 1.1rem; color: var(--muted); line-height: 1.6; font-size: 0.95rem; }
 
 .modal__tech { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 1.25rem; padding: 0; list-style: none; }
-.modal__tech li {
-  padding: 0.25rem 0.65rem;
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 999px;
-  font-size: 0.75rem; color: #cdd3e4;
-}
+.modal__tech li { padding: 0.2rem 0.6rem; border: 1px solid var(--rule); border-radius: 999px; font-size: 0.78rem; color: var(--muted); }
 
 .modal__links { display: flex; flex-wrap: wrap; gap: 0.6rem; }
 .modal__links a {
-  padding: 0.55rem 1.1rem;
-  background: #22c3e6; color: #10121c;
-  border-radius: 8px;
-  font-size: 0.85rem; font-weight: 600; text-decoration: none;
-  transition: filter 0.15s;
+  padding: 0.5rem 1rem;
+  background: var(--ink); color: var(--surface);
+  border-radius: 6px;
+  font-size: 0.88rem; font-weight: 600; text-decoration: none;
 }
-.modal__links a:hover { filter: brightness(1.12); }
+.modal__links a:hover, .modal__links a:focus-visible { background: var(--ink-hover); }
 
 @media (max-width: 620px) {
   .modal { padding: 0.75rem; }
-  .modal__body { padding: 1.25rem; }
+  .modal__body { padding: 1.2rem; }
   .modal__title { font-size: 1.3rem; }
+  /* At phone width Plyr lays every control out in one row and the seek bar is
+     squeezed to a stub. The volume slider goes (mute stays, and a phone has
+     volume keys) and so does picture-in-picture. */
+  .modal .plyr__volume input[type="range"],
+  .modal .plyr__controls [data-plyr="pip"] { display: none; }
 }
 
-/* ---------- Loader ---------- */
-.loader{position:fixed;inset:0;z-index:200;display:grid;place-items:center;
-  background:#1a1f2e;transition:opacity .5s ease}
-/* An author `display` beats the UA rule the `hidden` attribute relies on, so
-   the loader would ignore it. It starts hidden now: the engine is not fetched
-   until the front door is answered, and a progress bar for a download nobody
-   has asked for yet is a lie. */
-.loader[hidden]{display:none}
-.loader.is-done{opacity:0;pointer-events:none}
-.loader__inner{display:flex;flex-direction:column;align-items:center;gap:.9rem;width:min(280px,70vw)}
-.loader__bar{width:100%;height:2px;background:rgba(255,255,255,.12);overflow:hidden;border-radius:2px}
-.loader__bar span{display:block;width:40%;height:100%;background:#22c3e6;border-radius:2px;
-  animation:loader-sweep 1.1s ease-in-out infinite}
-@keyframes loader-sweep{0%{transform:translateX(-110%)}100%{transform:translateX(320%)}}
-.loader__text{margin:0;font-size:.82rem;letter-spacing:.05em;opacity:.65}
-.loader__skip{font-size:.75rem;opacity:.42;color:#f2f4f8;text-decoration:underline}
-.loader__skip:hover{opacity:.9}
+/* ====================================================================== */
+/* Chrome                                                                  */
+/* ====================================================================== */
 
-/* ---------- Work-in-progress notice ---------- */
-/* Same type as .hud__room in the opposite corner — uppercase, tracked out,
-   stepped back — so it reads as part of the furniture rather than a sticker on
-   top of it. Above the front door (250), below the rotate panel (400) and the
-   noscript screen (500). */
-.wip{position:fixed;z-index:260;margin:0;pointer-events:none;
-  left:max(1.5rem,env(safe-area-inset-left));
-  bottom:max(1.5rem,env(safe-area-inset-bottom));
-  font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;opacity:.42}
-
-/* ---------- The front door ---------- */
-/* The first thing anyone sees, and the only screen on this route that is not
-   the showroom. Opaque and above the loader, because until a choice is made
-   there is nothing behind it worth showing. */
-.entry{position:fixed;inset:0;z-index:250;display:grid;place-items:center;
-  background:#1a1f2e;padding:2rem 1.25rem;overflow-y:auto}
-.entry__inner{width:min(46rem,100%);text-align:center}
-.entry__name{margin:0;font-size:clamp(1.6rem,4.4vw,2.4rem);line-height:1.15;letter-spacing:-.01em}
-.entry__role{margin:.35rem 0 0;color:#22c3e6;font-size:.95rem;letter-spacing:.02em}
-.entry__lede{margin:.9rem 0 2rem;opacity:.5;font-size:.85rem}
-
-/* Side by side where there is room, stacked where there is not. The showroom
-   card leads, but neither is the "cancel" of the other — a recruiter choosing
-   the plain page is choosing, not giving up. */
-.entry__choices{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr));
-  text-align:left}
-/* text-align explicitly: one card is a <button> and one is an <a>, and the
-   button brings its own centred UA default, so the two would not agree. */
-.entry__card{appearance:none;font:inherit;cursor:pointer;color:inherit;text-decoration:none;
-  text-align:left;-webkit-tap-highlight-color:transparent;
-  display:flex;flex-direction:column;gap:.5rem;
-  padding:1.4rem 1.5rem 1.5rem;
-  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:14px;
-  transition:background .18s ease,border-color .18s ease,transform .18s ease}
-.entry__card:hover,.entry__card:focus-visible{background:rgba(255,255,255,.07);
-  border-color:rgba(34,195,230,.6);transform:translateY(-2px)}
-.entry__card:focus-visible{outline:2px solid #22c3e6;outline-offset:3px}
-.entry__card--game{background:rgba(34,195,230,.1);border-color:rgba(34,195,230,.45)}
-.entry__card--game:hover,.entry__card--game:focus-visible{background:rgba(34,195,230,.16);
-  border-color:#22c3e6}
-.entry__card-title{font-size:1.1rem;font-weight:600}
-.entry__card-desc{color:#b9bfd2;font-size:.88rem;line-height:1.55}
-.entry__card-meta{margin-top:.15rem;color:#7d859c;font-size:.72rem;letter-spacing:.04em}
-
-/* None of the showroom's own furniture belongs on the front door — and the
-   rotate panel below least of all, since it would tell someone to turn a phone
-   they are only being asked a question on. main.js adds `is-showroom` when the
-   engine starts. */
-body:not(.is-showroom) .hud,
-body:not(.is-showroom) .controls{display:none}
-
-/* ---------- Rotate-to-landscape ---------- */
-/* Raised by the media query alone, so it is up before any script has run —
-   including over the loading screen, whose z-index it clears. Orientation.js
-   only pauses the game behind it and reveals the button where the platform
-   has a lock to offer. */
-.rotate{position:fixed;inset:0;z-index:400;display:none;place-items:center;
-  background:#1a1f2e;padding:2rem;text-align:center}
-@media (orientation:portrait) and (pointer:coarse){body.is-showroom .rotate{display:grid}}
-
-.rotate__inner{display:flex;flex-direction:column;align-items:center;gap:.7rem;max-width:22rem}
-/* A phone turning: portrait outline, rotated a quarter turn and back so the
-   instruction is shown as well as written. */
-.rotate__phone{width:52px;height:86px;border:2px solid #22c3e6;border-radius:9px;
-  margin-bottom:.6rem;animation:rotate-hint 2.6s ease-in-out infinite}
-@keyframes rotate-hint{
-  0%,28%{transform:rotate(0)}
-  46%,78%{transform:rotate(-90deg)}
-  96%,100%{transform:rotate(0)}
+.wip {
+  position: fixed; z-index: 12; margin: 0; pointer-events: none;
+  left: max(1.5rem, env(safe-area-inset-left));
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
+  font-size: 0.78rem; color: var(--faint);
 }
-.rotate__text{margin:0;font-size:1.05rem;font-weight:600}
-.rotate__sub{margin:0;font-size:.82rem;opacity:.55;line-height:1.5}
-.rotate__btn{appearance:none;font:inherit;font-size:.82rem;font-weight:600;cursor:pointer;
-  margin-top:.4rem;padding:.55rem 1.1rem;border:0;border-radius:999px;
-  background:#22c3e6;color:#10121c;-webkit-tap-highlight-color:transparent}
-.rotate__btn[hidden]{display:none}
-.rotate__skip{margin-top:.2rem;font-size:.75rem;opacity:.42;color:#f2f4f8;text-decoration:underline}
 
 /* ---------- Corner controls ---------- */
-/* Doubled from the 0.72rem pills these started as. At that size the row was
-   HUD garnish; these are controls someone is meant to find and hit, and the
-   exit among them is the whole point of the corner.
-   Stacked rather than laid out along the top, which also retires the wrapping
-   this needed as a row: a column is only ever as wide as its widest button, so
-   it can no longer reach across the screen to sit on top of the room label in
-   the opposite corner, at any width. Right-aligned so the ragged left edge
-   points away from the scene. */
-.controls{position:fixed;top:1.5rem;right:1.5rem;z-index:10;display:flex;gap:.6rem;
-  flex-direction:column;align-items:flex-end}
-.controls__btn{appearance:none;background:rgba(18,21,31,.6);border:1px solid rgba(255,255,255,.16);
-  color:#f2f4f8;border-radius:999px;padding:.7rem 1.6rem;font:inherit;font-size:1.44rem;
-  letter-spacing:.04em;text-decoration:none;cursor:pointer;opacity:.6;transition:opacity .2s,border-color .2s}
-.controls__btn:hover,.controls__btn:focus-visible{opacity:1;border-color:#22c3e6}
+.controls {
+  position: fixed; top: 1.5rem; right: 1.5rem; z-index: 20;
+  display: flex; gap: 0.5rem; flex-direction: column; align-items: flex-end;
+}
+.controls__btn {
+  appearance: none; background: var(--surface); color: var(--ink);
+  border: 1.5px solid var(--ink); border-radius: 999px;
+  padding: 0.5rem 1.1rem;
+  font: inherit; font-size: 0.95rem;
+  text-decoration: none; cursor: pointer;
+}
+.controls__btn:hover, .controls__btn:focus-visible { background: var(--surface-hover); }
 
-/* The escape hatch, promoted out of the row it was hiding in.
-   It was the third of three identical translucent pills at 60% opacity, over a
-   moving 3D scene — which made the one link a recruiter in a hurry is looking
-   for the least visible thing on the screen. Filled, at full opacity, with the
-   same accent ring the live Open button uses, so it separates from both the
-   scene behind it and the two showroom controls beside it. This is the
-   treatment classic.html already gives its CV link, for the same reason: when
-   one item in a row is the one being looked for, it should not look like a
-   member of the row. */
-.controls__btn--exit{opacity:1;font-weight:600;padding:.9rem 2rem;margin-left:.3rem;
-  background:#22c3e6;color:#10121c;border-color:#22c3e6;
-  box-shadow:0 0 0 10px rgba(34,195,230,.14),0 4px 20px rgba(0,0,0,.35)}
-.controls__btn--exit:hover,.controls__btn--exit:focus-visible{
-  background:#5ad6f0;border-color:#5ad6f0;box-shadow:0 0 0 14px rgba(34,195,230,.2),0 4px 20px rgba(0,0,0,.35)}
+/* The theme toggle: a round icon button, so a phone's row of corner controls
+   still fits on one line. Hidden until theme.js has wired it, since it does
+   nothing without JavaScript. */
+.controls__btn--icon { display: grid; place-items: center; width: 2.6rem; height: 2.6rem; padding: 0; }
+.controls__btn--icon[hidden] { display: none; }
+.theme-toggle svg { width: 1.15rem; height: 1.15rem; }
+.theme-toggle[data-current="dark"] .theme-toggle__moon,
+.theme-toggle:not([data-current="dark"]) .theme-toggle__sun { display: none; }
+/* Sound means nothing on a page with no game running. The CV and the way out
+   still do. */
+html:not(.is-playing) #mute { display: none; }
 
-/* A row spent the screen's width; a column spends its HEIGHT, and on a phone
-   held sideways there is very little of that. Three of these at full size come
-   down the right edge into the Jump and Open buttons sitting at the bottom of
-   it — two controls overlapping is a bug, not a crowded corner — so on a short
-   viewport they step back to roughly the size they were before. Keyed to
-   height, because that is the axis that ran out. */
-@media (max-height:560px){
-  .controls{gap:.4rem}
-  .controls__btn{padding:.4rem .95rem;font-size:.92rem}
-  .controls__btn--exit{padding:.5rem 1.2rem;margin-left:0;
-    box-shadow:0 0 0 6px rgba(34,195,230,.14),0 2px 12px rgba(0,0,0,.35)}
+/* The way out, filled so it is the one a recruiter in a hurry finds. */
+.controls__btn--exit { background: var(--ink); color: var(--surface); font-weight: 600; }
+.controls__btn--exit:hover, .controls__btn--exit:focus-visible { background: var(--ink-hover); }
+
+@media (max-height: 560px) {
+  .controls { gap: 0.35rem; }
+  .controls__btn { padding: 0.35rem 0.85rem; font-size: 0.85rem; }
+  .controls__btn--icon { width: 2.1rem; height: 2.1rem; padding: 0; }
 }
 
-/* Above the rotate panel (400), not below it: someone with JavaScript off has a
-   problem turning the phone will not solve, and both panels offer the same way
-   out to classic.html anyway. */
-.noscript{position:fixed;inset:0;z-index:500;display:grid;place-items:center;
-  background:#1a1f2e;padding:2rem;text-align:center;font-size:.95rem}
-.noscript a{color:#37cdea}
+/* A phone held upright: a row across the top, and the HUD drops below it. */
+@media (max-width: 560px) {
+  .controls { left: 1rem; right: 1rem; top: max(0.75rem, env(safe-area-inset-top)); flex-direction: row; justify-content: flex-end; flex-wrap: wrap; gap: 0.4rem; }
+  .controls__btn { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+  .controls__btn--icon { width: 2.05rem; height: 2.05rem; padding: 0; }
+  .hud { padding-top: calc(max(0.75rem, env(safe-area-inset-top)) + 2.7rem); }
+}
 
-/* ---------- Touch controls ---------- */
+.noscript {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 500;
+  padding: 0.85rem 1rem; text-align: center; font-size: 0.9rem;
+  background: var(--surface); border-top: 1px solid var(--rule);
+}
+
+/* ====================================================================== */
+/* Touch controls                                                          */
+/* ====================================================================== */
 /* Only in the document once TouchControls decides the device has a finger on
-   it, so none of this is reachable with a mouse. `touch-action:none` on every
-   interactive part is what stops a drag turning into a page scroll or the
-   pull-to-refresh gesture halfway through a sprint. */
-/* Note: an absolutely positioned child is laid out against its ancestor's
-   PADDING edge, so padding on .touch would not inset any of this. The
-   safe-area insets go on the pieces themselves. */
-.touch{position:fixed;inset:0;z-index:20;pointer-events:none}
-.touch[hidden]{display:none}
+   it. Safe-area insets go on the pieces themselves: an absolutely positioned
+   child is laid out against its ancestor's PADDING edge. */
+.touch { position: fixed; inset: 0; z-index: 30; pointer-events: none; }
+.touch[hidden] { display: none; }
 
-/* The thumb zone. Deliberately much larger than the visible stick: the base
-   moves to wherever the thumb lands inside it. */
-.touch__pad{position:absolute;left:0;bottom:0;width:min(52%,340px);height:min(46%,300px);
-  pointer-events:auto;touch-action:none}
+/* The thumb zone, much larger than the visible stick: the base moves to
+   wherever the thumb lands inside it. */
+.touch__pad { position: absolute; left: 0; bottom: 0; width: min(52%, 340px); height: min(40%, 300px); pointer-events: auto; touch-action: none; }
 
-/* Positioned entirely by left/top, and moved to the touch point in px by
-   TouchControls. The translate stays constant so the circle is always centred
-   on whichever anchor is in play. The resting spot is low and inboard — where
-   a thumb already is, not the middle of the zone it can reach. */
-.touch__base{position:absolute;left:38%;top:70%;width:112px;height:112px;
-  transform:translate(-50%,-50%);
-  border-radius:50%;background:rgba(18,21,31,.34);border:1px solid rgba(255,255,255,.14);
-  opacity:.5;transition:opacity .18s ease}
-.touch__base.is-active{opacity:.95}
+.touch__base {
+  position: absolute; left: 38%; top: 70%; width: 112px; height: 112px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%; background: color-mix(in srgb, var(--surface) 60%, transparent); border: 1.5px solid color-mix(in srgb, var(--ink) 35%, transparent);
+  opacity: 0.7; transition: opacity 0.18s ease;
+}
+.touch__base.is-active { opacity: 1; }
 
-.touch__ring{position:absolute;inset:-9px;border-radius:50%;
-  border:2px solid rgba(34,195,230,0);transition:border-color .12s ease}
-.touch__base.is-sprinting .touch__ring{border-color:rgba(34,195,230,.85)}
+.touch__ring { position: absolute; inset: -8px; border-radius: 50%; border: 2px solid transparent; }
+.touch__base.is-sprinting .touch__ring { border-color: var(--accent); }
+.touch__base.is-dropping .touch__ring { border-color: var(--ink); border-top-color: transparent; }
 
-.touch__knob{position:absolute;left:50%;top:50%;width:52px;height:52px;
-  transform:translate(-50%,-50%);border-radius:50%;
-  background:rgba(242,244,248,.82);box-shadow:0 2px 10px rgba(0,0,0,.35)}
-.touch__base.is-sprinting .touch__knob{background:#22c3e6}
+.touch__knob {
+  position: absolute; left: 50%; top: 50%; width: 50px; height: 50px;
+  transform: translate(-50%, -50%); border-radius: 50%;
+  background: var(--ink);
+}
+.touch__base.is-sprinting .touch__knob { background: var(--accent); }
 
-.touch__actions{position:absolute;display:flex;align-items:flex-end;gap:.75rem;
-  right:max(1rem,env(safe-area-inset-right));
-  bottom:max(1.5rem,env(safe-area-inset-bottom));
-  pointer-events:none}
-.touch__btn{pointer-events:auto;touch-action:none;appearance:none;font:inherit;font-weight:600;
-  color:#f2f4f8;background:rgba(18,21,31,.55);border:1px solid rgba(255,255,255,.18);
-  border-radius:50%;display:grid;place-items:center;cursor:pointer;
-  -webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
-.touch__btn:active{transform:scale(.94)}
+.touch__actions {
+  position: absolute; display: flex; align-items: flex-end; gap: 0.75rem;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1.5rem, env(safe-area-inset-bottom));
+  pointer-events: none;
+}
+.touch__btn {
+  pointer-events: auto; touch-action: none; appearance: none; font: inherit; font-weight: 600;
+  color: var(--ink); background: color-mix(in srgb, var(--surface) 85%, transparent); border: 1.5px solid var(--ink);
+  border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+  -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.touch__btn:active { transform: scale(0.94); }
 
-.touch__btn--jump{width:74px;height:74px;font-size:.78rem;opacity:.7}
-.touch__btn--open{width:96px;height:96px;font-size:.9rem;opacity:.38}
-/* Lit only while a kiosk is in range — the same signal the "press E" prompt
-   gets, so the button is never a dead control the visitor taps at nothing. */
-.touch__btn--open.is-live{opacity:1;background:#22c3e6;color:#10121c;border-color:#22c3e6;
-  box-shadow:0 0 0 6px rgba(34,195,230,.16)}
-.touch__btn:disabled{cursor:default}
+/* Jump is the button a platformer is played with, so it is the big one, and it
+   sits outermost where the thumb rests. */
+.touch__btn--jump { width: 92px; height: 92px; font-size: 0.9rem; order: 2; }
+.touch__btn--open { width: 68px; height: 68px; font-size: 0.78rem; opacity: 0.45; order: 1; }
+/* Lit only while standing on something that talks — the same signal as the
+   bubble, so it is never a dead control. */
+.touch__btn--open.is-live { opacity: 1; background: var(--ink); color: var(--surface); }
+.touch__btn:disabled { cursor: default; }
 
-/* Touch: the hint text is desktop-specific, and the HUD needs safe-area room. */
-@media (pointer:coarse){
-  .hud__hint{content:none;font-size:0}
-  .hud__hint::after{content:"Joystick to walk, push it further to sprint \00b7 drag to look";font-size:.78rem}
-  .hud{padding:max(1rem,env(safe-area-inset-top)) 1rem max(1.25rem,env(safe-area-inset-bottom))}
-  .controls{top:max(1rem,env(safe-area-inset-top));right:1rem}
+/* Touch: the hint text is keyboard-specific. */
+@media (pointer: coarse) {
+  .hud__hint { font-size: 0; }
+  /* One line: two lines of instructions sat exactly where the robot drops in. */
+  .hud__hint::after { content: "Stick to run \00b7 pull down to drop \00b7 hold Jump to go higher"; font-size: 0.78rem; }
 }
 
-/* With an Open button on screen, the keycap in the prompt is telling a phone
-   about a key it does not have. Keep the kiosk's name, drop the E — and the
-   right-hand padding it was standing in for. */
-.has-touch-controls .hud__prompt kbd{display:none}
-.has-touch-controls .hud__prompt{padding-right:1rem}
+/* With an Open button on screen, the keycap in the bubble is telling a phone
+   about a key it does not have. */
+.has-touch-controls .bubble kbd { display: none; }
+.has-touch-controls .bubble__open { padding-right: 0.85rem; }
+/* The hint lives at the bottom on a desktop; on touch that is where both
+   thumbs are. */
+.has-touch-controls .hud { justify-content: flex-start; }
+.has-touch-controls .hud__hint { margin-top: 0.75rem; }
+/* And a drag across the page on a phone is never a text selection. */
+.has-touch-controls .level { -webkit-user-select: none; user-select: none; }
 
-/* The kiosk prompt and the movement hint live at the bottom of the screen on
-   desktop. On touch that is where both thumbs are, and the stick was landing
-   on top of the prompt. Move the whole centre column to the top instead —
-   below the room label, above everything the hands cover. */
-.has-touch-controls .hud{justify-content:flex-start}
-.has-touch-controls .hud__center{margin-top:1.4rem}
-
-/* The room label (top left) and the sound / skip buttons (top right) collide
-   on a narrow screen: "XR & Digital Twins" is as wide as the gap. Drop the HUD
-   below that row rather than shrinking either of them to unreadable. */
-@media (max-width:560px){
-  .hud{padding-top:calc(max(1rem,env(safe-area-inset-top)) + 2.4rem)}
-}
-
-@media (prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;
-    transition-duration:.001ms!important}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

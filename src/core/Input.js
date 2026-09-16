@@ -1,32 +1,41 @@
 import Emitter from './Emitter.js'
-import TouchControls, { SPRINT_AT } from '../ui/TouchControls.js'
+import TouchControls, { SPRINT_AT, DROP_AT } from '../ui/TouchControls.js'
 
 const DEADZONE = 0.18
-const TOUCH_LOOK_SCALE = 1.4
 
-// Keyboard + mouse + touch + gamepad, normalised to one axis/look/jump surface.
+const LEFT = ['KeyA', 'ArrowLeft']
+const RIGHT = ['KeyD', 'ArrowRight']
+const JUMP = ['Space', 'KeyW', 'ArrowUp']
+const DROP = ['KeyS', 'ArrowDown']
+const SPRINT = ['ShiftLeft', 'ShiftRight']
+
+// Keys the game answers, and so takes from the page: arrows and Space would
+// otherwise scroll it out from under the camera.
+const GAME_KEYS = new Set([...LEFT, ...RIGHT, ...JUMP, ...DROP])
+
+// Keyboard + touch + gamepad, normalised to move / jump / drop / sprint.
 //
-// Touch movement comes from the on-screen joystick in TouchControls, which
-// writes into `touchAxis` / `touchDepth` / `touchJump` here. That leaves the
-// canvas free to mean one thing on every device: dragging it looks around.
+// Side-on now, so there is one axis instead of two, and no look: the camera
+// follows the robot and nothing else. Touch movement comes from the on-screen
+// joystick in TouchControls, which writes into `touchAxis`, `touchDepth`,
+// `touchJump` and `touchDrop` here.
 export default class Input extends Emitter {
-  constructor(canvas) {
+  constructor() {
     super()
-    this.canvas = canvas
     this.keys = new Set()
-    this.look = { x: 0, y: 0 }
-    this.touchAxis = { x: 0, z: 0 }
-    this.touchDepth = 0        // raw stick deflection, unclamped, for sprint
+    this.touchAxis = { x: 0 }
+    this.touchDepth = 0        // raw horizontal stick deflection, unclamped, for sprint
     this.touchJump = false
+    this.touchDrop = false
 
-    this.lookPointer = null
+    this.gamepad = null
     this.gamepadIndex = null
     this.prevGamepadButtons = new Map()
 
     this.touch = new TouchControls(this)
 
     this.bindKeyboard()
-    this.bindPointer()
+    this.bindTouchReveal()
     this.bindGamepad()
   }
 
@@ -34,42 +43,34 @@ export default class Input extends Emitter {
     window.addEventListener('keydown', (e) => {
       // Let the browser have its shortcuts.
       if (e.metaKey || e.ctrlKey || e.altKey) return
+
+      const target = e.target instanceof Element ? e.target : null
+
+      // Keys typed into the project panel belong to it. Plyr answers Space, the
+      // arrows, M and F while the player has focus, and a jump queued behind the
+      // panel would fire the moment it closed.
+      if (target?.closest('.modal, input, textarea, select')) return
+
+      // Space and Enter on a focused link or button keep their meaning. Someone
+      // who tabbed to the CV link and pressed Enter wants the CV, not a jump —
+      // the page is a document as well as a level.
+      if ((e.code === 'Space' || e.code === 'Enter') && target?.closest('a, button')) return
+
       this.keys.add(e.code)
-      if (e.code === 'KeyE' || e.code === 'Enter') this.trigger('interact')
-      if (e.code === 'Space') e.preventDefault()
+      if ((e.code === 'KeyE' || e.code === 'Enter') && !e.repeat) this.trigger('interact')
+      if (GAME_KEYS.has(e.code)) e.preventDefault()
     })
+    // Always released, wherever focus went in between, so no key sticks down.
     window.addEventListener('keyup', (e) => this.keys.delete(e.code))
     window.addEventListener('blur', () => this.keys.clear())
   }
 
-  bindPointer() {
-    const c = this.canvas
-
-    c.addEventListener('pointerdown', (e) => {
-      // A hybrid device only earns its on-screen controls once something is
-      // actually touched; a laptop with a touchscreen should not get a joystick
-      // for owning one.
+  // A hybrid device only earns its on-screen controls once something is actually
+  // touched; a laptop with a touchscreen should not get a joystick for owning one.
+  bindTouchReveal() {
+    window.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'touch') this.touch.reveal()
-
-      c.setPointerCapture(e.pointerId)
-      this.lookPointer = { id: e.pointerId, lastX: e.clientX, lastY: e.clientY }
     })
-
-    c.addEventListener('pointermove', (e) => {
-      if (this.lookPointer?.id === e.pointerId) {
-        // movementX is unreliable on touch, so track deltas manually.
-        this.look.x += (e.clientX - this.lookPointer.lastX) * (e.pointerType === 'touch' ? TOUCH_LOOK_SCALE : 1)
-        this.look.y += (e.clientY - this.lookPointer.lastY) * (e.pointerType === 'touch' ? TOUCH_LOOK_SCALE : 1)
-        this.lookPointer.lastX = e.clientX
-        this.lookPointer.lastY = e.clientY
-      }
-    })
-
-    const release = (e) => {
-      if (this.lookPointer?.id === e.pointerId) this.lookPointer = null
-    }
-    c.addEventListener('pointerup', release)
-    c.addEventListener('pointercancel', release)
   }
 
   bindGamepad() {
@@ -90,64 +91,51 @@ export default class Input extends Emitter {
     if (!pad) return null
 
     const dz = (v) => (Math.abs(v) < DEADZONE ? 0 : v)
+    const held = (i) => !!pad.buttons[i]?.pressed
 
-    // Face button 0 (A / cross) jumps; 2 (X / square) interacts.
-    const interact = pad.buttons[2]?.pressed
+    // Face button 2 (X / square) interacts, edge-triggered.
+    const interact = held(2)
     if (interact && !this.prevGamepadButtons.get(2)) this.trigger('interact')
     this.prevGamepadButtons.set(2, interact)
 
     return {
-      axis: { x: dz(pad.axes[0] ?? 0), z: dz(pad.axes[1] ?? 0) },
-      look: { x: dz(pad.axes[2] ?? 0) * 9, y: dz(pad.axes[3] ?? 0) * 9 },
-      jump: !!pad.buttons[0]?.pressed,
-      // L3 (click the stick) or the left trigger, whichever the pad has.
-      sprint: !!pad.buttons[10]?.pressed || (pad.buttons[6]?.value ?? 0) > 0.5,
+      // Stick first, then the d-pad (14 left, 15 right).
+      move: dz(pad.axes[0] ?? 0) || (held(15) ? 1 : 0) - (held(14) ? 1 : 0),
+      // A / cross, or d-pad up.
+      jump: held(0) || held(12),
+      // Stick pushed down, or d-pad down.
+      drop: (pad.axes[1] ?? 0) > DROP_AT || held(13),
+      // L3 or the left trigger, whichever the pad has.
+      sprint: held(10) || (pad.buttons[6]?.value ?? 0) > 0.5,
     }
   }
 
-  // Called once per frame before reading axis/look/jump.
   update() {
     this.gamepad = this.pollGamepad()
-    if (this.gamepad) {
-      this.look.x += this.gamepad.look.x
-      this.look.y += this.gamepad.look.y
-    }
   }
 
-  // Movement intent in local space: x = strafe, z = forward (negative).
-  get axis() {
+  // -1 is left, 1 is right. The first source with anything to say wins, so a
+  // resting thumb on the stick cannot cancel a held arrow key.
+  get move() {
     const k = this.keys
-    let x = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0)
-    let z = (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0) - (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0)
-
-    if (!x && !z && (this.touchAxis.x || this.touchAxis.z)) {
-      x = this.touchAxis.x
-      z = this.touchAxis.z
-    }
-    if (!x && !z && this.gamepad) {
-      x = this.gamepad.axis.x
-      z = this.gamepad.axis.z
-    }
-
-    const len = Math.hypot(x, z)
-    return len > 1 ? { x: x / len, z: z / len } : { x, z }
+    let x = (RIGHT.some((c) => k.has(c)) ? 1 : 0) - (LEFT.some((c) => k.has(c)) ? 1 : 0)
+    if (!x && this.touchAxis.x) x = this.touchAxis.x
+    if (!x && this.gamepad) x = this.gamepad.move
+    return Math.max(-1, Math.min(1, x))
   }
 
   get jump() {
-    return this.keys.has('Space') || this.touchJump || !!this.gamepad?.jump
+    return JUMP.some((c) => this.keys.has(c)) || this.touchJump || !!this.gamepad?.jump
+  }
+
+  get drop() {
+    return DROP.some((c) => this.keys.has(c)) || this.touchDrop || !!this.gamepad?.drop
   }
 
   // Held, not toggled — sprint is a modifier on whatever the axis already says.
   get sprint() {
-    if (this.keys.has('ShiftLeft') || this.keys.has('ShiftRight')) return true
+    if (SPRINT.some((c) => this.keys.has(c))) return true
     if (this.touchDepth > SPRINT_AT) return true
     return !!this.gamepad?.sprint
-  }
-
-  consumeLook() {
-    const l = { ...this.look }
-    this.look.x = 0
-    this.look.y = 0
-    return l
   }
 }

@@ -1,21 +1,38 @@
-// Drives the built site in a real headless Chrome over CDP and asserts the
-// things only a browser can answer: does it boot without console errors, and
-// does the movement model actually produce the speeds it is tuned for?
+// Drives the built site in a real headless Chrome over CDP and asserts what only
+// a browser can answer: does the laid-out page form a level every part of which
+// can be reached — and climbed back up from — at every width it will be read
+// at? Does the real input path produce the tuned run and jump? Do landing, the
+// speech bubble, the dwell, the video panel, the portal and the deep links all
+// work end to end?
 //
 //   npm run build && node scripts/verify-browser.mjs
 //
 // Not part of `npm test` — that has to stay dependency-free and run in CI
-// without a browser. This is the manual counterpart to physics-smoke.mjs:
-// the smoke test proves the maths, this proves the wiring.
+// without a browser. This is the counterpart to platformer-smoke.mjs: the smoke
+// test proves the model, this proves the page.
 import { spawn } from 'node:child_process'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { launchChrome, waitFor, chromePath } from './lib/chrome.mjs'
-import { SPEED, SPRINT_MULTIPLIER, jumpApex } from '../src/world/movement.js'
-import { CORRIDOR, ROOM } from '../src/world/layout.js'
+import { SPEED, jumpApex } from '../src/game/movement.js'
+import { audit } from '../src/game/reach.js'
+import { BUBBLE_GAP } from '../src/game/bubble.js'
+import { TYPING } from '../src/ui/Bubble.js'
+import { PLAYER_HEIGHT } from '../src/game/movement.js'
+import { DWELL } from '../src/game/Game.js'
 import { projects } from '../src/data/projects.js'
+import { ROUTE_NAMES } from '../src/core/params.js'
+import { skills } from '../src/data/profile.js'
 
 const PORT = 4178
 const CDP_PORT = 9222
+// 127.0.0.1 rather than localhost, and the server told to bind it: `vite
+// preview` otherwise listens on ::1 alone on some machines, where Node's fetch
+// and the browser disagree about which one `localhost` means.
+const ORIGIN = `http://127.0.0.1:${PORT}`
+
+// Widths the layout is audited at: every breakpoint from both sides, the common
+// phones, tablets and desktops, and past the level's 1080px cap.
+const SWEEP = [360, 390, 430, 480, 540, 559, 560, 600, 700, 768, 820, 859, 860, 960, 1024, 1280, 1440]
 
 if (!chromePath()) {
   console.error('No Chrome found — skipping browser verification.')
@@ -26,656 +43,537 @@ const children = []
 process.on('exit', () => children.forEach((c) => { try { c.kill() } catch {} }))
 
 // Spawned WITHOUT shell:true. On Windows a shell spawn puts cmd.exe in between,
-// and killing cmd orphans the server it started — which then holds the port and
-// makes the next run fail against a stale build.
-function serve() {
-  const p = spawn(process.execPath, [
-    'node_modules/vite/bin/vite.js', 'preview',
-    '--port', String(PORT), '--strictPort',
-  ], { stdio: 'ignore' })
-  children.push(p)
-  return p
-}
+// and killing cmd orphans the server it started.
+children.push(spawn(process.execPath, [
+  'node_modules/vite/bin/vite.js', 'preview',
+  '--host', '127.0.0.1', '--port', String(PORT), '--strictPort',
+], { stdio: 'ignore' }))
 
 const results = []
 const check = (name, pass, detail) => {
   results.push({ name, pass })
-  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}
-      ${detail}`)
+  console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}\n      ${detail}`)
 }
 
-serve()
-
-// SwiftShader gives headless Chrome a real WebGL2 context; without it the app
-// correctly redirects to classic.html and we would verify nothing.
+// SwiftShader gives headless Chrome a real WebGL context, so the robot loads
+// the way it does for a visitor. Autoplay is allowed so the video check can
+// play footage without a click.
 const { cdp } = await launchChrome({
   port: CDP_PORT,
-  args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--window-size=1280,800'],
+  args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--window-size=1280,800',
+    '--autoplay-policy=no-user-gesture-required'],
 })
 
-await waitFor(() => fetch(`http://localhost:${PORT}/`).then((r) => r.ok), 'the preview server')
+await waitFor(() => fetch(`${ORIGIN}/`).then((r) => r.ok), 'the preview server')
 
 await cdp.send('Runtime.enable')
 await cdp.send('Log.enable')
 await cdp.send('Page.enable')
 await cdp.send('Network.enable')
-await cdp.send('Page.navigate', { url: `http://localhost:${PORT}/` })
 
-// Headless Chrome throttles requestAnimationFrame on a page that is not
-// foregrounded, which freezes the render loop mid-walk and makes every speed
-// reading zero. Without this the whole harness silently measures nothing.
-await cdp.send('Page.bringToFront')
+async function viewport(width, height, mobile = false) {
+  await cdp.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile })
+  // maxTouchPoints must be 1-16 even when disabling.
+  await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: mobile, maxTouchPoints: mobile ? 5 : 1 })
+}
 
-// 0. The front door. Nobody is dropped into the showroom any more: the site
-//    asks which portfolio they want, and — the part worth asserting, because it
-//    is invisible from the outside — does not fetch the engine until they say.
-{
-  // Waits for the front door to be STYLED, not merely parsed. The markup is in
-  // the HTML, so it exists a beat before the stylesheet that hides the
-  // showroom's chrome behind it has applied — and the first thing asserted
-  // below is a computed style.
-  await waitFor(() => cdp.eval(`(() => {
-    const el = document.getElementById('enter-showroom')
-    return !!el && getComputedStyle(el).borderRadius !== '0px'
-  })()`), 'the front door')
+// The level is as wide as the viewport, up to its 1080px cap. Waits for the
+// game to have re-measured at that width.
+const levelWidth = (vw) => Math.min(1080, vw)
+const settleAt = (vw) => waitFor(
+  () => cdp.eval(`Math.round(window.game.level.bounds.right) === ${levelWidth(vw)}`),
+  `the level to re-measure at ${vw}px`,
+)
 
-  const door = await cdp.eval(`(() => {
-    const cards = [...document.querySelectorAll('.entry__card')]
-    const engineFetched = performance.getEntriesByType('resource')
-      .some((r) => /Experience|rapier/i.test(r.name))
-    return {
-      choices: cards.map((c) => c.querySelector('.entry__card-title')?.textContent ?? ''),
-      basicHref: cards.find((c) => c.tagName === 'A')?.getAttribute('href') ?? null,
-      started: !!window.experience,
-      engineFetched,
-      // The rotate panel and the HUD are the showroom's own furniture; on the
-      // front door they would be answering a question nobody has asked.
-      chromeHidden: getComputedStyle(document.querySelector('.controls')).display === 'none',
-    }
-  })()`)
-  check('the front door offers both portfolios without loading the engine',
-    door.choices.length === 2 && door.basicHref === './classic.html'
-      && !door.started && !door.engineFetched && door.chromeHidden,
-    `"${door.choices.join('" / "')}", basic -> ${door.basicHref}, ` +
-    `engine fetched: ${door.engineFetched}, showroom chrome hidden: ${door.chromeHidden}`)
+async function open(path = '/') {
+  await cdp.send('Page.navigate', { url: `${ORIGIN}${path}` })
+  // Headless Chrome throttles requestAnimationFrame on a background page, which
+  // freezes the game loop and makes every reading below a reading of nothing.
+  await cdp.send('Page.bringToFront')
+  await waitFor(() => cdp.eval('!!window.game'), `the game to start at ${path}`)
+}
 
-  // A real click at the card's own coordinates, for the reason the kiosk prompt
-  // gets one below: element.click() would prove the listener runs, not that the
-  // card is reachable.
-  const box = await cdp.eval(`(() => {
-    const r = document.getElementById('enter-showroom').getBoundingClientRect()
-    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }
-  })()`)
-  for (const type of ['mousePressed', 'mouseReleased']) {
-    await cdp.send('Input.dispatchMouseEvent', {
-      type, x: box.x, y: box.y, button: 'left', clickCount: 1, buttons: type === 'mousePressed' ? 1 : 0,
+// --- in-page helpers ------------------------------------------------------
+//
+// Everything that waits, waits in SIMULATED time. `Time.delta` is clamped to
+// 1/20, so on a software rasteriser a wall-clock second can be a third of a
+// simulated one; a check timed in milliseconds would be measuring this machine.
+const INSTALL = `window.__v = {
+  sim(seconds) {
+    const g = window.game
+    return new Promise((resolve) => {
+      let t = 0
+      const tick = () => { t += g.time.delta; if (t >= seconds) { g.time.off('tick', tick); resolve() } }
+      g.time.on('tick', tick)
     })
-  }
-}
-
-await waitFor(() => cdp.eval('!!(window.experience?.world?.player)'), 'the showroom to boot')
-
-// 1. Booted into WebGL, not the classic fallback.
-{
-  const url = await cdp.eval('location.pathname')
-  check('boots the 3D showroom rather than falling back to classic.html',
-    !url.includes('classic'), `landed on ${url}`)
-}
-
-// Let it settle on the floor before measuring anything.
-//
-// Not a bare sleep, because the first frames are the expensive ones: shader
-// compilation for the normal-mapped matcaps and the skinned character, and the
-// texture uploads behind them. On a software rasteriser that can swallow most of
-// a second — and since `Time.delta` is clamped to 1/20, a measurement taken
-// across those frames sees almost no SIMULATED time and reports a walk that
-// never got up to speed. Waiting on the boot flag alone is not enough: it
-// resolves when World is constructed, which is before anything has rendered.
-//
-// So wait for the character to land and for the renderer to be demonstrably
-// past its first frames, then settle. This measures steady state, which is what
-// the speed checks below are actually about.
-await waitFor(() => cdp.eval('!!window.experience.world.player.character?.ready'),
-  'the character model to load')
-const frameCount = () => cdp.eval('window.experience.renderer.instance.info.render.frame')
-const firstFrame = await frameCount()
-await waitFor(async () => (await frameCount()) > firstFrame + 30, 'the renderer to warm up')
-await sleep(400)
-
-const speedNow = () => cdp.eval('window.experience.world.player.speed')
-const posNow = () => cdp.eval('JSON.parse(JSON.stringify(window.experience.world.player.position))')
-
-// Poll until the reading stops moving, then return it.
-//
-// Sampling at a fixed wall-clock offset is the wrong instrument here. Speed
-// ramps in SIMULATED time, and `Time.delta` is clamped to 1/20, so one slow
-// frame on a software rasteriser can leave a fixed window catching the ramp
-// half-finished — which is a statement about this machine's frame rate, not
-// about the movement model. The ramp DURATION is already asserted
-// deterministically against real Rapier in physics-smoke.mjs; what only a
-// browser can answer is the steady speed the real input path produces.
-// Stability is counted in RENDERED FRAMES, not in elapsed milliseconds.
-//
-// Two identical readings 120ms apart prove nothing on their own: if no frame was
-// drawn between them, the value could not have changed, and a still-accelerating
-// player reads as a settled one. SwiftShader rasterises this scene's anisotropic
-// tiled floor in software and can drop to a few frames a second on a loaded
-// machine, which is exactly when that false reading appears. So a sample only
-// counts once the renderer's frame counter has moved.
-//
-// The timeout is a backstop, not a budget. The player has ~22 m of runway from
-// spawn into the XR room, so a stalled settle stops on the clock rather than on
-// a wall.
-async function settled(read, { tolerance = 0.05, stableFor = 3, timeout = 6000 } = {}) {
-  const sample = async () => ({ value: await read(), frame: await frameCount() })
-  const startedAt = Date.now()
-  let last = await sample()
-  let stable = 0
-
-  while (Date.now() - startedAt < timeout) {
-    await sleep(120)
-    const now = await sample()
-    if (now.frame === last.frame) continue   // nothing was drawn; nothing to learn
-    stable = Math.abs(now.value - last.value) < tolerance ? stable + 1 : 0
-    last = now
-    if (stable >= stableFor) break
-  }
-  return last.value
-}
-
-// 2. Walking reaches base speed, and not more.
-await cdp.key('keyDown', 'KeyW', 'w', 87)
-const walkSpeed = await settled(speedNow)
-check('holding W accelerates to the tuned walk speed',
-  Math.abs(walkSpeed - SPEED) < 0.6,
-  `${walkSpeed.toFixed(2)} m/s once settled (want ~${SPEED})`)
-
-// 3. Shift sprints.
-await cdp.key('keyDown', 'ShiftLeft', 'Shift', 16)
-const sprintSpeed = await settled(speedNow)
-const wantSprint = SPEED * SPRINT_MULTIPLIER
-check('shift sprints',
-  Math.abs(sprintSpeed - wantSprint) < 0.8 && sprintSpeed > walkSpeed + 1,
-  `${sprintSpeed.toFixed(2)} m/s (want ~${wantSprint.toFixed(1)}), up from ${walkSpeed.toFixed(2)}`)
-
-// 4. The camera widened while sprinting.
-//
-// Held a moment longer than the sprint itself: the FOV is eased separately from
-// the rig, and deliberately more slowly, so that it trails the acceleration
-// rather than snapping with it. Reading it the instant speed settles would be
-// reading it mid-ease.
-await sleep(900)
-const fov = await cdp.eval('window.experience.camera.instance.fov')
-check('the camera widens at sprint speed',
-  fov > 58, `fov ${fov.toFixed(1)} (55 at rest)`)
-
-// 5. Releasing the keys brings them to a stop, and they coast only a little.
-//
-// Measured inside the page, armed BEFORE the key is released. A CDP round-trip
-// is tens of milliseconds and the brake takes ~110ms, so sampling the position
-// from Node after sending keyUp reports a coast of zero no matter how far the
-// player actually slid — a check that passes without testing anything.
-await cdp.eval(`window.__coast = new Promise((resolve) => {
-  const p = window.experience.world.player
-  window.addEventListener('keyup', function onUp(e) {
-    if (e.code !== 'KeyW') return
-    window.removeEventListener('keyup', onUp)
-    const start = { x: p.position.x, z: p.position.z }
-    const tick = () => {
-      if (p.speed < 0.05) {
-        resolve({ coast: Math.hypot(p.position.x - start.x, p.position.z - start.z), speed: p.speed })
-      } else requestAnimationFrame(tick)
-    }
-    requestAnimationFrame(tick)
-  })
-})
-// The completion value must not BE the promise: eval() awaits what it returns,
-// so returning it here would block on a release that has not happened yet.
-void 0`)
-
-await cdp.key('keyUp', 'ShiftLeft', 'Shift', 16)
-await cdp.key('keyUp', 'KeyW', 'w', 87)
-const stop = await cdp.eval('window.__coast')
-check('releasing the keys stops the player without a long slide',
-  stop.speed < 0.05 && stop.coast > 0.05 && stop.coast < 1.2,
-  `coasted ${stop.coast.toFixed(2)}m down to ${stop.speed.toFixed(3)} m/s (want a real but short slide)`)
-
-// 6. Still on the floor, inside the level.
-{
-  const p = await posNow()
-  check('never left the floor or the level', p.y > 0.5 && p.y < 2 && Math.abs(p.x) < 60,
-    `resting at (${p.x.toFixed(1)}, ${p.y.toFixed(2)}, ${p.z.toFixed(1)})`)
-}
-
-// 6b. The walk holds its speed instead of stuttering.
-//
-// The regression test for what the walk actually felt like. The character
-// controller used to refuse the occasional frame on open floor — its own
-// depenetration against the skin offset, not geometry — and the velocity
-// fold-back treated each refusal as a wall and dropped the player to a
-// standstill. Sampled in the page across every rendered frame, because the
-// collapse and recovery took about 150ms and a CDP poll would step right over
-// it. Speed is in m/s, so a slow frame cannot fake a pass.
-//
-// This is the SYMPTOM check — does the walk hold its speed. Its deterministic
-// counterpart is "the controller never refuses a frame on open floor" in
-// physics-smoke.mjs, which catches the cause at a fixed timestep. Both are
-// needed: with the one-frame grace in resolveVelocity, an isolated refusal is
-// absorbed and never reaches the speed, so this check alone would not notice
-// the ground stick coming back.
-//
-// Driven with D rather than W, from the west end of the corridor: at yaw 0
-// that strafes east down 70-odd metres of empty floor. Walking forward from
-// wherever the previous check left the player runs into the room's north wall
-// mid-sample, and a wall stopping the player is not the thing under test.
-{
-  await cdp.eval(`(() => {
-    const p = window.experience.world.player
-    const x = -${CORRIDOR.length / 2} + 5
-    p.body.setTranslation({ x, y: 1.5, z: ${CORRIDOR.z} }, true)
-    p.body.setNextKinematicTranslation({ x, y: 1.5, z: ${CORRIDOR.z} })
-    p.mesh.position.set(x, 1.5, ${CORRIDOR.z})
-    p.velocity = { x: 0, z: 0 }
-    window.experience.camera.yaw = 0
-  })()`)
-  await sleep(700)
-
-  await cdp.eval(`window.__walk = new Promise((resolve) => {
-    const p = window.experience.world.player
-    const samples = []
-    const started = performance.now()
-    const tick = () => {
-      samples.push(p.speed)
-      if (performance.now() - started < 4000) requestAnimationFrame(tick)
-      else {
-        // Judge only the stretch after the ramp, where speed should be flat.
-        const run = samples.slice(Math.floor(samples.length / 3))
-        resolve({ frames: run.length, top: Math.max(...run), low: Math.min(...run), x: p.position.x })
-      }
-    }
-    requestAnimationFrame(tick)
-  })
-  void 0`)
-
-  await cdp.key('keyDown', 'KeyD', 'd', 68)
-  const walk = await cdp.eval('window.__walk')
-  await cdp.key('keyUp', 'KeyD', 'd', 68)
-  await sleep(400)
-
-  const dip = walk.low / walk.top
-  check('the walk holds its speed instead of stuttering',
-    walk.frames > 10 && dip > 0.9 && walk.x < CORRIDOR.length / 2 - 6,
-    `over ${walk.frames} frames at speed, the slowest was ${walk.low.toFixed(2)} m/s ` +
-    `against a top of ${walk.top.toFixed(2)} (${(100 * dip).toFixed(0)}% — want >90%), ` +
-    `ended x=${walk.x.toFixed(1)} with the end cap at ${CORRIDOR.length / 2}`)
-}
-
-// 7. The two locomotion clips stay in step with each other.
-//
-// Walk and run are posed by hand from one shared phase; the mixer must not be
-// advancing them on its own, or they drift apart within seconds and the blend
-// between them averages a left step against a right one. That is what the
-// jitter was. Sampled twice, a second apart, mid-stride: if the mixer had hold
-// of either clip the two normalised phases would separate.
-{
-  const phases = () => cdp.eval(`(() => {
-    const c = window.experience.world.player.character
-    const at = (k) => c.actions[k].time / c.durations[k]
-    return { walk: at('walk'), run: at('run') }
-  })()`)
-
-  await cdp.key('keyDown', 'KeyW', 'w', 87)
-  await sleep(600)
-  const first = await phases()
-  await sleep(900)
-  const second = await phases()
-  await cdp.key('keyUp', 'KeyW', 'w', 87)
-
-  const drift = (p) => Math.abs(p.walk - p.run)
-  // The phase has to actually be MOVING, or two frozen clips would agree
-  // trivially and this would assert nothing.
-  const advanced = Math.abs(second.walk - first.walk) > 1e-4
-  check('the walk and run cycles stay phase-locked while moving',
-    advanced && drift(first) < 1e-6 && drift(second) < 1e-6,
-    `walk/run phase gap ${drift(first).toExponential(1)} then ${drift(second).toExponential(1)}` +
-    `, cycle ${advanced ? 'advancing' : 'FROZEN'}`)
-}
-
-// 7b. Footsteps are sounded by that same gait, not by distance travelled.
-//
-// The sound used to fire every 1.9 metres, which is only ever right at one
-// speed: the stride is ~0.81 m per footfall in the walk cycle and ~3.11 m in
-// the run, so at the 8 m/s base speed the ear heard 1.6 steps for every one the
-// legs took. Counting half-cycles instead means the two cannot come apart at
-// any speed — two footfalls per gait cycle, give or take the boundary each end
-// of the measured window can clip (the sounds are counted from the frame the
-// promise is made, the cycles from the frame after it).
-{
-  // Back to the middle of the corridor first. The tests above leave the player
-  // pressed against a wall in z, and a blocked player still turns the gait
-  // phase at its idle floor while moving nowhere — which is precisely the case
-  // that must stay SILENT, not the one under test here.
-  await cdp.eval(`(() => {
-    const p = window.experience.world.player
-    const z = ${CORRIDOR.z}
-    p.body.setTranslation({ x: 0, y: 1.5, z }, true)
-    p.body.setNextKinematicTranslation({ x: 0, y: 1.5, z })
-    p.mesh.position.set(0, 1.5, z)
-  })()`)
-  await sleep(300)
-
-  // Along the corridor, where there is room to run: D is the direction 6b
-  // already proved has 40 metres of it.
-  await cdp.key('keyDown', 'KeyD', 'd', 68)
-  await waitFor(async () => (await speedNow()) > SPEED * 0.9, 'the player to reach walking speed')
-
-  await cdp.eval(`window.__steps = new Promise((resolve) => {
-    const character = window.experience.world.player.character
-    const audio = window.experience.audio
-    // Count the CALL, not the sound: footstep() returns early while muted or
-    // before the first gesture unlocks the context, and the pacing is what is
-    // under test here, not the synth.
-    const real = audio.footstep.bind(audio)
-    let sounds = 0
-    audio.footstep = () => { sounds++; real() }
-
-    let last = character.phase
-    let cycles = 0
-    let frames = 0
-    let speed = 0
-    const tick = () => {
-      // Phase wraps at 1; a negative delta is one wrap, never a rewind.
-      const d = character.phase - last
-      cycles += d < 0 ? d + 1 : d
-      last = character.phase
-      speed += window.experience.world.player.speed
-      frames++
-      if (frames < 120) requestAnimationFrame(tick)
-      else { audio.footstep = real; resolve({ sounds, cycles, speed: speed / frames }) }
-    }
-    requestAnimationFrame(tick)
-  })
-  void 0`)
-  const steps = await cdp.eval('window.__steps')
-  await cdp.key('keyUp', 'KeyD', 'd', 68)
-  await sleep(400)
-
-  const expected = steps.cycles * 2
-  check('footsteps are sounded once per footfall of the gait cycle',
-    expected > 4 && Math.abs(steps.sounds - expected) <= 1.5,
-    `${steps.sounds} steps heard over ${steps.cycles.toFixed(2)} gait cycles ` +
-    `at ${steps.speed.toFixed(2)} m/s (want ${expected.toFixed(2)} steps, ±1.5)`)
-}
-
-// 7c. And the step is loud enough to be heard when it fires.
-//
-// Pacing the sound to the gait is only half of it: the first version of that
-// burst rendered at a peak of 0.015 against a UI beep's 0.034, and firing it
-// half again less often was enough to make it disappear entirely. A cue nobody
-// can hear is the same bug as a cue that never fires, so the level is asserted
-// alongside the timing — rendered offline, because a headless browser has no
-// speakers and an opinion about loudness is not a test.
-{
-  const level = (call) => cdp.eval(`(async () => {
-    const a = window.experience.audio
-    const live = { ctx: a.ctx, master: a.master, noise: a.noiseBuffer }
-    // Swap the whole graph onto an offline context, render one second of it,
-    // then put the live one back. a.master carries the real master gain, so
-    // this measures what actually reaches the speakers.
-    const off = new OfflineAudioContext(1, 44100, 44100)
-    a.ctx = off
-    a.master = off.createGain()
-    a.master.gain.value = live.master.gain.value
-    a.master.connect(off.destination)
-    a.noiseBuffer = a.makeNoise(0.35)
-    a.${call}
-    const buf = await off.startRendering()
-    Object.assign(a, { ctx: live.ctx, master: live.master, noiseBuffer: live.noise })
-    const d = buf.getChannelData(0)
-    let peak = 0
-    for (let i = 0; i < d.length; i++) peak = Math.max(peak, Math.abs(d[i]))
-    return peak
-  })()`)
-
-  const step = await level('footstep()')
-  const beep = await level('nearKiosk()')
-  check('a footstep is as audible as the interface cues',
-    step > beep && step < 0.3,
-    `footstep peaks at ${step.toFixed(3)} against the kiosk ping's ${beep.toFixed(3)} ` +
-    `(want louder than the ping, under 0.3)`)
-}
-
-// 8. The kiosk prompt is a button you can click, not a caption about a key.
-{
-  // Put the player on a kiosk's hotspot directly. Walking there is the job of
-  // physics-smoke.mjs, which already proves every hotspot is reachable; what is
-  // under test here is the prompt, so this takes the shortest route to one.
-  const project = await cdp.eval(`(() => {
-    const w = window.experience.world
-    const k = w.kiosks[0]
-    const t = k.triggerPoint
-    w.player.body.setTranslation({ x: t.x, y: 1.5, z: t.z }, true)
-    w.player.body.setNextKinematicTranslation({ x: t.x, y: 1.5, z: t.z })
-    w.player.mesh.position.set(t.x, 1.5, t.z)
-    return k.project.title
-  })()`)
-  await sleep(500)
-
-  const prompt = await cdp.eval(`(() => {
-    const el = document.getElementById('prompt')
+  },
+  // Stand the body on a platform, or hold it \`above\` px over one, with the
+  // camera already there.
+  place(id, { above = 0, x = null } = {}) {
+    const g = window.game
+    const p = g.level.byId.get(id)
+    const bx = x ?? (p.left + p.right) / 2
+    const grounded = above === 0
+    g.body = { ...g.body, x: bx, y: p.top - above, vx: 0, verticalVelocity: 0, grounded,
+      on: grounded ? p.id : null, dropThrough: null, coyote: 0, jumpBuffer: 0 }
+    g.camera.snap(g.body)
+    return true
+  },
+  modal() {
     return {
-      tag: el.tagName,
-      hidden: el.hidden,
-      text: el.textContent,
-      clickable: getComputedStyle(el).pointerEvents,
-      label: el.getAttribute('aria-label'),
-    }
-  })()`)
-  check('the kiosk prompt is a real, clickable button naming the project',
-    prompt.tag === 'BUTTON' && !prompt.hidden && prompt.clickable === 'auto'
-      && prompt.text.includes(project) && prompt.label === `Open ${project}`,
-    `<${prompt.tag.toLowerCase()}> "${prompt.text}", pointer-events: ${prompt.clickable}`)
-
-  // A real click, dispatched by the browser at the button's own coordinates —
-  // not element.click(), which would prove the listener runs but not that the
-  // button is actually reachable through the HUD overlay above the canvas.
-  const box = await cdp.eval(`(() => {
-    const r = document.getElementById('prompt').getBoundingClientRect()
-    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }
-  })()`)
-  for (const type of ['mousePressed', 'mouseReleased']) {
-    await cdp.send('Input.dispatchMouseEvent', {
-      type, x: box.x, y: box.y, button: 'left', clickCount: 1, buttons: type === 'mousePressed' ? 1 : 0,
-    })
-  }
-  await sleep(400)
-
-  const opened = await cdp.eval(`(() => ({
-    open: !document.getElementById('modal').hidden,
-    title: document.getElementById('modal-title')?.textContent ?? '',
-    paused: window.experience.paused,
-    focused: document.activeElement?.id ?? 'none',
-  }))()`)
-  check('clicking the prompt opens that project and hands focus back to the game',
-    opened.open && opened.paused && opened.title.includes(project) && opened.focused !== 'prompt',
-    `modal "${opened.title}" open, focus on ${opened.focused}`)
-
-  await cdp.key('keyDown', 'Escape', 'Escape', 27)
-  await cdp.key('keyUp', 'Escape', 'Escape', 27)
-  await sleep(300)
-}
-
-// 8b. The jump, in the real browser. physics-smoke.mjs pins the model against
-//      Rapier at fixed timesteps; this proves the KEY reaches it and that the
-//      arc survives a real, jittery frame clock. Sampled in the page across
-//      every rendered frame, because the whole jump is half a second and a CDP
-//      poll would step over the apex.
-{
-  await cdp.eval(`(() => {
-    const p = window.experience.world.player
-    p.teleport({ x: 0, y: 1.5, z: ${CORRIDOR.z} }, 0)
-  })()`)
-
-  // Wait for the drop from the teleport height to finish. Not a fixed sleep:
-  // SwiftShader clamps Time.delta at 1/20, so wall-clock and simulated time run
-  // at different rates and a settle measured in milliseconds is a guess about
-  // this machine. Reading `rest` a few centimetres early is subtracted straight
-  // off the measured rise.
-  await waitFor(async () => cdp.eval(
-    'window.experience.world.player.grounded && window.experience.world.player.verticalVelocity === 0',
-  ), 'the player to settle before jumping')
-
-  // Peak only; `rest` is read out here, once, from a player known to be resting.
-  const track = () => cdp.eval(`window.__arc = new Promise((resolve) => {
-    const p = window.experience.world.player
-    let peak = -Infinity
-    let jumps = 0
-    const started = performance.now()
-    const tick = () => {
-      if (p.jumped) jumps++
-      peak = Math.max(peak, p.position.y)
-      if (performance.now() - started < 2500) requestAnimationFrame(tick)
-      else resolve({ peak, jumps })
-    }
-    requestAnimationFrame(tick)
-  })
-  void 0`)
-
-  const restY = await cdp.eval('window.experience.world.player.position.y')
-
-  const press = async (holdMs) => {
-    await track()
-    await cdp.key('keyDown', 'Space', ' ', 32)
-    await sleep(holdMs)
-    await cdp.key('keyUp', 'Space', ' ', 32)
-    const r = await cdp.eval('window.__arc')
-    return { rise: r.peak - restY, jumps: r.jumps }
-  }
-
-  // Only the held press is measured here. Tap-versus-hold is pinned
-  // deterministically in physics-smoke.mjs at 30, 60 and 120fps; under
-  // SwiftShader a frame can be longer than the tap itself, so asserting it here
-  // would be testing this machine's frame rate.
-  const full = await press(600)
-
-  const want = jumpApex(1)
-  check('space jumps to the tuned height',
-    full.jumps === 1 && Math.abs(full.rise - want) < 0.12,
-    `rose ${full.rise.toFixed(2)}m against the model's ${want.toFixed(2)}, ` +
-    `${full.jumps} jump from the held press`)
-}
-
-// 8c. The camera must not jam itself against the player at a kiosk.
-//
-// The reproduction is specific, and worth stating because a check taken
-// anywhere else passes against the broken code. It needs BOTH:
-//
-//   - the player near the front of a room, a couple of metres off the south
-//     wall, which is where the front row of kiosks is;
-//   - the camera looking south over that wall (yaw 0) at the shallow end of the
-//     pitch band, which is where the boom is longest and lowest.
-//
-// From the default 54 degrees the rig already clears a 6 m wall, so the old
-// code looked fine most of the time. Here the ray meets the wall 2.5 m out, the
-// old rig clamped to its 3 m floor, and the character filled the frame at the
-// exact moment the screen behind them was the point. The fix goes OVER instead,
-// so the assertion is that the boom stays long AND the pitch was lifted.
-{
-  // The real front kiosk, not the middle of the room: the middle of a room's
-  // south wall is the DOORWAY, and a ray fired through an opening proves
-  // nothing. The front row of kiosks sits against the side walls, well clear
-  // of it, which is also where a visitor actually stands.
-  const front = await cdp.eval(`(() => {
-    const e = window.experience
-    const k = e.world.kiosks.reduce((a, b) => (b.triggerPoint.z > a.triggerPoint.z ? b : a))
-    e.world.player.teleport(k.triggerPoint, k.rotationY)
-    e.camera.yaw = 0             // swung to look south, over the wall behind them
-    e.camera.pitch = 0.62        // PITCH_MIN: the shallowest the player can go
-    e.camera.viewPitch = 0.62    // start unassisted, so the ease is observable
-    return { id: k.project.id, x: k.triggerPoint.x, z: k.triggerPoint.z }
-  })()`)
-  await sleep(1600)              // let the assist ease in
-
-  const view = await cdp.eval(`(() => {
-    const c = window.experience.camera
-    const p = window.experience.world.player.position
-    return {
-      distance: c.currentDistance,
-      pitch: c.pitch,
-      viewPitch: c.viewPitch,
-      height: c.instance.position.y - p.y,
-    }
-  })()`)
-  check('the camera pitches over the wall at a kiosk instead of jamming in close',
-    view.distance > 8 && view.viewPitch > view.pitch + 0.05,
-    `boom ${view.distance.toFixed(1)}m (3m is the old jam floor), pitch ${view.pitch.toFixed(2)} ` +
-    `assisted to ${view.viewPitch.toFixed(2)}, camera ${view.height.toFixed(1)}m above the player, ` +
-    `at "${front.id}", ${(ROOM.z + ROOM.depth / 2 - front.z).toFixed(1)}m off the south wall`)
-}
-
-// 8d. A ?project= deep link opens on its kiosk, and the address bar tracks the
-//     panel afterwards. Reloads the page, so it goes last.
-{
-  const target = projects[projects.length - 1].id
-  await cdp.send('Page.navigate', { url: `http://localhost:${PORT}/?project=${target}` })
-  await waitFor(() => cdp.eval('!!(window.experience?.world?.player)'), 'the deep link to boot')
-  await sleep(1200)
-
-  const landed = await cdp.eval(`(() => {
-    const e = window.experience
-    return {
-      active: e.world.activeKiosk?.project.id ?? null,
       open: !document.getElementById('modal').hidden,
       title: document.getElementById('modal-title')?.textContent ?? '',
+      plyr: !!document.querySelector('#modal .plyr .plyr__controls'),
       param: new URLSearchParams(location.search).get('project'),
-      boom: e.camera.currentDistance,
+    }
+  },
+  bubble() {
+    const el = document.getElementById('bubble')
+    return { shown: !el.hidden, title: el.querySelector('.bubble__title').textContent }
+  },
+}; true`
+const install = () => cdp.eval(INSTALL)
+const sim = (seconds) => cdp.eval(`window.__v.sim(${seconds})`)
+const place = (id, opts = {}) => cdp.eval(`window.__v.place(${JSON.stringify(id)}, ${JSON.stringify(opts)})`)
+const modal = () => cdp.eval('window.__v.modal()')
+const bubble = () => cdp.eval('window.__v.bubble()')
+const body = () => cdp.eval('({ ...window.game.body })')
+
+const press = async (code, key, keyCode, holdSeconds = 0.05) => {
+  await cdp.key('keyDown', code, key, keyCode)
+  await sim(holdSeconds)
+  await cdp.key('keyUp', code, key, keyCode)
+}
+const escape = () => press('Escape', 'Escape', 27, 0.02)
+
+// A real click, dispatched by the browser at the element's own coordinates —
+// element.click() would prove the listener runs, not that nothing is on top.
+async function click(selector) {
+  const box = await cdp.eval(`(() => {
+    const r = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect()
+    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }
+  })()`)
+  for (const type of ['mousePressed', 'mouseReleased']) {
+    await cdp.send('Input.dispatchMouseEvent', {
+      type, x: box.x, y: box.y, button: 'left', clickCount: 1, buttons: type === 'mousePressed' ? 1 : 0,
+    })
+  }
+}
+
+const platforms = () => cdp.eval(
+  'window.game.level.platforms.map((p) => ({ id: p.id, left: p.left, right: p.right, top: p.top, solid: p.solid }))',
+)
+
+const skillTagCount = skills.reduce((n, g) => n + g.items.length, 0)
+
+// The whole level, audited at the width it is currently laid out at.
+async function auditHere() {
+  const list = await platforms()
+  return {
+    count: list.length,
+    thumbs: list.filter((p) => p.id.startsWith('project-')).length,
+    tags: list.filter((p) => /^skill-\d+-\d+-/.test(p.id)).length,
+    ...audit(list, { spawn: 'hero', exit: 'ground' }),
+  }
+}
+
+// ===========================================================================
+
+await viewport(1280, 800)
+await open('/?play')
+await install()
+
+// 1. The page is the level, and it is there before any script runs.
+{
+  const html = await (await fetch(`${ORIGIN}/`)).text()
+  const served = {
+    h1: /<h1 class="lv-name"/.test(html),
+    platforms: (html.match(/data-platform="/g) ?? []).length,
+    thumbs: (html.match(/data-project="/g) ?? []).length,
+  }
+  const live = await cdp.eval(`({
+    playing: document.documentElement.classList.contains('is-playing'),
+    wasm: performance.getEntriesByType('resource').some((r) => /\\.wasm/.test(r.name)),
+    platforms: window.game.level.platforms.length,
+    door: !!document.getElementById('door') || document.documentElement.classList.contains('has-door'),
+  })`)
+  check('the level is in the served HTML, and a ?play link starts the game on it with no door and no physics engine',
+    served.h1 && served.thumbs === projects.length && served.platforms === live.platforms
+      && live.playing && !live.wasm && !live.door,
+    `served: h1 ${served.h1}, ${served.platforms} platforms, ${served.thumbs} thumbnails; ` +
+    `live: ${live.platforms} platforms measured, playing ${live.playing}, WASM fetched ${live.wasm}, door up ${live.door}`)
+}
+
+// 2. The robot loads and lands on the name.
+{
+  await waitFor(() => cdp.eval('window.game.avatar.ready'), 'the robot to load', 160)
+  await waitFor(() => cdp.eval("window.game.body.on === 'hero'"), 'the robot to land on the name', 80)
+  const b = await body()
+  const hero = await cdp.eval("window.game.level.byId.get('hero').top")
+  check('the robot loads and drops onto the name',
+    b.on === 'hero' && b.y === hero,
+    `standing on "${b.on}" at y=${b.y} (name's ledge at ${hero})`)
+}
+
+// 3. Every platform, at every width: reachable from the top, able to get down
+//    to the portal, and able to climb back up to the top.
+{
+  const failures = []
+  let counts = null
+  for (const width of SWEEP) {
+    await viewport(width, 900)
+    await settleAt(width)
+    await sim(0.05)
+    const a = await auditHere()
+    counts ??= a
+    const wrong = [
+      a.thumbs !== projects.length && `${a.thumbs}/${projects.length} thumbnails`,
+      a.tags !== skillTagCount && `${a.tags}/${skillTagCount} tags`,
+      a.unreachable.length && `unreachable [${a.unreachable.join(', ')}]`,
+      a.stranded.length && `stranded [${a.stranded.join(', ')}]`,
+      a.cutOff.length && `cannot climb back from [${a.cutOff.join(', ')}]`,
+    ].filter(Boolean)
+    if (wrong.length) failures.push(`${width}px: ${wrong.join('; ')}`)
+  }
+  check(`at ${SWEEP.length} widths from ${SWEEP[0]} to ${SWEEP.at(-1)}px, every platform can be reached, left, and climbed back up from`,
+    failures.length === 0,
+    failures.length ? failures.join(' | ') : `${counts.count} platforms each time (${counts.thumbs} projects, ${counts.tags} skill tags)`)
+}
+
+// 4. A live resize re-lays the page, re-measures it, and keeps the robot on its block.
+{
+  await viewport(1280, 800)
+  await settleAt(1280)
+  await place('hero')
+  await sim(0.1)
+  await viewport(820, 1000)
+  await settleAt(820)
+  await sim(0.1)
+  const b = await body()
+  const hero = await cdp.eval("window.game.level.byId.get('hero')")
+  check('resizing the window keeps the robot standing on the block it was on',
+    b.on === 'hero' && Math.abs(b.y - hero.top) < 1 && b.x >= hero.left && b.x <= hero.right,
+    `after resizing to 820px: on "${b.on}" at (${b.x.toFixed(0)}, ${b.y.toFixed(0)}), ` +
+    `the name now spans ${hero.left.toFixed(0)}-${hero.right.toFixed(0)} at y=${hero.top.toFixed(0)}`)
+}
+
+await viewport(1280, 800)
+await settleAt(1280)
+
+// 5. The run reaches the tuned speed through the real keyboard path.
+{
+  await place('ground', { x: 120 })
+  await sim(0.1)
+  await cdp.key('keyDown', 'KeyD', 'd', 68)
+  await sim(0.45)
+  const running = await body()
+  await cdp.key('keyUp', 'KeyD', 'd', 68)
+  await sim(0.3)
+  const stopped = await body()
+  check('holding D runs at the tuned speed, and letting go stops',
+    Math.abs(running.vx - SPEED) < SPEED * 0.03 && Math.abs(stopped.vx) < 5,
+    `${running.vx.toFixed(0)} px/s running (want ${SPEED}), ${stopped.vx.toFixed(1)} px/s after release`)
+}
+
+// 6. The jump, through the real keyboard path, sampled every frame.
+{
+  await place('ground', { x: 400 })
+  await sim(0.1)
+  const restY = (await body()).y
+  await cdp.eval(`window.__arc = (() => {
+    const g = window.game
+    let minY = Infinity, jumps = 0
+    const tick = () => { minY = Math.min(minY, g.body.y) }
+    g.time.on('tick', tick)
+    const offJump = g.audio.jump.bind(g.audio)
+    g.audio.jump = () => { jumps++; offJump() }
+    return window.__v.sim(1.2).then(() => { g.time.off('tick', tick); g.audio.jump = offJump; return { minY, jumps } })
+  })(); true`)
+  await press('Space', ' ', 32, 0.6)
+  const arc = await cdp.eval('window.__arc')
+  const rise = restY - arc.minY
+  check('space jumps to the tuned height',
+    arc.jumps === 1 && Math.abs(rise - jumpApex(1)) < 12,
+    `rose ${rise.toFixed(1)}px against the model's ${jumpApex(1).toFixed(1)}, ${arc.jumps} jump`)
+}
+
+// 7. Up, for real, through the keyboard: from a job's first bullet, a held jump
+//    comes down on a platform ABOVE where it started. Which one depends on the
+//    arc — a full jump clears the company line 75px up and lands on whatever it
+//    is over on the way down; a tap is the hop for the line directly above —
+//    so the claim is only that up is up. The sweep in check 3 is what proves
+//    every platform has a way back.
+{
+  await place('job-0-0')
+  await sim(0.15)
+  const startTop = await cdp.eval("window.game.level.byId.get('job-0-0').top")
+  await press('Space', ' ', 32, 0.6)
+  await sim(0.8)
+  const b = await body()
+  const landedTop = await cdp.eval('window.game.level.byId.get(window.game.body.on)?.top ?? null')
+  check('a held jump from a line comes down on a platform above it',
+    b.grounded && landedTop !== null && landedTop < startTop,
+    `from "job-0-0" (top ${startTop.toFixed(0)}), landed on "${b.on}" (top ${landedTop?.toFixed(0)})`)
+}
+
+// 8. Down drops through a line to what is under it.
+{
+  await place('job-0')
+  await sim(0.1)
+  await press('ArrowDown', 'ArrowDown', 40, 0.05)
+  await sim(1.2)
+  const b = await body()
+  const tops = await cdp.eval("({ from: window.game.level.byId.get('job-0').top, now: window.game.level.byId.get(window.game.body.on)?.top ?? null })")
+  check('down drops through the platform underfoot onto the next one below',
+    b.grounded && b.on !== 'job-0' && tops.now > tops.from,
+    `from "job-0" (top ${tops.from.toFixed(0)}) to "${b.on}" (top ${tops.now?.toFixed(0)})`)
+}
+
+// 9. Landing on a thumbnail makes the robot talk: typing dots, then a chat
+//    bubble over its head with the tail pointing down at it, which follows it
+//    along the thumbnail. Standing still opens the project, with the video in
+//    Plyr; closing clears the link and does not re-open it.
+{
+  const reading = `(() => {
+    const b = document.getElementById('bubble')
+    const r = b.getBoundingClientRect()
+    const tail = b.querySelector('.bubble__tail').getBoundingClientRect()
+    const feet = document.getElementById('avatar').getBoundingClientRect()
+    return { shown: !b.hidden, typing: b.classList.contains('is-typing'), title: b.querySelector('.bubble__title').textContent,
+      headClear: feet.top - ${PLAYER_HEIGHT} - r.bottom, tailOff: (tail.left + tail.right) / 2 - feet.left,
+      lit: document.querySelector('[data-project="lu-run"]').classList.contains('is-target') }
+  })()`
+  await place('project-lu-run', { above: 120 })
+  await waitFor(() => cdp.eval("window.game.body.on === 'project-lu-run'"), 'the robot to land on LU RUN', 80)
+  const first = await cdp.eval(reading)
+  await sim(TYPING + 0.15)
+  const said = await cdp.eval(reading)
+  check('landing on a thumbnail makes the robot speak: typing, then a bubble over its head, tail on the robot',
+    first.shown && first.typing && said.shown && !said.typing && said.title === 'LU RUN' && said.lit
+      && Math.abs(said.headClear - BUBBLE_GAP) < 2 && Math.abs(said.tailOff) < 2,
+    `typing first: ${first.typing}; bubble "${said.title}" ${said.headClear.toFixed(1)}px above the head ` +
+    `(want ${BUBBLE_GAP}), tail ${said.tailOff.toFixed(1)}px from the robot's middle, thumbnail marked: ${said.lit}`)
+
+  await waitFor(async () => (await modal()).open, 'standing still to open the panel', 120)
+  await waitFor(async () => (await modal()).plyr, 'the video player to mount', 80)
+  const opened = await modal()
+  check(`standing still for ${DWELL}s opens the project, with its video in Plyr`,
+    opened.open && opened.title === 'LU RUN' && opened.plyr && opened.param === 'lu-run',
+    `panel "${opened.title}", Plyr mounted ${opened.plyr}, ?project=${opened.param}`)
+
+  await escape()
+  await sim(DWELL + 0.6)
+  const after = await modal()
+  check('closing the panel clears the link, and standing on the same thumbnail does not re-open it',
+    !after.open && after.param === null,
+    `panel open ${after.open}, ?project= ${after.param === null ? 'absent' : after.param}`)
+}
+
+// 10. E opens immediately, and so does a real click on the bubble's button.
+{
+  await place('project-football-is-life')
+  await sim(0.15)
+  await press('KeyE', 'e', 69, 0.03)
+  await sim(0.1)
+  const byKey = await modal()
+  await escape()
+
+  await place('project-sinai-heroes')
+  await sim(TYPING + 0.2)
+  await click('.bubble__open')
+  await sim(0.1)
+  const byClick = await modal()
+  await escape()
+
+  check("E, and a click on the bubble's Open button, open the project underfoot without waiting",
+    byKey.title === 'Football is Life' && byClick.title === 'Sinai Heroes',
+    `E opened "${byKey.title}", the bubble's button opened "${byClick.title}"`)
+}
+
+// 11. Clicking a thumbnail opens it without playing at all.
+{
+  await place('hero')
+  // Pin the camera and scroll the thumbnail into view, as a visitor with a mouse
+  // would, without the robot anywhere near it.
+  await cdp.eval(`(() => {
+    window.scrollTo(0, window.game.level.origin.top + window.game.level.byId.get('project-digito').top - 200)
+    window.game.camera.update = () => {}
+  })()`)
+  await sim(0.1)
+  await click('[data-project="digito"]')
+  await sim(0.1)
+  const clicked = await modal()
+  await escape()
+  await cdp.eval('delete window.game.camera.update')
+  check('clicking a thumbnail opens that project directly',
+    clicked.open && clicked.title === 'Digito', `panel "${clicked.title}"`)
+}
+
+// 12. The video panel holds still while the video plays.
+//
+// The panel used to scroll as a whole, with the video inside it. As Plyr's
+// controls came and went, the scrollbar did too, the video changed width with
+// it, and the footage visibly jumped. The video is now outside anything that
+// scrolls; this plays it, sweeps the mouse over it and off it so the controls
+// show and hide, and requires that neither the video's size nor any scrollbar
+// in the panel changed on any frame.
+{
+  const seen = []
+  for (const [w, h] of [[1366, 650], [1280, 800], [1920, 950], [390, 844]]) {
+    await viewport(w, h, w < 500)
+    await open('/?project=lu-run')
+    await waitFor(async () => (await cdp.eval('!!document.querySelector("#modal .plyr .plyr__controls")')), 'the player', 80)
+    await cdp.eval("(async () => { const v = document.querySelector('#modal video'); v.muted = true; await v.play(); return true })()")
+    await cdp.eval(`window.__rec = (() => {
+      const video = document.querySelector('#modal video')
+      const els = [...document.querySelectorAll('.modal__panel, .modal__panel *')]
+      const snapshot = () => [
+        Math.round(video.getBoundingClientRect().width), Math.round(video.getBoundingClientRect().height),
+        ...els.map((el) => el.offsetWidth - el.clientWidth > 2 ? 1 : 0),
+      ].join(',')
+      const states = new Set([snapshot()])
+      let stop = false
+      const tick = () => { states.add(snapshot()); if (!stop) requestAnimationFrame(tick) }
+      requestAnimationFrame(tick)
+      return { done: () => { stop = true; return { states: states.size, time: video.currentTime } } }
+    })(); true`)
+    const box = await cdp.eval("(() => { const r = document.querySelector('#modal video').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, low: r.bottom - 15 } })()")
+    for (let i = 0; i < 3; i++) {
+      for (let k = 0; k < 5; k++) {
+        await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: box.x + k * 9, y: box.y + k * 4 })
+        await sleep(60)
+      }
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: box.x, y: box.low })
+      await sleep(500)
+      await cdp.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 3, y: 3 })
+      await sleep(2300)
+    }
+    const r = await cdp.eval('window.__rec.done()')
+    seen.push({ size: `${w}x${h}`, ...r })
+  }
+  check('a playing video keeps its size while the player controls show and hide, at four screen sizes',
+    seen.every((s) => s.states === 1 && s.time > 0.5),
+    seen.map((s) => `${s.size}: ${s.states} layout state${s.states === 1 ? '' : 's'}, played ${s.time.toFixed(1)}s`).join(' · '))
+  await viewport(1280, 800)
+  await open('/?play')
+  await install()
+}
+
+// 13. The portal speaks too, and takes you back to the top.
+{
+  await cdp.eval("window.__v.place('ground', { x: (window.game.level.portal.left + window.game.level.portal.right) / 2 })")
+  await sim(0.3)
+  const offered = await bubble()
+  await click('#portal')
+  await waitFor(() => cdp.eval(
+    "window.game.body.on === 'hero' && window.scrollY < 5 && !window.game.warping",
+  ), 'the portal to fly the robot back to the name', 160)
+  const b = await body()
+  check('standing at the portal offers it, and clicking it flies back to the top',
+    offered.shown && offered.title === 'Back to the top' && b.on === 'hero',
+    `bubble "${offered.title}"; now on "${b.on}", scrolled to ${await cdp.eval('window.scrollY')}`)
+}
+
+// 14. A ?project= link opens on that thumbnail with its panel up.
+{
+  await open('/?project=digito')
+  await install()
+  await sim(0.2)
+  const landed = await modal()
+  const b = await body()
+  check('a ?project= link stands the robot on that thumbnail with its panel open',
+    landed.open && landed.title === 'Digito' && b.on === 'project-digito',
+    `panel "${landed.title}", robot on "${b.on}"`)
+}
+
+// 15. A stale one lands at the top instead of on an error.
+{
+  await open('/?project=not-a-real-project')
+  await install()
+  await waitFor(() => cdp.eval("window.game.body.on === 'hero'"), 'the stale link to land at the top', 80)
+  const stale = await modal()
+  check('a stale ?project= link lands at the top rather than on an error',
+    !stale.open && stale.param === null, `no panel, parameter ${stale.param === null ? 'dropped' : stale.param}`)
+}
+
+// 16. On a phone: the touch controls are up, and the bubble over the robot is
+//     kept on screen, below the corner controls and above the thumbs.
+{
+  await viewport(390, 844, true)
+  await open('/?play')
+  await install()
+  await sim(0.3)
+  await place('project-robotics')
+  await sim(1.0)
+  const phone = await cdp.eval(`(() => {
+    const root = document.querySelector('.touch')
+    const b = document.getElementById('bubble').getBoundingClientRect()
+    const controls = document.querySelector('.touch__btn--jump').getBoundingClientRect()
+    const corner = document.querySelector('.controls').getBoundingClientRect()
+    return { shown: !!root && !root.hidden, bubbleTop: Math.round(b.top), cornerBottom: Math.round(corner.bottom),
+      bubbleBottom: Math.round(b.bottom), controlsTop: Math.round(controls.top),
+      onScreen: b.top >= 0 && b.bottom <= innerHeight, overflow: document.documentElement.scrollWidth > innerWidth }
+  })()`)
+  check('on a phone the touch controls are up, and the bubble stays on screen clear of them',
+    phone.shown && phone.onScreen && phone.bubbleTop >= phone.cornerBottom
+      && phone.bubbleBottom <= phone.controlsTop && !phone.overflow,
+    `touch controls ${phone.shown}, bubble top ${phone.bubbleTop}px vs corner controls bottom ${phone.cornerBottom}px, bubble bottom ${phone.bubbleBottom}px vs Jump button top ${phone.controlsTop}px, ` +
+    `on screen ${phone.onScreen}, horizontal overflow ${phone.overflow}`)
+}
+
+// 17. Arriving with no choice made, the front door asks which portfolio, and
+//     builds nothing until asked: no game and no robot download. Picking the
+//     interactive one opens onto the level and the robot drops in.
+{
+  await viewport(1280, 800)
+  await cdp.send('Page.navigate', { url: `${ORIGIN}/` })
+  await cdp.send('Page.bringToFront')
+  await waitFor(() => cdp.eval("document.readyState === 'complete'"), 'the front page to load')
+  await sleep(600)
+  const asked = await cdp.eval(`(() => {
+    const door = document.getElementById('door')
+    const r = door ? door.getBoundingClientRect() : null
+    return {
+      covers: !!r && getComputedStyle(door).display !== 'none' && r.width >= innerWidth && r.height >= innerHeight,
+      play: (document.getElementById('door-play')?.textContent ?? '').includes(${JSON.stringify(ROUTE_NAMES.showroom)}),
+      basic: !!door?.querySelector('a[href="./classic.html"]'),
+      game: !!window.game,
+      robot: performance.getEntriesByType('resource').some((e) => /Robot-/.test(e.name)),
     }
   })()`)
-  check('a ?project= link lands on that kiosk with its panel open',
-    landed.active === target && landed.open && landed.param === target,
-    `asked for "${target}", standing at "${landed.active}" with "${landed.title}" open, ` +
-    `boom ${landed.boom.toFixed(1)}m`)
-
-  // Closing it must clear the parameter, or every later copy of the URL would
-  // still point at a panel that is no longer open.
-  await cdp.key('keyDown', 'Escape', 'Escape', 27)
-  await cdp.key('keyUp', 'Escape', 'Escape', 27)
-  await sleep(400)
-  const after = await cdp.eval("new URLSearchParams(location.search).get('project')")
-  check('closing the panel drops the project from the URL',
-    after === null, `?project= is now ${after === null ? 'absent' : after}`)
+  await click('#door-play')
+  await waitFor(() => cdp.eval("!!window.game && !document.getElementById('door') && !document.documentElement.classList.contains('has-door')"),
+    'the door to open onto the level', 80)
+  await waitFor(() => cdp.eval("window.game.body.on === 'hero'"), 'the robot to land on the name', 120)
+  check('the front door offers both portfolios and builds nothing until the interactive one is picked',
+    asked.covers && asked.play && asked.basic && !asked.game && !asked.robot,
+    `door covers the screen ${asked.covers}, interactive choice ${asked.play}, basic link ${asked.basic}; ` +
+    `before choosing: game ${asked.game}, robot fetched ${asked.robot}; after: robot on the name`)
 }
 
-// 8e. A deep link to a project that no longer exists must not strand anyone.
-{
-  await cdp.send('Page.navigate', { url: `http://localhost:${PORT}/?project=not-a-real-project` })
-  await waitFor(() => cdp.eval('!!(window.experience?.world?.player)'), 'the stale link to boot')
-  await sleep(800)
-
-  const stale = await cdp.eval(`(() => ({
-    open: !document.getElementById('modal').hidden,
-    param: new URLSearchParams(location.search).get('project'),
-    y: window.experience.world.player.position.y,
-  }))()`)
-  check('a stale ?project= link lands in the showroom rather than on an error',
-    !stale.open && stale.param === null && stale.y > 0.5,
-    `no panel, parameter dropped, player standing at y=${stale.y.toFixed(2)}`)
-}
-
-// 9. Nothing threw along the way.
+// 18. Nothing threw, nothing 404'd, and nothing left this origin — Plyr's
+//     sprite and blank video default to its CDN, and both are overridden.
 {
   const errors = cdp.events
     .filter((e) => e.method === 'Log.entryAdded' && e.params.entry.level === 'error')
     .map((e) => e.params.entry.text)
+  const thrown = cdp.events
+    .filter((e) => e.method === 'Runtime.exceptionThrown')
+    .map((e) => e.params.exceptionDetails.exception?.description ?? e.params.exceptionDetails.text)
   const missing = cdp.events
     .filter((e) => e.method === 'Network.responseReceived' && e.params.response.status >= 400)
     .map((e) => `${e.params.response.status} ${e.params.response.url}`)
-  const all = [...new Set([...errors, ...missing])]
-  check('no console errors and nothing 404s', all.length === 0,
-    all.length ? all.join(' | ') : 'clean console, every request served')
+  const external = cdp.events
+    .filter((e) => e.method === 'Network.requestWillBeSent')
+    .map((e) => e.params.request.url)
+    .filter((url) => !url.startsWith(ORIGIN) && !/^(data|blob):/.test(url))
+  const all = [...new Set([...errors, ...thrown, ...missing, ...external])]
+  check('no console errors, nothing 404s, and no request leaves the site', all.length === 0,
+    all.length ? all.join(' | ') : 'clean console, every request served locally')
 }
 
 const failed = results.filter((r) => !r.pass)
 console.log(`\n${results.length - failed.length}/${results.length} passed`)
 
+await sleep(50)
 process.exit(failed.length ? 1 : 0)
