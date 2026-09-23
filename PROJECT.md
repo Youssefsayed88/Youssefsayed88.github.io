@@ -314,9 +314,13 @@ it are listed in §3.
 ```bash
 npm run dev       # regenerates classic.html, then serves on :5173
 npm test          # 14 headless checks: movement, platforms, reach model, markup, bubble placement, rail
-npm run verify    # builds, then drives real Chrome over CDP: 19 checks
+npm run verify    # builds, then drives real Chrome over CDP: 20 checks
 npm run build     # -> dist/
 npm run classic   # regenerate classic.html only
+
+cd worker && npm test               # the chatbot Worker's checks, models stubbed out
+cd worker && npx wrangler deploy    # redeploy the chatbot (after any content change)
+cd worker && npx wrangler tail      # watch the live chatbot: which model answered, errors
 
 node scripts/capture-og.mjs                        # re-shoot the share card (after a build)
 node scripts/encode-images.mjs <src> <dest.webp>   # add a project screenshot
@@ -353,7 +357,44 @@ Gamepad: stick or d-pad, A jumps, X opens, down drops, L3 or left trigger sprint
 | `scripts/verify-browser.mjs` | In-browser checks, including reachability at three widths |
 | `scripts/build-classic.mjs` | Generates `classic.html`, `sitemap.xml`, `robots.txt` |
 | `scripts/capture-og.mjs` | Screenshots the built level into `public/og.jpg` |
+| `src/core/analytics.js` | PostHog: the tag, `track()`, and the click-event attributes |
+| `src/chat/context.js` | **What the chatbot knows**: its rules and the prompt, built from `src/data` |
+| `src/chat/` (the rest) | The chat both pages share: session, reply renderer, markup, styles, `CHAT_URL` |
+| `src/ui/Chat.js` | The chat on the level: the bubble over the robot and the bar along the bottom |
+| `worker/` | The chatbot's back end, a Cloudflare Worker. Deployed by hand; see `worker/README.md` |
 
 Adding a project is one object in `projects.js`: it appears as a thumbnail on its
-wing's shelf, and on the plain page. Run `npm run verify` after layout changes.
-The reach audit will name any platform nobody can get to.
+wing's shelf, on the plain page, and in what the chatbot knows.
+
+**After any content change** (`src/data/projects.js` or `src/data/profile.js`):
+
+1. `npm run verify`: the reach audit names any platform nobody can get to.
+2. `git push`: GitHub Actions rebuilds and deploys the site.
+3. `cd worker && npx wrangler deploy`: **the chatbot does not redeploy itself.**
+   Its knowledge is bundled into the Worker at deploy time, so until this step
+   the robot answers from the old content. Ask it about the new project to check.
+
+A new project's `role` line is the only thing the chatbot will credit him with
+on it, in its own wording, so write it the way it should be repeated.
+
+### Keeping the chatbot running
+
+- **Where it runs**: `https://portfolio-chat.youssefsayed88.workers.dev`, a
+  Cloudflare Worker on the free plan. The site finds it through the `CHAT_URL`
+  repository variable; the Gemini key is a Worker secret
+  (`npx wrangler secret put GEMINI_API_KEY`), never in the repo.
+- **Which model answers**: three free Gemini models are tried in order, listed
+  at the top of `worker/src/index.js`, within an 8 s budget; a busy one is
+  skipped for a minute, a retired one (404) for an hour; then Workers AI
+  (Llama 3.3 70B) answers instead. Which free Gemini models have room shifts by
+  the hour, and Google retires them: the 2.5 models were already closed to new
+  keys by 2026-09. **If replies turn slow**, run `npx wrangler tail` in
+  `worker/` and ask a question; each reply logs which model answered and after
+  how long, and a model that keeps failing should be swapped for a newer one.
+- **CPU**: a request uses 6-11 ms of the free plan's 10 ms CPU limit (measured
+  2026-09-23). If the chat starts failing with a Cloudflare error (1102), that
+  is the first suspect.
+- **What visitors ask**: PostHog, event `chat-question` (the question, capped at
+  300 characters; never the answer). Also `chat-open` and `chat-project`.
+- **Free-tier terms**: Gemini's free tier may use prompts to improve Google's
+  products, and human reviewers may read them. The chat panel says so.

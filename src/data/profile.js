@@ -1,5 +1,14 @@
-// CV content for classic.html. Transcribed from
+// CV content for classic.html, the level and the chatbot. Transcribed from
 // YoussefMohamed_MidLevelUnityDev_CV.pdf — nothing here is inferred.
+//
+// AFTER EDITING THIS FILE, redeploy the chatbot as well as the site:
+//
+//   git push                            # the site: GitHub Actions rebuilds it
+//   cd worker && npx wrangler deploy    # the chatbot: it does NOT redeploy itself
+//
+// The chatbot's knowledge is this data, bundled into the Cloudflare Worker at
+// deploy time (src/chat/context.js). Push without the second step and the site
+// shows the new content while the robot still answers from the old.
 //
 // NOTE: the CV filename says "MidLevel" but its body lists Senior Unity
 // Developer at Appsinnovate from Dec 2025. The role titles below follow the

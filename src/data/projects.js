@@ -1,4 +1,14 @@
-// SINGLE SOURCE OF TRUTH — the platformer and classic.html both render from this.
+// SINGLE SOURCE OF TRUTH — the platformer, classic.html and the chatbot all
+// answer from this.
+//
+// AFTER EDITING THIS FILE, redeploy the chatbot as well as the site:
+//
+//   git push                            # the site: GitHub Actions rebuilds it
+//   cd worker && npx wrangler deploy    # the chatbot: it does NOT redeploy itself
+//
+// The chatbot's knowledge is this data, bundled into the Cloudflare Worker at
+// deploy time (src/chat/context.js). Push without the second step and the site
+// shows the new content while the robot still answers from the old.
 //
 // STATUS OF THE `role` FIELD — all 14 filled; the first 13 on 2026-08-30,
 // Football is Life on 2026-09-04.
