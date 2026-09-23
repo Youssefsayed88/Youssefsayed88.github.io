@@ -835,6 +835,50 @@ html:not(.is-playing) #mute { display: none; }
 /* And a drag across the page on a phone is never a text selection. */
 .has-touch-controls .level { -webkit-user-select: none; user-select: none; }
 
+/* ====================================================================== */
+/* The chatbot                                                             */
+/* ====================================================================== */
+/* The robot answers in a speech bubble over its head — the project bubble's
+   outline, a little wider — and the visitor types into a bar along the bottom
+   of the screen. Only there when the build has a chat (src/chat/markup.js);
+   the pieces both pages share are in src/chat/chat.css. */
+
+.controls__btn--chat { display: inline-flex; align-items: center; gap: 0.5rem; }
+.controls__btn--chat kbd { font-size: 0.62rem; min-width: 1.2rem; height: 1.2rem; }
+.controls__btn--chat[aria-expanded="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+html:not(.is-playing) .controls__btn--chat { display: none; }
+.has-touch-controls .controls__btn--chat kbd, .has-touch-controls .chat-dock kbd { display: none; }
+
+.chat-bubble { z-index: 7; width: min(22rem, calc(100% - 2 * var(--gutter))); padding-bottom: 0.8rem; }
+.chat-bubble.is-typing .chat-bubble__reply { display: none; }
+/* No room over the robot's head (at the top of the page): the bubble hangs
+   below its feet, tail up. `top` is then the bubble's top edge. */
+.chat-bubble.is-below { translate: 0 0; transform-origin: var(--tail, 50%) -12px; }
+.chat-bubble.is-below .bubble__tail { bottom: auto; top: -11px; transform: scaleY(-1); }
+/* The visitor's question, small, so the answer below reads as the reply to it. */
+.chat-bubble__asked {
+  margin: 0 0 0.4rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--rule);
+  font-size: 0.78rem; color: var(--faint);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+/* Tall enough for a short answer; a longer one scrolls, following the text as
+   it arrives. Leaves room for the robot and the bar on a short screen. */
+.chat-bubble__reply { max-height: min(17rem, calc(100vh - 20rem)); min-height: 1.4rem; overflow-y: auto; overscroll-behavior: contain; }
+
+.chat-dock {
+  position: fixed; z-index: 25; left: 50%; translate: -50% 0;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  width: min(38rem, calc(100% - 2rem));
+  padding: 0.7rem 0.7rem 0.55rem;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 22px;
+  box-shadow: 0 10px 30px var(--shadow), 0 1px 3px var(--shadow);
+  animation: dock-in 0.2s ease-out;
+}
+@keyframes dock-in { from { opacity: 0; translate: -50% 12px; } }
+.chat-dock .chat__close { position: absolute; top: -0.8rem; right: 1rem; }
+/* The work-in-progress label sits exactly where the bar goes. */
+html.is-chatting .wip { display: none; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important; animation-iteration-count: 1 !important;

@@ -1,0 +1,15 @@
+{
+  "name": "portfolio-chat",
+  "private": true,
+  "type": "module",
+  "description": "The portfolio chatbot: a Cloudflare Worker between the site and Gemini.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "check": "wrangler deploy --dry-run --outdir .wrangler/dry-run",
+    "test": "node test.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.137.0"
+  }
+}

@@ -36,6 +36,9 @@ export default class Camera {
     // { top, bottom } in level coordinates — a speech bubble that should stay
     // on screen along with the robot. Set by Game.js each frame.
     this.keepVisible = null
+    // Screen to keep clear below the feet instead of the default, in px: the
+    // chat's input bar while it is open. Set by Game.js.
+    this.reserveBottom = null
   }
 
   // Where the scroll position wants to be for this body.
@@ -56,13 +59,28 @@ export default class Camera {
     // or past the bottom of the screen.
     const keep = this.keepVisible
     if (keep) {
-      const touch = document.body.classList.contains('has-touch-controls')
-      const wanted = origin + keep.top - (touch ? RESERVE_TOP_TOUCH : RESERVE_TOP)
-      const lowest = origin + body.y + (touch ? RESERVE_TOUCH : RESERVE) - vh
-      y = Math.min(y, Math.max(wanted, lowest))
+      const reserve = this.reserveBottom ?? (this.touch ? RESERVE_TOUCH : RESERVE)
+      if (keep.top >= body.y) {
+        // A bubble below the feet (the chat's, when there is no room above the
+        // robot): scroll down just far enough to show its bottom.
+        y = Math.max(y, origin + keep.bottom + reserve - vh)
+      } else {
+        const wanted = origin + keep.top - this.reserveTop
+        const lowest = origin + body.y + reserve - vh
+        y = Math.min(y, Math.max(wanted, lowest))
+      }
     }
 
     return this.clamp(y)
+  }
+
+  get touch() {
+    return document.body.classList.contains('has-touch-controls')
+  }
+
+  // Screen kept clear above a bubble: under the corner controls.
+  get reserveTop() {
+    return this.touch ? RESERVE_TOP_TOUCH : RESERVE_TOP
   }
 
   clamp(y) {

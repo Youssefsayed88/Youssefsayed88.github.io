@@ -58,6 +58,7 @@ export default class Input extends Emitter {
 
       this.keys.add(e.code)
       if ((e.code === 'KeyE' || e.code === 'Enter') && !e.repeat) this.trigger('interact')
+      if (e.code === 'KeyC' && !e.repeat) this.trigger('chat')
       if (GAME_KEYS.has(e.code)) e.preventDefault()
     })
     // Always released, wherever focus went in between, so no key sticks down.

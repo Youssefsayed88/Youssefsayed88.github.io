@@ -3,6 +3,8 @@ import { initThemeToggle } from './ui/theme.js'
 import { fadeInThumbnails } from './ui/loading.js'
 import { track } from './core/analytics.js'
 import Game from './game/Game.js'
+// The chat's shared styles; the level's own are in style.css.
+import './chat/chat.css'
 
 // The page is on screen before this runs: the level is plain markup injected at
 // build time, so it reads before any script arrives. This only turns the page

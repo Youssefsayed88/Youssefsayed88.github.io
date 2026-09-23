@@ -272,6 +272,13 @@ outline for a deep-linked card.
 - **Analytics**: PostHog, cookieless and live-site only, on both routes and the
   404 page (`src/core/analytics.js`). The token is the `POSTHOG_TOKEN` Actions
   secret, read at build time; a build without it has no analytics.
+- **Chatbot**: the robot answers questions about the portfolio — in a speech
+  bubble over its head on the level, in a side panel on the plain page. The
+  front end is `src/chat/` and `src/ui/Chat.js`; the back end is a Cloudflare
+  Worker in `worker/` (Gemini, Workers AI as the fallback), deployed by hand
+  (`worker/README.md`). The site shows the chat only when the `CHAT_URL`
+  repository variable is set. Questions (not answers) go to PostHog as
+  `chat-question`.
   Events: `choose-portfolio`, `open-project`, `play-video`, `project-link`,
   `deep-link`, `reach-section`, `portal`, `download-cv`, `contact`,
   `switch-route`.

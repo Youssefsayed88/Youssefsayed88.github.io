@@ -4,6 +4,7 @@ import Hud from '../ui/Hud.js'
 import Bubble from '../ui/Bubble.js'
 import Rail from '../ui/Rail.js'
 import Modal from '../ui/Modal.js'
+import Chat from '../ui/Chat.js'
 import Audio from '../ui/Audio.js'
 import Level from './Level.js'
 import Camera from './Camera.js'
@@ -60,7 +61,7 @@ export default class Game {
     this.modal = new Modal((open, project) => {
       // The panel covers the screen; a joystick left under it would hold
       // whatever direction the thumb was last pushing.
-      this.input.touch.setVisible(!open)
+      this.input.touch.setVisible(!open && !this.chat.isOpen)
       // The address bar tracks whatever is on screen, so copying it shares that
       // project. replaceState, not push: a back button that stepped through
       // every thumbnail someone stood on would be a worse back button.
@@ -69,6 +70,15 @@ export default class Game {
     })
 
     this.projects = new Map(projects.map((p) => [p.id, p]))
+
+    // The chatbot, when the build has one (see src/chat/config.js). Its bar
+    // sits where the touch controls are, so they make way while it is open.
+    this.chat = new Chat(root, {
+      projects: new Map(projects.map((p) => [p.id, p.title])),
+      onProject: (id) => this.showProject(id),
+      onToggle: (open) => this.input.touch.setVisible(!open && !this.modal.open),
+      isBlocked: () => this.modal.open,
+    })
     this.target = null
     this.dwell = 0
     // The project whose panel was just open. Standing on it does not re-open it
@@ -83,6 +93,7 @@ export default class Game {
     this.body = this.spawnBody()
 
     this.input.on('interact', () => this.interact())
+    this.input.on('chat', () => { if (!this.paused) this.chat.toggle('key') })
 
     // The thumbnails are buttons too: a visitor with a mouse can click one open
     // without playing at all.
@@ -152,10 +163,13 @@ export default class Game {
     }
 
     // The bubble follows the robot along the thumbnail, and the camera keeps it
-    // on screen along with the feet.
+    // on screen along with the feet. While the chat is open its bubble is the
+    // one over the robot's head, and the feet stay above its input bar.
     this.bubble.tick(delta)
     this.bubble.place(this.speaker(), this.level.bounds)
-    this.camera.keepVisible = this.bubble.box
+    this.chat.place(this.speaker(), this.level.bounds, this.chatRoom())
+    this.camera.keepVisible = this.chat.isOpen ? this.chat.box : this.bubble.box
+    this.camera.reserveBottom = this.chat.reserve
     this.camera.update(this.body, delta)
 
     // The portal's flight is over once the camera has reached the top: the
@@ -170,6 +184,19 @@ export default class Game {
   // What the robot is standing at, and the bubble and dwell that follow from it.
   updateTarget(delta) {
     const body = this.body
+
+    // The chat has the robot's voice while it is open: no project bubble to
+    // talk over it, and no dwell to throw a panel open mid-answer.
+    if (this.chat.isOpen) {
+      if (this.target) {
+        this.target.el?.classList.remove('is-target')
+        this.target = null
+        this.bubble.hide()
+      }
+      this.dwell = 0
+      return
+    }
+
     const platform = body.grounded ? this.level.byId.get(body.on) : null
 
     let next = null
@@ -214,6 +241,11 @@ export default class Game {
     if (this.reached.has(id)) return
     this.reached.add(id)
     track('reach-section', { section: id })
+  }
+
+  // What the chat bubble needs to decide whether it fits over the robot's head.
+  chatRoom() {
+    return { feet: this.body.y, origin: this.level.origin.top, room: this.camera.reserveTop }
   }
 
   // Where the bubble points: the middle of the robot and the top of its head.
@@ -307,6 +339,22 @@ export default class Game {
       this.bubble.measure()
       this.bubble.place(this.speaker(), this.level.bounds)
     }
+    if (this.chat.isOpen) {
+      this.chat.measure()
+      this.chat.place(this.speaker(), this.level.bounds, this.chatRoom())
+    }
+  }
+
+  // A project the chatbot pointed at: the robot to its thumbnail, and its panel
+  // open. The chat stays open behind it, to carry on after.
+  showProject(id) {
+    const platform = this.level.platformForProject(id)
+    if (!platform || this.paused || this.warping) return
+    this.body = createBody((platform.left + platform.right) / 2, platform.top, platform.id)
+    this.camera.snap(this.body)
+    this.avatar.update(this.body, 0)
+    this.enterSection(this.level.sectionAt(this.body.y))
+    this.openProject(id)
   }
 
   // `?project=<id>` stands the robot on that thumbnail with its panel open, the

@@ -1,0 +1,76 @@
+/* The chat's shared pieces: the reply's text, the suggestions, the form and
+   the note under it. Used by both pages — the level imports this file
+   (src/main.js), and build-classic.mjs inlines it into classic.html — so it
+   uses only the colour tokens the two pages share. Each page lays out its own
+   container: .chat-dock and .chat-bubble in src/style.css, .chat-panel in
+   build-classic.mjs. */
+
+.chat [hidden], .chat[hidden] { display: none !important; }
+
+/* A reply: the robot's words, in the formatting the prompt allows. */
+.chat__reply { font-size: 0.9rem; line-height: 1.5; overflow-wrap: anywhere; }
+.chat__reply p { margin: 0 0 0.45rem; }
+.chat__reply p:last-child, .chat__reply ul:last-child { margin-bottom: 0; }
+.chat__reply ul { margin: 0 0 0.45rem; padding-left: 1.1rem; }
+.chat__reply li { margin-bottom: 0.2rem; }
+.chat__reply a { color: inherit; text-underline-offset: 2px; }
+
+/* "Show me": a project the robot mentioned, as a quick reply. The accent is
+   the outline the level puts round the thumbnail the robot stands on. */
+.chat__reply .chat__ref {
+  display: inline-flex; align-items: center; gap: 0.2rem;
+  padding: 0.05rem 0.5rem; border: 1.5px solid var(--accent); border-radius: 999px;
+  font-size: 0.75rem; font-weight: 600; line-height: 1.5; text-decoration: none;
+  white-space: nowrap; vertical-align: 0.05em;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.chat__reply .chat__ref::after { content: "\2192"; }
+.chat__reply .chat__ref:hover, .chat__reply .chat__ref:focus-visible { background: var(--accent); color: #fff; }
+
+.chat__error {
+  margin: 0.5rem 0 0; padding-left: 0.6rem; border-left: 3px solid var(--accent);
+  font-size: 0.85rem; color: var(--ink);
+}
+
+/* Suggestions: a row of chips the thumb can scroll, for a blank start. */
+.chat__suggestions {
+  display: flex; gap: 0.4rem; margin: 0 0 0.55rem; padding: 0 0 0.1rem; list-style: none;
+  overflow-x: auto; scrollbar-width: none;
+}
+.chat__suggestions::-webkit-scrollbar { display: none; }
+.chat__suggestion {
+  appearance: none; font: inherit; font-size: 0.8rem; white-space: nowrap; cursor: pointer;
+  padding: 0.35rem 0.75rem; border: 1px solid var(--rule); border-radius: 999px;
+  background: var(--bg); color: var(--ink);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.chat__suggestion:hover, .chat__suggestion:focus-visible { border-color: var(--ink); }
+
+.chat__form { display: flex; gap: 0.5rem; align-items: center; }
+/* 1rem, so a phone does not zoom into the field on focus. */
+.chat__input {
+  flex: 1; min-width: 0; font: inherit; font-size: 1rem;
+  padding: 0.6rem 0.95rem; border: 1.5px solid var(--rule); border-radius: 999px;
+  background: var(--bg); color: var(--ink);
+  transition: border-color 0.15s ease;
+}
+.chat__input::placeholder { color: var(--faint); }
+.chat__input:focus { outline: none; border-color: var(--ink); }
+.chat__send {
+  flex: none; display: grid; place-items: center; width: 2.55rem; height: 2.55rem;
+  appearance: none; border: 0; border-radius: 50%; cursor: pointer;
+  background: var(--ink); color: var(--surface);
+  transition: background-color 0.15s ease, opacity 0.15s ease;
+}
+.chat__send svg { width: 1.15rem; height: 1.15rem; }
+.chat__send:hover { background: var(--ink-hover); }
+.chat__send:disabled { opacity: 0.4; cursor: default; }
+
+.chat__note { margin: 0.45rem 0.25rem 0; font-size: 0.7rem; line-height: 1.4; color: var(--faint); }
+
+.chat__close {
+  display: grid; place-items: center; width: 1.9rem; height: 1.9rem; padding: 0;
+  appearance: none; font: inherit; font-size: 1.15rem; line-height: 1; cursor: pointer;
+  border: 1.5px solid var(--ink); border-radius: 50%; background: var(--surface); color: var(--ink);
+}
+.chat__close:hover, .chat__close:focus-visible { background: var(--ink); color: var(--surface); }

@@ -11,3 +11,7 @@ classic.html
 public/sitemap.xml
 public/robots.txt
 public/404.html
+
+# The chatbot Worker's local secrets and wrangler's cache.
+worker/.dev.vars
+worker/.wrangler/

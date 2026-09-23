@@ -19,6 +19,7 @@
 // came out as a platform.
 import { OWNER, WINGS, byWing } from '../data/projects.js'
 import { trackAttrs } from '../core/analytics.js'
+import { chatBubbleMarkup } from '../chat/markup.js'
 import { summary, experience, education, skills } from '../data/profile.js'
 import { ROUTE_NAMES } from '../core/params.js'
 import { PLAYER_HEIGHT } from '../game/movement.js'
@@ -215,5 +216,6 @@ ${WINGS.map(wing).join('')}
       <span class="bubble__dwell" aria-hidden="true"></span>
       <svg class="bubble__tail" viewBox="0 0 22 12" aria-hidden="true"><path class="bubble__tail-fill" d="M0 0C6 0 10 3 11 12C12 3 16 0 22 0Z"/><path class="bubble__tail-line" d="M0 0.5C6 0.5 10 3 11 12C12 3 16 0.5 22 0.5"/></svg>
     </div>
+${chatBubbleMarkup()}
   </main>`
 }

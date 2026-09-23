@@ -11,6 +11,8 @@
 // project link arrived by, and how far down the page a visitor read.
 
 import { track } from './core/analytics.js'
+import ChatSession from './chat/session.js'
+import { renderReply } from './chat/render.js'
 import { PROJECT_PARAM } from './core/params.js'
 
 const dialog = document.getElementById('video')
@@ -91,4 +93,100 @@ if ('IntersectionObserver' in window) {
 {
   const id = new URLSearchParams(location.search).get(PROJECT_PARAM)
   if (id && document.getElementById(`project-${id}`)) track('deep-link', { project: id })
+}
+
+// The chatbot, when the build has one: a panel down the side with the whole
+// conversation. The same session and renderer as the level's (src/chat/), so
+// only the drawing differs. A "Show me" in a reply scrolls to that project's
+// card and marks it, as a ?project= link does.
+{
+  const panel = document.getElementById('chat-panel')
+  const opener = document.getElementById('chat-open')
+  if (panel && opener && ChatSession.available) {
+    const log = panel.querySelector('.chat-panel__log')
+    const greeting = log.firstElementChild
+    const form = panel.querySelector('.chat__form')
+    const input = panel.querySelector('.chat__input')
+    const send = panel.querySelector('.chat__send')
+    const suggestions = panel.querySelector('.chat__suggestions')
+    const error = panel.querySelector('.chat-panel > .chat__error')
+    const narrow = matchMedia('(max-width: 560px)')
+    const projects = new Map([...document.querySelectorAll('.card[id^="project-"]')]
+      .map((card) => [card.id.slice('project-'.length), card.querySelector('h3')?.textContent ?? '']))
+
+    const showProject = (id) => {
+      track('chat-project', { project: id })
+      const card = document.getElementById(`project-${id}`)
+      if (!card) return
+      // On a phone the panel covers the page it would be pointing at.
+      if (narrow.matches) close()
+      document.querySelectorAll('.card.is-target').forEach((c) => c.classList.remove('is-target'))
+      card.classList.add('is-target')
+      card.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' })
+    }
+
+    const session = new ChatSession({ onChange: render })
+
+    function render() {
+      const nodes = [greeting]
+      session.messages.forEach((m, i) => {
+        const el = document.createElement('div')
+        if (m.role === 'user') {
+          el.className = 'chat-msg chat-msg--user'
+          el.append(Object.assign(document.createElement('p'), { textContent: m.content }))
+        } else if (!m.content && session.busy && i === session.messages.length - 1) {
+          el.className = 'chat-msg chat-msg--bot'
+          el.innerHTML = '<span class="chat-typing" aria-label="Typing"><i></i><i></i><i></i></span>'
+        } else {
+          el.className = 'chat-msg chat-msg--bot chat__reply'
+          renderReply(el, m.content, { projects, hrefFor: (id) => `#project-${id}`, onProject: showProject })
+        }
+        nodes.push(el)
+      })
+      log.replaceChildren(...nodes)
+      log.scrollTop = log.scrollHeight
+
+      error.hidden = !session.error
+      error.textContent = session.error ?? ''
+      if (session.failed) {
+        if (!input.value) input.value = session.failed
+        session.failed = null
+      }
+      send.disabled = session.busy
+      suggestions.hidden = session.messages.length > 0 || session.busy
+    }
+
+    const ask = (text) => {
+      if (!text.trim() || session.busy) return
+      input.value = ''
+      session.send(text)
+    }
+
+    function open() {
+      panel.hidden = false
+      opener.setAttribute('aria-expanded', 'true')
+      document.documentElement.classList.add('is-chatting')
+      if (!matchMedia('(pointer: coarse)').matches) input.focus()
+      track('chat-open', { from: 'button' })
+    }
+
+    function close() {
+      panel.hidden = true
+      opener.setAttribute('aria-expanded', 'false')
+      document.documentElement.classList.remove('is-chatting')
+      opener.focus({ preventScroll: true })
+    }
+
+    opener.addEventListener('click', open)
+    panel.querySelector('.chat__close').addEventListener('click', close)
+    panel.addEventListener('keydown', (event) => { if (event.key === 'Escape') close() })
+    form.addEventListener('submit', (event) => {
+      event.preventDefault()
+      ask(input.value)
+    })
+    suggestions.addEventListener('click', (event) => {
+      const chip = event.target.closest('.chat__suggestion')
+      if (chip) ask(chip.textContent)
+    })
+  }
 }

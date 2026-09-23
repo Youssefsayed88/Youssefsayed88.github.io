@@ -3,6 +3,8 @@ import { OWNER, OG_IMAGE } from './src/data/projects.js'
 import { ROUTE_NAMES, DOOR_SKIP_PARAMS } from './src/core/params.js'
 import { levelMarkup, doorMarkup, railMarkup, contactEvent, esc } from './src/level/markup.js'
 import { analyticsTag, trackAttrs } from './src/core/analytics.js'
+import { chatMeta } from './src/chat/config.js'
+import { chatButtonMarkup, chatDockMarkup } from './src/chat/markup.js'
 
 const SITE = String(OWNER.site ?? '').replace(/\/+$/, '')
 
@@ -66,6 +68,9 @@ function headTags() {
           .replace('</head>', `${block}\n</head>`)
           .replace('<!--DOOR_CHECK-->', doorCheck)
           .replace('<!--ANALYTICS-->', analyticsTag())
+          .replace('<!--CHAT_META-->', chatMeta())
+          .replace('<!--CHAT_BUTTON-->', chatButtonMarkup())
+          .replace('<!--CHAT_DOCK-->', chatDockMarkup())
           .replace('<!--DOOR-->', doorMarkup())
           .replace('<!--LEVEL-->', levelMarkup())
           .replace('<!--RAIL-->', railMarkup())

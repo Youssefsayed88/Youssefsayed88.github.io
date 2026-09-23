@@ -14,6 +14,8 @@ import { PROJECT_PARAM, PLAY_PARAM, ROUTE_NAMES } from '../src/core/params.js'
 import { summary, experience, education, skills } from '../src/data/profile.js'
 import { railMarkup, contactEvent } from '../src/level/markup.js'
 import { analyticsTag, trackAttrs } from '../src/core/analytics.js'
+import { CHAT_URL, chatMeta } from '../src/chat/config.js'
+import { chatPanelMarkup } from '../src/chat/markup.js'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
@@ -75,6 +77,43 @@ const THEME_TOGGLE = `(function () {
   button.hidden = false
 })()`
 
+// The chatbot's panel down the side, when the build has one: the pieces both
+// pages share (src/chat/chat.css), then this page's own layout. On a wide
+// screen the page makes room for it, so it sits beside the work rather than on
+// top of it; on a phone it is a sheet up from the bottom.
+const CHAT_CSS = CHAT_URL ? `${fs.readFileSync('src/chat/chat.css', 'utf8')}
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.chat-fab{position:fixed;z-index:8;right:max(1.25rem,env(safe-area-inset-right));bottom:max(1.25rem,env(safe-area-inset-bottom));
+  display:inline-flex;align-items:center;gap:.55rem;padding:.7rem 1.15rem;border:0;border-radius:999px;cursor:pointer;
+  font:inherit;font-size:.92rem;font-weight:600;background:var(--ink);color:var(--surface);
+  box-shadow:0 8px 24px rgba(31,31,36,.22);transition:background-color .15s ease}
+.chat-fab:hover,.chat-fab:focus-visible{background:var(--ink-hover)}
+.chat-fab__dot{width:.6rem;height:.6rem;border-radius:50%;background:var(--accent);animation:fab-pulse 2.4s ease-in-out infinite}
+@keyframes fab-pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 55%,transparent)}50%{box-shadow:0 0 0 6px transparent}}
+.chat-panel{position:fixed;z-index:9;top:0;right:0;bottom:0;width:min(24rem,100%);display:flex;flex-direction:column;
+  background:var(--surface);border-left:1px solid var(--rule);box-shadow:-12px 0 32px rgba(31,31,36,.12);animation:panel-side .22s ease-out}
+@keyframes panel-side{from{transform:translateX(24px);opacity:0}}
+.chat-panel__head{display:flex;justify-content:space-between;align-items:center;padding:.85rem 1rem;border-bottom:1px solid var(--rule)}
+.chat-panel__title{margin:0;font-weight:700}
+.chat-panel__log{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:1rem;display:flex;flex-direction:column;gap:.7rem}
+.chat-msg{max-width:88%;padding:.6rem .85rem;border-radius:16px;font-size:.9rem;line-height:1.5}
+.chat-msg p{margin:0}
+.chat-msg--bot{align-self:flex-start;background:var(--bg);border:1px solid var(--rule);border-bottom-left-radius:5px}
+.chat-msg--bot.chat__reply p{margin:0 0 .45rem}
+.chat-msg--user{align-self:flex-end;background:var(--ink);color:var(--surface);border-bottom-right-radius:5px;overflow-wrap:anywhere}
+.chat-panel>.chat__error{margin:0 1rem .6rem}
+.chat-panel__foot{padding:.75rem 1rem max(.75rem,env(safe-area-inset-bottom));border-top:1px solid var(--rule)}
+.chat-typing{display:flex;gap:5px;padding:.25rem .1rem}
+.chat-typing i{width:7px;height:7px;border-radius:50%;background:var(--faint);animation:chat-dot .9s ease-in-out infinite}
+.chat-typing i:nth-child(2){animation-delay:.15s}.chat-typing i:nth-child(3){animation-delay:.3s}
+@keyframes chat-dot{0%,60%,100%{transform:none;opacity:.5}30%{transform:translateY(-4px);opacity:1}}
+html.is-chatting .chat-fab{display:none}
+@media (min-width:1200px){html.is-chatting body{padding-right:24rem}html.is-chatting .rail{right:calc(24rem + .9rem)}}
+@media (max-width:560px){.chat-panel{top:auto;height:min(88vh,40rem);border-left:0;border-top:1px solid var(--rule);
+  border-radius:20px 20px 0 0;box-shadow:0 -12px 32px rgba(31,31,36,.18);animation-name:panel-up}}
+@keyframes panel-up{from{transform:translateY(24px);opacity:0}}
+@media print{.chat-fab,.chat-panel{display:none!important}html.is-chatting body{padding-right:0}}` : ''
+
 function projectCard(p) {
   const media = p.image
     ? `<img src="${esc(p.image)}" alt="${esc(p.title)}" loading="lazy" width="480" height="270">`
@@ -133,6 +172,7 @@ const html = `<!DOCTYPE html>
 <meta name="twitter:image" content="${esc(SITE)}/${OG_IMAGE.path}">
 ${THEME_EARLY}
 ${analyticsTag()}
+${chatMeta()}
 <style>
 /* The platformer's palette, so the two routes read as one site: paper, ink,
    and the robot's orange as the only accent. */
@@ -275,6 +315,7 @@ footer{padding:2.5rem 0 3.5rem;border-top:1px solid var(--rule);color:var(--fain
 footer a{transition:color .15s ease}
 footer a:hover{color:var(--accent)}
 main:focus{outline:none}
+${CHAT_CSS}
 @media print{
   :root,:root[data-theme]{color-scheme:light;--bg:#fff;--surface:#fff;--ink:#000;--muted:#333;--faint:#555;--rule:#ccc}
   body{background:#fff;color:#000}
@@ -365,6 +406,7 @@ ${railMarkup()}
   <button class="video__close" type="button" aria-label="Close">&times;</button>
   <div class="video__media"></div>
 </dialog>
+${chatPanelMarkup()}
 <script type="module" src="./src/classic.js"></script>
 
 <script>
