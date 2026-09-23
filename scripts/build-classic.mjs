@@ -4,7 +4,9 @@
 //
 // Runs via npm predev/prebuild, so the page can never drift from projects.js.
 // CSS is inlined on purpose: this is the page someone lands on when they are in
-// a hurry or want to print, so it should cost exactly one request.
+// a hurry or want to print, so it should cost exactly one request. The one
+// script it loads (src/classic.js, the video dialog) is small and deferred, and
+// only fetches the player when a video is opened.
 
 import fs from 'node:fs'
 import { OWNER, OG_IMAGE, WINGS, projects, byWing } from '../src/data/projects.js'
@@ -79,8 +81,19 @@ function projectCard(p) {
 
   const links = [
     ...(p.links ?? []),
-    p.video && { label: 'Watch video', url: p.video },
+    p.video && { label: 'Watch video', url: p.video, video: true },
   ].filter(Boolean)
+
+  // A hosted file opens in the page's own player (src/classic.js), as it does
+  // in the platformer's panel; the href is the fallback with JavaScript off.
+  // Anything else (YouTube, Drive) keeps its host's page.
+  const link = (l) => {
+    const hosted = l.video && /\.(mp4|webm)$/i.test(l.url)
+    const data = hosted
+      ? ` data-video data-title="${esc(p.title)}"${p.image ? ` data-poster="${esc(p.image)}"` : ''}`
+      : ''
+    return `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"${data}>${esc(l.label)}</a>`
+  }
 
   // Same id the platformer answers `?project=` with, so one shared link resolves
   // on either route. See the deep-link script at the foot of this page.
@@ -93,8 +106,7 @@ function projectCard(p) {
           ${p.role ? `<p class="card__role">${esc(p.role)}</p>` : ''}
           <p class="card__blurb">${esc(p.blurb)}</p>
           ${p.tech?.length ? `<ul class="card__tech">${p.tech.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
-          ${links.length ? `<p class="card__links">${links.map((l) =>
-            `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.label)}</a>`).join('')}</p>` : ''}
+          ${links.length ? `<p class="card__links">${links.map(link).join('')}</p>` : ''}
         </div>
       </article>`
 }
@@ -242,6 +254,19 @@ section,header{scroll-margin-top:3.3rem}
   .rail::before{content:"";position:absolute;top:0;bottom:0;right:0;width:var(--rail-col);border-radius:999px;
   background:color-mix(in srgb,var(--bg) 85%,transparent)}.rail__item{font-size:.95rem}}
 @media (max-height:520px){.rail{display:none}}
+/* The video dialog: the platformer's panel (.modal in src/style.css), media only. */
+.video{width:min(860px,calc(100% - 1.5rem));max-width:none;max-height:none;padding:0;border:0;border-radius:12px;
+  overflow:hidden;background:#111114;box-shadow:0 20px 50px rgba(31,31,36,.25);
+  --plyr-color-main:var(--accent);--plyr-video-background:#111114;--plyr-font-family:inherit}
+.video[open]{animation:panel-in .2s ease-out}
+.video::backdrop{background:rgba(31,31,36,.5)}
+@keyframes panel-in{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.video__close{position:absolute;top:.75rem;right:.75rem;z-index:5;width:2rem;height:2rem;display:grid;place-items:center;
+  background:var(--surface);color:var(--ink);border:1.5px solid var(--ink);border-radius:50%;
+  font:inherit;font-size:1.2rem;line-height:1;cursor:pointer}
+.video__close:hover,.video__close:focus-visible{background:var(--ink);color:var(--surface)}
+.video__el{display:block;width:100%;aspect-ratio:16/9;max-height:min(80vh,484px);border:0;object-fit:contain;background:#111114}
+@media (max-width:620px){.video .plyr__volume input[type="range"],.video .plyr__controls [data-plyr="pip"]{display:none}}
 footer{padding:2.5rem 0 3.5rem;border-top:1px solid var(--rule);color:var(--faint);font-size:.85rem}
 footer a{transition:color .15s ease}
 footer a:hover{color:var(--accent)}
@@ -249,7 +274,7 @@ main:focus{outline:none}
 @media print{
   :root,:root[data-theme]{color-scheme:light;--bg:#fff;--surface:#fff;--ink:#000;--muted:#333;--faint:#555;--rule:#ccc}
   body{background:#fff;color:#000}
-  .bar,.card__media,.skip-link,.rail{display:none}
+  .bar,.card__media,.skip-link,.rail,.video{display:none}
   a{color:#000}
   .card{border-top-width:1px}
 }
@@ -331,6 +356,12 @@ ${skills.map((s) => `      <div>
 </main>
 
 ${railMarkup()}
+
+<dialog class="video" id="video" aria-label="Project video">
+  <button class="video__close" type="button" aria-label="Close">&times;</button>
+  <div class="video__media"></div>
+</dialog>
+<script type="module" src="./src/classic.js"></script>
 
 <script>
 ${THEME_TOGGLE}
