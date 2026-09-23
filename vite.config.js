@@ -1,7 +1,8 @@
 import { defineConfig } from 'vite'
 import { OWNER, OG_IMAGE } from './src/data/projects.js'
 import { ROUTE_NAMES, DOOR_SKIP_PARAMS } from './src/core/params.js'
-import { levelMarkup, doorMarkup, railMarkup, esc } from './src/level/markup.js'
+import { levelMarkup, doorMarkup, railMarkup, contactEvent, esc } from './src/level/markup.js'
+import { analyticsTag, trackAttrs } from './src/core/analytics.js'
 
 const SITE = String(OWNER.site ?? '').replace(/\/+$/, '')
 
@@ -45,8 +46,10 @@ function headTags() {
   // A relative href, because `base` is relative and the file is copied straight
   // out of public/.
   const cvLink = OWNER.cv
-    ? `<a class="controls__btn" href="./${esc(OWNER.cv)}" target="_blank" rel="noopener noreferrer">CV (PDF)</a>`
+    ? `<a class="controls__btn" href="./${esc(OWNER.cv)}" target="_blank" rel="noopener noreferrer" ${contactEvent('cv', 'controls')}>CV (PDF)</a>`
     : ''
+  const exitLink = `<a class="controls__btn controls__btn--exit" href="./classic.html" ` +
+    `${trackAttrs('switch-route', { to: 'basic', from: 'controls' })}>${esc(ROUTE_NAMES.basic)}</a>`
 
   // Whether to ask which portfolio, decided before first paint so the door never
   // flashes up over a level that was already chosen. The parameters that skip
@@ -62,11 +65,12 @@ function headTags() {
         return html
           .replace('</head>', `${block}\n</head>`)
           .replace('<!--DOOR_CHECK-->', doorCheck)
+          .replace('<!--ANALYTICS-->', analyticsTag())
           .replace('<!--DOOR-->', doorMarkup())
           .replace('<!--LEVEL-->', levelMarkup())
           .replace('<!--RAIL-->', railMarkup())
           .replace('<!--CV_LINK-->', cvLink)
-          .replace(/<!--LABEL_BASIC-->/g, esc(ROUTE_NAMES.basic))
+          .replace('<!--EXIT_LINK-->', exitLink)
       },
     },
   }

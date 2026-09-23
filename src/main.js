@@ -1,6 +1,7 @@
 import { preventPinchZoom } from './ui/zoom.js'
 import { initThemeToggle } from './ui/theme.js'
 import { fadeInThumbnails } from './ui/loading.js'
+import { track } from './core/analytics.js'
 import Game from './game/Game.js'
 
 // The page is on screen before this runs: the level is plain markup injected at
@@ -50,6 +51,8 @@ if (root) {
     document.getElementById('door-play').addEventListener('click', () => {
       root.inert = false
       if (rail) rail.inert = false
+      // The basic choice is a link, counted by its markup; see doorMarkup.
+      track('choose-portfolio', { route: 'interactive' })
       // The robot drops in behind the door as it fades.
       startGame()
       door.classList.add('is-leaving')

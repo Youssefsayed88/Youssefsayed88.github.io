@@ -12,6 +12,7 @@ import { createBody, stepBody } from './physics.js'
 import { BODY_HALF_WIDTH, PLAYER_HEIGHT } from './movement.js'
 import { projects, WINGS } from '../data/projects.js'
 import { PROJECT_PARAM } from '../core/params.js'
+import { track } from '../core/analytics.js'
 
 // Standing still on a project for this long opens it. Long enough to read the
 // bubble and move on; short enough that waiting is a way in.
@@ -75,6 +76,9 @@ export default class Game {
     this.dismissed = null
     this.warping = false
     this.arriving = false
+    // The sections the robot has been in, each counted once: how far down the
+    // level a visitor got.
+    this.reached = new Set()
 
     this.body = this.spawnBody()
 
@@ -138,7 +142,7 @@ export default class Game {
       if (input.move || input.jump || input.drop) this.hud.hideHint()
 
       this.updateTarget(delta)
-      this.hud.setRoom(this.level.sectionAt(this.body.y))
+      this.enterSection(this.level.sectionAt(this.body.y))
       this.rail.update(this.body.y, this.level.sections)
     }
 
@@ -202,6 +206,16 @@ export default class Game {
     if (this.dwell >= DWELL) this.interact()
   }
 
+  enterSection(section) {
+    if (!section) return
+    this.hud.setRoom(section.label)
+    // The ground at the foot has no id of its own; `#portal` is its button.
+    const id = section.id || section.label.toLowerCase()
+    if (this.reached.has(id)) return
+    this.reached.add(id)
+    track('reach-section', { section: id })
+  }
+
   // Where the bubble points: the middle of the robot and the top of its head.
   speaker() {
     return { x: this.body.x, top: this.body.y - PLAYER_HEIGHT }
@@ -223,12 +237,14 @@ export default class Game {
     // Stop where it stands, or the robot runs on the spot behind the panel.
     this.body = { ...this.body, vx: 0 }
     this.modal.show(project)
+    track('open-project', { project: id })
   }
 
   // The portal: out of sight at the bottom, a flight up the whole page, and a
   // drop back onto the name.
   warp() {
     if (this.warping || this.paused) return
+    track('portal')
     this.vanish((reduced) => {
       this.body = this.spawnBody()
       if (reduced) this.camera.snap(this.body)
@@ -309,7 +325,11 @@ export default class Game {
     this.camera.snap(this.body)
     this.avatar.update(this.body, 0)
     this.updateTarget(0)
+    // The panel opens at once, and the loop does not look at sections while it
+    // is up.
+    this.enterSection(this.level.sectionAt(this.body.y))
     this.openProject(id)
+    track('deep-link', { project: id })
   }
 
   setUrlProject(id) {

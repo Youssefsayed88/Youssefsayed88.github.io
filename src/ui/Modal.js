@@ -7,6 +7,8 @@
 // keeps the browser's own controls, so a slow or blocked chunk costs the styling
 // and never the video.
 
+import { track, trackAttrs } from '../core/analytics.js'
+
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
 ))
@@ -50,6 +52,10 @@ export default class Modal {
     this.root.hidden = false
     // Focus the close button so Tab stays inside the dialog and Escape is obvious.
     this.root.querySelector('.modal__close').focus()
+    // An embed's play button is inside its frame, out of reach; only a hosted
+    // file can say it was played.
+    this.media.querySelector('video')?.addEventListener('play',
+      () => track('play-video', { project: project.id }), { once: true })
     this.mountPlayer()
     this.onToggle?.(true, project)
   }
@@ -120,7 +126,7 @@ export default class Modal {
 
     const links = p.links?.length
       ? `<div class="modal__links">${p.links.map((l) =>
-          `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer">${esc(l.label)}</a>`,
+          `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" ${trackAttrs('project-link', { project: p.id, link: l.label })}>${esc(l.label)}</a>`,
         ).join('')}</div>`
       : ''
 

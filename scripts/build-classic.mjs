@@ -12,7 +12,8 @@ import fs from 'node:fs'
 import { OWNER, OG_IMAGE, WINGS, projects, byWing } from '../src/data/projects.js'
 import { PROJECT_PARAM, PLAY_PARAM, ROUTE_NAMES } from '../src/core/params.js'
 import { summary, experience, education, skills } from '../src/data/profile.js'
-import { railMarkup } from '../src/level/markup.js'
+import { railMarkup, contactEvent } from '../src/level/markup.js'
+import { analyticsTag, trackAttrs } from '../src/core/analytics.js'
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
@@ -22,9 +23,9 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
 const SITE = String(OWNER.site ?? '').replace(/\/+$/, '')
 
 const socials = [
-  OWNER.github && { label: 'GitHub', url: OWNER.github },
-  OWNER.linkedin && { label: 'LinkedIn', url: OWNER.linkedin },
-  OWNER.itch && { label: 'itch.io', url: OWNER.itch },
+  OWNER.github && { id: 'github', label: 'GitHub', url: OWNER.github },
+  OWNER.linkedin && { id: 'linkedin', label: 'LinkedIn', url: OWNER.linkedin },
+  OWNER.itch && { id: 'itch', label: 'itch.io', url: OWNER.itch },
 ].filter(Boolean)
 
 // The palette and theme handling shared by the two pages this script writes,
@@ -86,12 +87,14 @@ function projectCard(p) {
 
   // A hosted file opens in the page's own player (src/classic.js), as it does
   // in the platformer's panel; the href is the fallback with JavaScript off.
-  // Anything else (YouTube, Drive) keeps its host's page.
+  // Anything else (YouTube, Drive) keeps its host's page. A hosted video counts
+  // as `play-video` once it plays (src/classic.js); every other link counts as
+  // it is followed.
   const link = (l) => {
     const hosted = l.video && /\.(mp4|webm)$/i.test(l.url)
     const data = hosted
-      ? ` data-video data-title="${esc(p.title)}"${p.image ? ` data-poster="${esc(p.image)}"` : ''}`
-      : ''
+      ? ` data-video data-project="${esc(p.id)}" data-title="${esc(p.title)}"${p.image ? ` data-poster="${esc(p.image)}"` : ''}`
+      : ` ${trackAttrs('project-link', { project: p.id, link: l.label })}`
     return `<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer"${data}>${esc(l.label)}</a>`
   }
 
@@ -129,6 +132,7 @@ const html = `<!DOCTYPE html>
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="${esc(SITE)}/${OG_IMAGE.path}">
 ${THEME_EARLY}
+${analyticsTag()}
 <style>
 /* The platformer's palette, so the two routes read as one site: paper, ink,
    and the robot's orange as the only accent. */
@@ -289,7 +293,7 @@ main:focus{outline:none}
     <strong>${esc(OWNER.name)}</strong>
     <div class="bar__actions">
       <button class="theme-toggle" id="theme" type="button" aria-label="Switch to dark theme" hidden>${THEME_ICONS}</button>
-      <a href="./index.html?${PLAY_PARAM}">${esc(ROUTE_NAMES.showroom)}</a>
+      <a href="./index.html?${PLAY_PARAM}" ${trackAttrs('switch-route', { to: 'interactive', from: 'bar' })}>${esc(ROUTE_NAMES.showroom)}</a>
     </div>
   </div>
 </div>
@@ -301,10 +305,10 @@ main:focus{outline:none}
     <p class="role">${esc(OWNER.title)} &middot; ${esc(OWNER.location)}</p>
     <p class="summary">${esc(summary)}</p>
     <ul class="contact">
-      ${OWNER.cv ? `<li class="cv"><a href="${esc(OWNER.cv)}" target="_blank" rel="noopener noreferrer">Download CV (PDF)</a></li>` : ''}
-      <li><a href="mailto:${esc(OWNER.email)}">${esc(OWNER.email)}</a></li>
-      <li><a href="tel:${esc(OWNER.phone.replace(/\s/g, ''))}">${esc(OWNER.phone)}</a></li>
-      ${socials.map((s) => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer">${esc(s.label)}</a></li>`).join('\n      ')}
+      ${OWNER.cv ? `<li class="cv"><a href="${esc(OWNER.cv)}" target="_blank" rel="noopener noreferrer" ${contactEvent('cv', 'header')}>Download CV (PDF)</a></li>` : ''}
+      <li><a href="mailto:${esc(OWNER.email)}" ${contactEvent('email', 'header')}>${esc(OWNER.email)}</a></li>
+      <li><a href="tel:${esc(OWNER.phone.replace(/\s/g, ''))}" ${contactEvent('phone', 'header')}>${esc(OWNER.phone)}</a></li>
+      ${socials.map((s) => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" ${contactEvent(s.id, 'header')}>${esc(s.label)}</a></li>`).join('\n      ')}
     </ul>
   </header>
 
@@ -350,7 +354,7 @@ ${skills.map((s) => `      <div>
 
   <footer>
     <p>${esc(OWNER.name)} &middot; ${esc(OWNER.email)}</p>
-    <p>Prefer to play through it? <a href="./index.html?${PLAY_PARAM}">${esc(ROUTE_NAMES.showroom)}</a>.</p>
+    <p>Prefer to play through it? <a href="./index.html?${PLAY_PARAM}" ${trackAttrs('switch-route', { to: 'interactive', from: 'footer' })}>${esc(ROUTE_NAMES.showroom)}</a>.</p>
   </footer>
 
 </main>
@@ -471,6 +475,7 @@ const notFound = `<!DOCTYPE html>
 <meta name="robots" content="noindex">
 <link rel="icon" href="${esc(HOME)}/favicon.svg" type="image/svg+xml">
 ${THEME_EARLY}
+${analyticsTag()}
 <style>
 ${TOKENS}
 body{margin:0;min-height:100vh;min-height:100svh;display:grid;place-items:center;padding:2rem 1.25rem;

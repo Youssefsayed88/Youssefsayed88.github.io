@@ -18,6 +18,7 @@
 // it, and platformer-smoke.mjs checks that every project and every skill tag
 // came out as a platform.
 import { OWNER, WINGS, byWing } from '../data/projects.js'
+import { trackAttrs } from '../core/analytics.js'
 import { summary, experience, education, skills } from '../data/profile.js'
 import { ROUTE_NAMES } from '../core/params.js'
 import { PLAYER_HEIGHT } from '../game/movement.js'
@@ -44,7 +45,15 @@ function contacts() {
   ].filter(Boolean)
 
   return chips.map((c) => `
-      <li><a class="lv-chip${c.cv ? ' lv-chip--cv' : ''}" data-platform="contact-${c.id}" href="${esc(c.href)}" ${c.attrs ?? ''}>${esc(c.label)}</a></li>`).join('')
+      <li><a class="lv-chip${c.cv ? ' lv-chip--cv' : ''}" data-platform="contact-${c.id}" href="${esc(c.href)}" ${c.attrs ?? ''} ${contactEvent(c.id, 'level')}>${esc(c.label)}</a></li>`).join('')
+}
+
+// The CV download and the ways to get in touch, counted the same way on both
+// routes; `from` says which link on the page it was.
+export function contactEvent(id, from) {
+  return id === 'cv'
+    ? trackAttrs('download-cv', { from })
+    : trackAttrs('contact', { channel: id, from })
 }
 
 // A project is its thumbnail and nothing else on the page — it says the rest in
@@ -118,7 +127,7 @@ export function doorMarkup() {
           <span class="door__desc">Play through it as a platformer. A robot jumps down the page, and tells you about each project it lands on.</span>
           <span class="door__meta">Keyboard, touch or gamepad &middot; a moment to load</span>
         </button>
-        <a class="door__card" href="./classic.html">
+        <a class="door__card" href="./classic.html" ${trackAttrs('choose-portfolio', { route: 'basic' })}>
           <span class="door__title">${esc(ROUTE_NAMES.basic)}<span class="door__arrow" aria-hidden="true">&rarr;</span></span>
           <span class="door__desc">Every project on one readable page, with the experience, skills and CV alongside.</span>
           <span class="door__meta">Loads instantly &middot; works anywhere &middot; prints</span>
@@ -186,8 +195,8 @@ ${WINGS.map(wing).join('')}
         <span class="portal__label">Back to the top</span>
       </button>
       <div class="lv-ground__info">
-        <p><strong>${esc(OWNER.name)}</strong> &middot; <a href="mailto:${esc(OWNER.email)}">${esc(OWNER.email)}</a></p>
-        <p>In a hurry? <a href="./classic.html">${esc(ROUTE_NAMES.basic)}</a> has every project on one page.</p>
+        <p><strong>${esc(OWNER.name)}</strong> &middot; <a href="mailto:${esc(OWNER.email)}" ${contactEvent('email', 'footer')}>${esc(OWNER.email)}</a></p>
+        <p>In a hurry? <a href="./classic.html" ${trackAttrs('switch-route', { to: 'basic', from: 'footer' })}>${esc(ROUTE_NAMES.basic)}</a> has every project on one page.</p>
       </div>
     </footer>
 

@@ -89,11 +89,11 @@ export default class Level extends Emitter {
     this.trigger('remeasure', before)
   }
 
-  // The label of the section the feet are in, for the HUD.
+  // The section the feet are in: its label for the HUD, its id for analytics.
   sectionAt(y) {
-    let label = this.sections[0]?.label ?? ''
-    for (const s of this.sections) if (s.top <= y + 1) label = s.label
-    return label
+    let section = this.sections[0] ?? null
+    for (const s of this.sections) if (s.top <= y + 1) section = s
+    return section
   }
 
   platformForProject(projectId) {

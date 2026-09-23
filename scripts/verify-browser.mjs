@@ -552,7 +552,9 @@ await settleAt(1280)
 }
 
 // 18. Nothing threw, nothing 404'd, and nothing left this origin — Plyr's
-//     sprite and blank video default to its CDN, and both are overridden.
+//     sprite and blank video default to its CDN, and both are overridden. The
+//     analytics providers load on the live site only (src/core/analytics.js), so
+//     they are no exception.
 {
   const errors = cdp.events
     .filter((e) => e.method === 'Log.entryAdded' && e.params.entry.level === 'error')

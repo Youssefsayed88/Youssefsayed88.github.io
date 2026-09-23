@@ -22,6 +22,9 @@
   <!-- Asks which portfolio unless the link already chose. See doorMarkup in
        src/level/markup.js; injected by vite.config.js. -->
   <!--DOOR_CHECK-->
+  <!-- PostHog, cookieless, live site only; see src/core/analytics.js. Nothing
+       at all when the build has no token. -->
+  <!--ANALYTICS-->
   <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
@@ -56,7 +59,7 @@
     <!-- The way out to the plain page, and the one control here that is not
          about the game. What a recruiter with four minutes wants, so it does
          not look like the two beside it — see .controls__btn--exit. -->
-    <a class="controls__btn controls__btn--exit" href="./classic.html"><!--LABEL_BASIC--></a>
+    <!--EXIT_LINK-->
   </div>
 
   <div class="modal" id="modal" hidden>

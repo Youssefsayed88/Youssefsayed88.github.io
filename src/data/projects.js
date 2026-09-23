@@ -169,7 +169,6 @@ export const projects = [
   {
     id: 'vr-connect',
     wing: 'xr',
-    // Shehab's site lists this generically as "Advanced Training and Simulations";
     // VR-Connect is the actual product name, so it leads.
     title: 'VR-Connect',
     blurb: 'VR training simulator that guides and evaluates medical staff on cleaning procedures and compliance with medical standards.',
@@ -203,8 +202,6 @@ export const projects = [
   {
     id: 'digito',
     wing: 'xr',
-    // Shehab's site lists this generically as "Digital Twin Projects";
-    // Digito is the actual product name.
     title: 'Digito',
     blurb: 'Digital twin of a real restaurant — view and interact with the space virtually, backed by live data from the real venue.',
     role: 'Built the camera movement and navigation through the virtual space.',

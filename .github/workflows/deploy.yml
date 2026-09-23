@@ -26,7 +26,13 @@ jobs:
       - run: npm ci
       # Physics and layout checks run headless, so a broken level fails the deploy.
       - run: npm test
+      # The analytics token is written into the pages at build time; see
+      # src/core/analytics.js. A missing secret builds the site without
+      # analytics rather than failing.
       - run: npm run build
+        env:
+          POSTHOG_TOKEN: ${{ secrets.POSTHOG_TOKEN }}
+          POSTHOG_HOST: ${{ vars.POSTHOG_HOST }}
       # No enablement: true here. GitHub auto-enables Pages on a <user>.github.io
       # repo using the LEGACY branch builder, which serves the repo root verbatim
       # rather than dist/ -- and configure-pages then fails against that existing

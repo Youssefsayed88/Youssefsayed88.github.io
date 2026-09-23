@@ -18,9 +18,9 @@ game-free page alongside it for anyone who would rather just read.
 
 ### The problem this exists to solve
 
-The starting point was a fork of Shehab ElGendy's portfolio. **8 of the 14
-projects here also appear on his site**, with the same screenshots and the same
-one-line product descriptions. Two things set this one apart:
+Several of these projects were team efforts, so they also appear in other
+people's portfolios, with the same screenshots and the same one-line product
+descriptions. Two things set this one apart:
 
 1. **The form.** A page you play, not a scrolling card grid.
 2. **The attribution.** A `role` line on every project saying what *you* built.
@@ -269,8 +269,12 @@ outline for a deep-linked card.
   (or a sprite sheet baked from the model) would remove it. Vite's chunk-size
   warning is about this file.
 - **Favicon** is still the showroom's floor plan.
-- **Analytics**: still none, deliberately. A cookieless counter needs no consent
-  banner. **Shehab's `G-95G4Y8NTMR` must never be copied.**
+- **Analytics**: PostHog, cookieless and live-site only, on both routes and the
+  404 page (`src/core/analytics.js`). The token is the `POSTHOG_TOKEN` Actions
+  secret, read at build time; a build without it has no analytics.
+  Events: `choose-portfolio`, `open-project`, `play-video`, `project-link`,
+  `deep-link`, `reach-section`, `portal`, `download-cv`, `contact`,
+  `switch-route`.
 - Optional: replace the Ballpop! and Whack-a-Hole art (itch thumbnails);
   `scripts/encode-images.mjs` makes it a one-command job.
 
