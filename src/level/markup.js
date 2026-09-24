@@ -38,19 +38,6 @@ const external = 'target="_blank" rel="noopener noreferrer"'
 // and a capital, so "3+ years" and a decimal survive.
 export const sentences = (text) => String(text).split(/(?<=\.)\s+(?=[A-Z])/).filter(Boolean)
 
-function contacts() {
-  const chips = [
-    OWNER.cv && { id: 'cv', label: 'CV (PDF)', href: `./${OWNER.cv}`, attrs: external, cv: true },
-    OWNER.email && { id: 'email', label: OWNER.email, href: `mailto:${OWNER.email}` },
-    OWNER.github && { id: 'github', label: 'GitHub', href: OWNER.github, attrs: external },
-    OWNER.linkedin && { id: 'linkedin', label: 'LinkedIn', href: OWNER.linkedin, attrs: external },
-    OWNER.itch && { id: 'itch', label: 'itch.io', href: OWNER.itch, attrs: external },
-  ].filter(Boolean)
-
-  return chips.map((c) => `
-      <li><a class="lv-chip${c.cv ? ' lv-chip--cv' : ''}" data-platform="contact-${c.id}" href="${esc(c.href)}" ${c.attrs ?? ''} ${contactEvent(c.id, 'level')}>${esc(c.label)}</a></li>`).join('')
-}
-
 // The CV download and the ways to get in touch, counted the same way on both
 // routes; `from` says which link on the page it was.
 export function contactEvent(id, from) {
@@ -225,8 +212,6 @@ export function levelMarkup() {
       <div class="lv-summary">${sentences(summary).map((s, i) => `
         <p class="lv-line" data-platform="summary-${i}">${esc(s)}</p>`).join('')}
       </div>
-      <ul class="lv-contact">${contacts()}
-      </ul>
     </section>
 ${WINGS.map(wing).join('')}
 
@@ -254,9 +239,7 @@ ${testimonialsSection()}
         <span class="portal__label">Back to the top</span>
       </button>
       <div class="lv-ground__info">
-        <p class="lv-ground__name">${esc(OWNER.name)}</p>
         ${socialMarkup('footer')}
-        <p>In a hurry? <a href="./classic.html" ${trackAttrs('switch-route', { to: 'basic', from: 'footer' })}>${esc(ROUTE_NAMES.basic)}</a> has every project on one page.</p>
         ${copyrightMarkup()}
       </div>
     </footer>

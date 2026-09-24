@@ -239,19 +239,9 @@ html.is-playing .level { touch-action: none; }
   font-size: 1rem; line-height: 1.6;
 }
 
-.lv-contact { list-style: none; margin: 2.5rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2rem 1.75rem; }
-.lv-chip {
-  display: inline-block;
-  padding: 0.6rem 0.9rem 0.45rem;
-  background: var(--surface); border: 1px solid var(--rule); border-radius: 6px;
-  font-size: 0.9rem; text-decoration: none;
-}
-.lv-chip:hover { border-color: var(--ink); }
-.lv-chip--cv { background: var(--ink); border-color: var(--ink); color: var(--surface); font-weight: 600; }
-.lv-chip--cv:hover { background: var(--ink-hover); border-color: var(--ink-hover); }
 
 /* Every button and link that changes on hover eases into it. */
-.lv-chip, .portal, .bubble__open, .modal__close, .modal__links a, .controls__btn, .lv-ground__info a:not(.social__link) {
+.portal, .bubble__open, .modal__close, .modal__links a, .controls__btn, .lv-ground__info a:not(.social__link) {
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
@@ -380,7 +370,7 @@ html.is-playing .level { touch-action: none; }
 .lv-quote__by strong { font-weight: 600; }
 
 /* ---------- Contact icons and copyright (the ground) ---------- */
-.social { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0.4rem 0 1rem; padding: 0; list-style: none; }
+.social { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.6rem; margin: 0.4rem 0 1rem; padding: 0; list-style: none; }
 .social__link {
   display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 50%;
   background: var(--surface); border: 1px solid var(--rule); color: var(--ink);
@@ -404,7 +394,7 @@ html.is-playing .level { touch-action: none; }
   background: var(--ground);
 }
 .lv-ground__info a:not(.social__link):hover { color: var(--accent); }
-.lv-ground__info { max-width: 26rem; color: var(--muted); font-size: 0.9rem; }
+.lv-ground__info { max-width: 26rem; margin: 0 auto; text-align: center; color: var(--muted); font-size: 0.9rem; }
 .lv-ground__info p { margin: 0 0 0.45rem; }
 .lv-ground__info strong { color: var(--ink); font-weight: 600; }
 

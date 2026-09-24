@@ -26,12 +26,6 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
 // No trailing slash, so `${SITE}/${OG_IMAGE.path}` never doubles up.
 const SITE = String(OWNER.site ?? '').replace(/\/+$/, '')
 
-const socials = [
-  OWNER.github && { id: 'github', label: 'GitHub', url: OWNER.github },
-  OWNER.linkedin && { id: 'linkedin', label: 'LinkedIn', url: OWNER.linkedin },
-  OWNER.itch && { id: 'itch', label: 'itch.io', url: OWNER.itch },
-].filter(Boolean)
-
 // The palette and theme handling shared by the two pages this script writes,
 // classic.html and 404.html. The same tokens as :root in src/style.css, dark
 // variant included; each page is one request, so they are copied rather than
@@ -214,15 +208,6 @@ header{padding:3.5rem 0 2.5rem}
 h1{margin:0 0 .35rem;font-size:clamp(2rem,5vw,3rem);line-height:1.05;letter-spacing:-.02em}
 .role{margin:0 0 1rem;color:var(--muted);font-size:1.05rem}
 .summary{margin:0 0 1.5rem;color:var(--muted);max-width:62ch}
-.contact{display:flex;flex-wrap:wrap;gap:.5rem;padding:0;margin:0;list-style:none}
-.contact a{display:inline-block;padding:.4rem .85rem;background:var(--surface);border:1px solid var(--rule);
-  border-radius:6px;font-size:.85rem;text-decoration:none}
-.contact a{transition:background-color .15s ease,border-color .15s ease}
-.contact a:hover,.contact a:focus-visible{border-color:var(--ink)}
-/* The CV is the one link on this page a recruiter is actively looking for, so
-   it is the only one that does not look like the rest of the row. */
-.contact .cv a{background:var(--ink);border-color:var(--ink);color:var(--surface);font-weight:600}
-.contact .cv a:hover,.contact .cv a:focus-visible{background:var(--ink-hover);border-color:var(--ink-hover)}
 section{padding:2.25rem 0;border-top:1px solid var(--rule)}
 h2{margin:0 0 .25rem;font-size:1.4rem}
 .wing-note{margin:0 0 1.4rem;color:var(--faint);font-size:.88rem}
@@ -337,7 +322,8 @@ footer a{transition:color .15s ease}
 footer a:not(.social__link):hover{color:var(--accent)}
 footer p{margin:0 0 .5rem}
 .footer__name{color:var(--ink);font-weight:700;font-size:1rem}
-.social{display:flex;flex-wrap:wrap;gap:.6rem;margin:.6rem 0 1.1rem;padding:0;list-style:none}
+footer{text-align:center}
+.social{display:flex;flex-wrap:wrap;justify-content:center;gap:.6rem;margin:.6rem 0 1.1rem;padding:0;list-style:none}
 .social__link{display:grid;place-items:center;width:2.6rem;height:2.6rem;border-radius:50%;background:var(--surface);
   border:1px solid var(--rule);color:var(--ink);transition:background-color .15s ease,border-color .15s ease,color .15s ease,transform .15s ease}
 .social__link .icon{width:1.05rem;height:1.05rem}
@@ -391,12 +377,6 @@ ${CHAT_CSS}
     <p class="summary">${esc(summary)}</p>
     <a class="more-about" href="#about-me">More about me &darr;</a>
     ${CHAT_URL ? `<button class="ask-robot" id="ask-robot" type="button" hidden><span class="chat-fab__dot" aria-hidden="true"></span>Questions? Ask the chatbot</button>` : ''}
-    <ul class="contact">
-      ${OWNER.cv ? `<li class="cv"><a href="${esc(OWNER.cv)}" target="_blank" rel="noopener noreferrer" ${contactEvent('cv', 'header')}>Download CV (PDF)</a></li>` : ''}
-      <li><a href="mailto:${esc(OWNER.email)}" ${contactEvent('email', 'header')}>${esc(OWNER.email)}</a></li>
-      <li><a href="tel:${esc(OWNER.phone.replace(/\s/g, ''))}" ${contactEvent('phone', 'header')}>${esc(OWNER.phone)}</a></li>
-      ${socials.map((s) => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer" ${contactEvent(s.id, 'header')}>${esc(s.label)}</a></li>`).join('\n      ')}
-    </ul>
   </header>
 
 ${WINGS.map((wing) => {
@@ -463,9 +443,7 @@ ${testimonials.length ? `  <section id="testimonials">
   </section>
 
 ` : ''}  <footer>
-    <p class="footer__name">${esc(OWNER.name)}</p>
     ${socialMarkup('footer')}
-    <p>Prefer to play through it? <a href="./index.html?${PLAY_PARAM}" ${trackAttrs('switch-route', { to: 'interactive', from: 'footer' })}>${esc(ROUTE_NAMES.showroom)}</a>.</p>
     ${copyrightMarkup()}
   </footer>
 
