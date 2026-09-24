@@ -141,8 +141,6 @@ export const SECTIONS = [
 // page goes by. Script on either page (src/ui/Rail.js, and its inline copy in
 // build-classic.mjs) moves the fill and marks the current section; on the level
 // a click teleports the robot, on the plain page it scrolls there.
-// The plain page passes its own list: it has an About me section the level
-// does not (its paragraphs would be too tall to climb).
 export function railMarkup(sections = SECTIONS) {
   return `<nav class="rail" id="rail" aria-label="Sections" style="--rail-count:${sections.length}">
     <span class="rail__track" aria-hidden="true"><span class="rail__fill"></span></span>

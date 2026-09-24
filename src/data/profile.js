@@ -67,8 +67,8 @@ export const skills = [
 ]
 
 // Who he is beyond the CV, from his own answers on 2026-09-24. In the first
-// person, as he would say it: shown as "About me" on the plain page, and given
-// to the chatbot, which retells it in the third person.
+// person, as he would say it. Not shown on either page: only the chatbot gets
+// it, as context, and retells it in the third person.
 export const aboutMe = [
   { label: "Who I am", text: "I'm a gamer at heart with a lot of attention to detail, self-aware, and always looking for the next technology to learn." },
   { label: "How I got here", text: 'I wanted to make games from a young age and started tinkering at around 15. What got me properly into it was entering the Ludum Dare game jam with a friend.' },

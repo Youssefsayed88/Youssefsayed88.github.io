@@ -11,8 +11,8 @@
 import fs from 'node:fs'
 import { OWNER, OG_IMAGE, WINGS, projects, byWing } from '../src/data/projects.js'
 import { PROJECT_PARAM, PLAY_PARAM, ROUTE_NAMES } from '../src/core/params.js'
-import { summary, experience, education, skills, aboutMe } from '../src/data/profile.js'
-import { railMarkup, contactEvent, SECTIONS, socialMarkup, copyrightMarkup, attribution } from '../src/level/markup.js'
+import { summary, experience, education, skills } from '../src/data/profile.js'
+import { railMarkup, contactEvent, socialMarkup, copyrightMarkup, attribution } from '../src/level/markup.js'
 import { testimonials } from '../src/data/testimonials.js'
 import { ICONS } from '../src/ui/icons.js'
 import { analyticsTag, trackAttrs } from '../src/core/analytics.js'
@@ -244,12 +244,6 @@ h2{margin:0 0 .25rem;font-size:1.4rem}
 .card__role{margin:0;padding-left:.7rem;border-left:3px solid var(--accent);font-size:.9rem}
 .card__blurb{margin:0;color:var(--muted);font-size:.9rem}
 .card__notes{margin:0;color:var(--muted);font-size:.84rem;padding-top:.45rem;border-top:1px dashed var(--rule)}
-.more-about{display:inline-block;margin:0 0 1.25rem .25rem;font-size:.92rem;font-weight:600;text-underline-offset:3px;color:var(--ink)}
-.about-me{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.1rem 2rem;margin:0}
-.about-me div{padding-top:.6rem;border-top:1px solid var(--rule)}
-.about-me dt{font-weight:700;font-size:.92rem;margin:0 0 .25rem}
-.about-me dd{margin:0;color:var(--muted);font-size:.92rem;line-height:1.55}
-@media (max-width:620px){.about-me{grid-template-columns:1fr}}
 .card__tech{display:flex;flex-wrap:wrap;gap:.3rem;margin:.15rem 0 0;padding:0;list-style:none}
 .card__tech li{padding:.1rem .55rem;border:1px solid var(--rule);border-radius:999px;
   font-size:.74rem;color:var(--muted)}
@@ -375,7 +369,6 @@ ${CHAT_CSS}
     <h1>${esc(OWNER.name)}</h1>
     <p class="role">${esc(OWNER.title)} &middot; ${esc(OWNER.location)}</p>
     <p class="summary">${esc(summary)}</p>
-    <a class="more-about" href="#about-me">More about me &darr;</a>
     ${CHAT_URL ? `<button class="ask-robot" id="ask-robot" type="button" hidden><span class="chat-fab__dot" aria-hidden="true"></span>Questions? Ask the chatbot</button>` : ''}
   </header>
 
@@ -389,14 +382,6 @@ ${WINGS.map((wing) => {
     </div>
   </section>`
 }).filter(Boolean).join('\n\n')}
-
-  <section id="about-me">
-    <h2>About me</h2>
-    <p class="wing-note">In my own words</p>
-    <dl class="about-me">
-${aboutMe.map((a) => `      <div><dt>${esc(a.label)}</dt><dd>${esc(a.text)}</dd></div>`).join('\n')}
-    </dl>
-  </section>
 
   <section id="experience">
     <h2>Experience</h2>
@@ -449,7 +434,7 @@ ${testimonials.length ? `  <section id="testimonials">
 
 </main>
 
-${railMarkup(SECTIONS.flatMap((s) => (s.id === 'experience' ? [{ id: 'about-me', label: 'About me' }, s] : [s])))}
+${railMarkup()}
 
 <dialog class="video" id="video" aria-label="Project video">
   <button class="video__close" type="button" aria-label="Close">&times;</button>
