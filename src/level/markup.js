@@ -124,9 +124,10 @@ export function doorMarkup() {
       <p class="door__lede">Two ways in. The same work either way.</p>
       <div class="door__choices">
         <button class="door__card door__card--play" id="door-play" type="button">
+          <span class="door__fill" aria-hidden="true"></span>
           <span class="door__title">${esc(ROUTE_NAMES.showroom)}<span class="door__arrow" aria-hidden="true">&rarr;</span></span>
           <span class="door__desc">Play through it as a platformer. A robot jumps down the page, and tells you about each project it lands on.</span>
-          <span class="door__meta">Keyboard, touch or gamepad &middot; a moment to load</span>
+          <span class="door__meta"><span class="door__status" aria-live="polite">Keyboard, touch or gamepad &middot; a few seconds to load</span><span class="door__percent" aria-hidden="true"></span></span>
         </button>
         <a class="door__card" href="./classic.html" ${trackAttrs('choose-portfolio', { route: 'basic' })}>
           <span class="door__title">${esc(ROUTE_NAMES.basic)}<span class="door__arrow" aria-hidden="true">&rarr;</span></span>
@@ -211,9 +212,8 @@ ${WINGS.map(wing).join('')}
         <p class="bubble__eyebrow"></p>
         <p class="bubble__title"></p>
         <p class="bubble__detail"></p>
-        <button class="bubble__open" type="button"><span class="bubble__verb">Open</span><kbd>E</kbd></button>
+        <button class="bubble__open" type="button"><span class="bubble__dwell" aria-hidden="true"></span><span class="bubble__verb">Open</span><kbd>E</kbd></button>
       </div>
-      <span class="bubble__dwell" aria-hidden="true"></span>
       <svg class="bubble__tail" viewBox="0 0 22 12" aria-hidden="true"><path class="bubble__tail-fill" d="M0 0C6 0 10 3 11 12C12 3 16 0 22 0Z"/><path class="bubble__tail-line" d="M0 0.5C6 0.5 10 3 11 12C12 3 16 0.5 22 0.5"/></svg>
     </div>
 ${chatBubbleMarkup()}

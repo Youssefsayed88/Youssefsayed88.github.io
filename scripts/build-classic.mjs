@@ -11,7 +11,7 @@
 import fs from 'node:fs'
 import { OWNER, OG_IMAGE, WINGS, projects, byWing } from '../src/data/projects.js'
 import { PROJECT_PARAM, PLAY_PARAM, ROUTE_NAMES } from '../src/core/params.js'
-import { summary, experience, education, skills } from '../src/data/profile.js'
+import { summary, experience, education, skills, aboutMe } from '../src/data/profile.js'
 import { railMarkup, contactEvent } from '../src/level/markup.js'
 import { analyticsTag, trackAttrs } from '../src/core/analytics.js'
 import { CHAT_URL, chatMeta } from '../src/chat/config.js'
@@ -107,12 +107,23 @@ const CHAT_CSS = CHAT_URL ? `${fs.readFileSync('src/chat/chat.css', 'utf8')}
 .chat-typing i{width:7px;height:7px;border-radius:50%;background:var(--faint);animation:chat-dot .9s ease-in-out infinite}
 .chat-typing i:nth-child(2){animation-delay:.15s}.chat-typing i:nth-child(3){animation-delay:.3s}
 @keyframes chat-dot{0%,60%,100%{transform:none;opacity:.5}30%{transform:translateY(-4px);opacity:1}}
-html.is-chatting .chat-fab{display:none}
+html.is-chatting .chat-fab,html.is-chatting .chat-nudge{display:none}
+.chat-fab{background:var(--accent);color:#fff;box-shadow:0 8px 24px color-mix(in srgb,var(--accent) 40%,transparent)}
+.chat-fab:hover,.chat-fab:focus-visible{background:color-mix(in srgb,var(--accent) 85%,#000)}
+.chat-fab .chat-fab__dot{background:#fff;animation-name:fab-pulse-w}
+@keyframes fab-pulse-w{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.7)}50%{box-shadow:0 0 0 6px rgba(255,255,255,0)}}
+.chat-nudge{position:fixed;right:max(1.25rem,env(safe-area-inset-right));bottom:calc(max(1.25rem,env(safe-area-inset-bottom)) + 4rem);
+  width:min(17rem,calc(100vw - 2.5rem));transform-origin:bottom right}
+.chat-nudge::after{right:2rem;bottom:-8px;rotate:45deg}
+.ask-robot{appearance:none;font:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:.45rem;margin:0 0 1.25rem;
+  padding:.5rem 1rem;border:1.5px solid var(--accent);border-radius:999px;background:transparent;color:var(--ink);font-size:.92rem;font-weight:600}
+.ask-robot:hover,.ask-robot:focus-visible{background:var(--accent);color:#fff}
+.ask-robot[hidden]{display:none}
 @media (min-width:1200px){html.is-chatting body{padding-right:24rem}html.is-chatting .rail{right:calc(24rem + .9rem)}}
 @media (max-width:560px){.chat-panel{top:auto;height:min(88vh,40rem);border-left:0;border-top:1px solid var(--rule);
   border-radius:20px 20px 0 0;box-shadow:0 -12px 32px rgba(31,31,36,.18);animation-name:panel-up}}
 @keyframes panel-up{from{transform:translateY(24px);opacity:0}}
-@media print{.chat-fab,.chat-panel{display:none!important}html.is-chatting body{padding-right:0}}` : ''
+@media print{.chat-fab,.chat-panel,.chat-nudge,.ask-robot{display:none!important}html.is-chatting body{padding-right:0}}` : ''
 
 function projectCard(p) {
   const media = p.image
@@ -147,6 +158,7 @@ function projectCard(p) {
           <h3>${esc(p.title)}</h3>
           ${p.role ? `<p class="card__role">${esc(p.role)}</p>` : ''}
           <p class="card__blurb">${esc(p.blurb)}</p>
+          ${p.notes ? `<p class="card__notes">${esc(p.notes)}</p>` : ''}
           ${p.tech?.length ? `<ul class="card__tech">${p.tech.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : ''}
           ${links.length ? `<p class="card__links">${links.map(link).join('')}</p>` : ''}
         </div>
@@ -244,6 +256,13 @@ h2{margin:0 0 .25rem;font-size:1.4rem}
 .card h3{margin:0;font-size:1.05rem}
 .card__role{margin:0;padding-left:.7rem;border-left:3px solid var(--accent);font-size:.9rem}
 .card__blurb{margin:0;color:var(--muted);font-size:.9rem}
+.card__notes{margin:0;color:var(--muted);font-size:.84rem;padding-top:.45rem;border-top:1px dashed var(--rule)}
+.more-about{display:inline-block;margin:0 0 1.25rem .25rem;font-size:.92rem;font-weight:600;text-underline-offset:3px;color:var(--ink)}
+.about-me{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.1rem 2rem;margin:0}
+.about-me div{padding-top:.6rem;border-top:1px solid var(--rule)}
+.about-me dt{font-weight:700;font-size:.92rem;margin:0 0 .25rem}
+.about-me dd{margin:0;color:var(--muted);font-size:.92rem;line-height:1.55}
+@media (max-width:620px){.about-me{grid-template-columns:1fr}}
 .card__tech{display:flex;flex-wrap:wrap;gap:.3rem;margin:.15rem 0 0;padding:0;list-style:none}
 .card__tech li{padding:.1rem .55rem;border:1px solid var(--rule);border-radius:999px;
   font-size:.74rem;color:var(--muted)}
@@ -345,6 +364,8 @@ ${CHAT_CSS}
     <h1>${esc(OWNER.name)}</h1>
     <p class="role">${esc(OWNER.title)} &middot; ${esc(OWNER.location)}</p>
     <p class="summary">${esc(summary)}</p>
+    <a class="more-about" href="#about-me">More about me &darr;</a>
+    ${CHAT_URL ? `<button class="ask-robot" id="ask-robot" type="button" hidden><span class="chat-fab__dot" aria-hidden="true"></span>Questions? Ask the robot</button>` : ''}
     <ul class="contact">
       ${OWNER.cv ? `<li class="cv"><a href="${esc(OWNER.cv)}" target="_blank" rel="noopener noreferrer" ${contactEvent('cv', 'header')}>Download CV (PDF)</a></li>` : ''}
       <li><a href="mailto:${esc(OWNER.email)}" ${contactEvent('email', 'header')}>${esc(OWNER.email)}</a></li>
@@ -363,6 +384,14 @@ ${WINGS.map((wing) => {
     </div>
   </section>`
 }).filter(Boolean).join('\n\n')}
+
+  <section id="about-me">
+    <h2>About me</h2>
+    <p class="wing-note">In my own words</p>
+    <dl class="about-me">
+${aboutMe.map((a) => `      <div><dt>${esc(a.label)}</dt><dd>${esc(a.text)}</dd></div>`).join('\n')}
+    </dl>
+  </section>
 
   <section id="experience">
     <h2>Experience</h2>

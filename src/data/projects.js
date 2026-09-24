@@ -23,6 +23,10 @@
 // Anything added here later should come from him the same way. Do not fill a gap
 // from an employer-level CV bullet: that is inventing attribution.
 //
+// `notes` (optional, 2026-09-24): context from his own answers — team size,
+// what was hard, how it did. Shown on the plain page and given to the chatbot,
+// but it is NOT a claim of what he built; `role` stays the only one.
+//
 // `videoSource` = the file ID the footage was originally pulled from.
 // `video` is a path under public/, self-hosted: 68MB total after re-encoding,
 // which GitHub Pages carries comfortably and which avoids Drive's iframe,
@@ -89,6 +93,7 @@ export const projects = [
     title: 'Football is Life',
     blurb: 'First-person striker game: swipe to set aim, power and curl on free kicks, penalties and one-on-ones through a nineteen-match league season.',
     role: 'Built the entire game end to end — the swipe shooting model, the career mode and its stat progression — and published it to CrazyGames.',
+    notes: 'Designed the swipe shooting with Score! Hero in mind. Its basic launch on CrazyGames reached 20k plays and an 8.7 rating; the full launch is still to come.',
     // No cvHint: this postdates the CV, and the attribution came from Youssef
     // directly rather than being matched to a bullet on it.
     cvHint: null,
@@ -107,6 +112,7 @@ export const projects = [
     title: 'LU RUN',
     blurb: 'Endless runner: secret agent Lu chases an escaped lab monster through a collapsing city.',
     role: 'Revived a Unity 5-era codebase, upgrading the project to a modern Unity version and refactoring it as part of the migration.',
+    notes: 'Small team: Youssef and at most one other developer.',
     cvHint: 'Appsinnovate — "Added features and optimized multiplayer games"',
     company: 'Appsinnovate',
     image: 'images/lu-run.webp',
@@ -121,6 +127,7 @@ export const projects = [
     title: 'Sinai Heroes',
     blurb: 'First-person shooter with 50k+ downloads, casting the player as an Egyptian army hero in historical Sinai operations.',
     role: 'Built the team deathmatch mode and the mission 3 artillery barrage system, fixed the tank combat in mission 4, and drove much of the profiling and optimisation.',
+    notes: 'Built in a team of one to three developers.',
     cvHint: 'Listed under your own Technical Projects. Genesis Creations era — SDK integration, PlayFab matchmaking, Profiler/logcat debugging.',
     company: 'Genesis Creations',
     image: 'images/sinai-heroes.webp',
@@ -138,6 +145,7 @@ export const projects = [
     title: 'Robotics',
     blurb: 'Multiplayer educational game teaching robotics through kart building — bodies, tyres and weapons.',
     role: 'Built the kart customisation system, kart movement, weapon aiming and power-ups, along with the visual effects and UI improvements.',
+    notes: 'Small team: Youssef and at most one other developer.',
     cvHint: 'Multiplayer prototypes with Mirror/PUN; "Developed learning experiences and mini games"',
     company: 'Appsinnovate',
     image: 'images/robotics.webp',
@@ -152,6 +160,7 @@ export const projects = [
     title: 'Harvest Haulers',
     blurb: 'Idle clicker: harvest resources, upgrade the fleet, automate the farm.',
     role: 'Built the upgrade system and its UI, and fixed bugs across the game.',
+    notes: 'Small team: Youssef and at most one other developer.',
     cvHint: 'Appsinnovate — "Developed learning experiences and mini games", "Maintained published webgl projects"',
     company: 'Appsinnovate',
     image: 'images/harvest-haulers.webp',
@@ -166,6 +175,7 @@ export const projects = [
     title: 'Head Ball',
     blurb: 'World Cup 2026 mini game — Egypt vs Argentina in a fast head-ball showdown.',
     role: "Built the game's entire gameplay, end to end.",
+    notes: 'Small team: Youssef and at most one other developer.',
     cvHint: 'Appsinnovate — "mini games for e-content team", "Maintained published webgl projects"',
     company: 'Appsinnovate',
     image: 'images/headball.webp',
@@ -183,6 +193,7 @@ export const projects = [
     title: 'VR-Connect',
     blurb: 'VR training simulator that guides and evaluates medical staff on cleaning procedures and compliance with medical standards.',
     role: 'Contributed to the interaction layer, and built the multithreaded pixel-based cleaning system, a point-cloud system that evaluated poses over time, full-body movement integration and the session-management endpoints.',
+    notes: 'His hardest technical problem. The simulator teaches staff to wash their hands in the correct hygienic sequence, and recognising hand gestures in real time in VR was a nightmare. His answer was to capture hand poses as a point cloud of hand-joint positions and rotations, and to match them as a sequence over time. The cleaning system and the pose evaluation both feed that sequence system; the hard parts were optimising it and making it hold to the real-life procedure.',
     cvHint: 'Genesis Creations — "Developed and Maintained VR Solutions and Training Development". Also one of your own listed Technical Projects.',
     company: 'Genesis Creations',
     // This shot is from inside the experience itself, so it stays.
@@ -201,6 +212,7 @@ export const projects = [
     // anchored to real-world coordinates and found by travelling to them.
     blurb: 'AR summer campaign: beach-themed collectibles anchored to real-world locations, found by travelling to them and redeemed for a reward.',
     role: 'Integrated PlayFab for inventory and player management, handing out items by rarity, and improved the geolocation accuracy behind placing objects at real-world locations.',
+    notes: 'Small team: Youssef and at most one other developer. The main challenge was geolocation: WebAR positioning is inaccurate, and much of the work went into improving it.',
     cvHint: 'Appsinnovate — "Developed AR experiences using ARFoundation and WebAR". Strongest direct match on the CV.',
     company: 'Appsinnovate',
     image: 'images/ar-rewards-hunt.webp',
@@ -231,6 +243,7 @@ export const projects = [
     title: 'Biohazard Breakout',
     blurb: 'Co-operative survival shooter with a hidden-impostor mechanic.',
     role: 'Built server creation and matchmaking on the PlayFab SDK, proximity voice chat with Vivox, and the weapon-holding animation IK, integrating those weapons into the weapon system.',
+    notes: "A bigger team than most of his projects (more than three). Vivox voice chat is unavailable in Egypt, so the team tested it over a VPN. The project taught him how much a team's passion for the game it is making matters.",
     cvHint: 'Your own project. "Designed 2+ multiplayer prototypes using Mirror/PUN" almost certainly covers this.',
     company: 'Genesis Creations',
     image: 'images/biohazard-breakout.webp',
@@ -289,6 +302,7 @@ export const projects = [
     title: 'Visualising Novels with Generative AI',
     blurb: 'Graduation project: generative models turning novel scenes into visual representations.',
     role: 'Fine-tuned Stable Diffusion 1.5 and built it into a pipeline with a GPT-2 prompt auto-completion model trained on well-formed Stable Diffusion prompts, plus an upscaling stage.',
+    notes: 'The results were reasonable for the time. A live demo ran for a short while and was taken down because of hosting costs.',
     cvHint: 'B.Sc. Computers & AI, Cairo University. Python + generative AI libraries.',
     company: 'Cairo University',
     // A 2x2 of the pipeline's own output, so the thumbnail shows what the model

@@ -14,7 +14,7 @@
 // Pure module, no DOM: Node (the smoke test) and the Worker both import it.
 
 import { OWNER, WINGS, projects } from '../data/projects.js'
-import { summary, experience, education, skills } from '../data/profile.js'
+import { summary, experience, education, skills, aboutMe } from '../data/profile.js'
 
 const wingLabel = new Map(WINGS.map((w) => [w.id, w.label]))
 
@@ -25,6 +25,8 @@ function projectLines(p) {
     `The product: ${p.blurb}`,
     `What Youssef built: ${p.role ?? 'Not stated.'}`,
   ]
+  // Context in his own account: team, challenges, results. Not a credit.
+  if (p.notes) lines.push(`Background: ${p.notes}`)
   // No tech stack: it is the product's, not his part in it, and given it the
   // model credited him with PlayFab on Sinai Heroes, where his role line does
   // not mention it. His skills list says what he works with.
@@ -56,6 +58,9 @@ function knowledge() {
     '## Skills',
     ...skills.map((s) => `- ${s.group}: ${s.items.join(', ')}`),
     '',
+    '## About him, in his own words (first person; retell it in the third person)',
+    ...aboutMe.map((a) => `- ${a.label}: ${a.text}`),
+    '',
     '## Projects',
     ...projects.map(projectLines),
   ].join('\n')
@@ -65,13 +70,15 @@ function knowledge() {
 let cached = null
 
 export function systemPrompt() {
-  cached ??= `You are the little orange robot who guides visitors through ${OWNER.name}'s portfolio website. Visitors are mostly recruiters, hiring managers and fellow developers. You answer their questions about ${OWNER.name}: his projects, experience, skills and education.
+  cached ??= `You are the little orange robot who guides visitors through ${OWNER.name}'s portfolio website. Visitors are mostly recruiters, hiring managers and fellow developers. You answer their questions about ${OWNER.name}: his projects, experience, skills and education, and who he is and what he is looking for.
 
 How to answer:
 - Speak as the robot, about him in the third person ("Youssef built…"). Never pretend to be him.
 - Be brief: two to four sentences, or a short bulleted list when listing things. Plain text; **bold** and "- " bullets are the only formatting.
-- Answer only from the portfolio information below. If the answer is not there — salary, availability, visa status, opinions, anything personal — say you don't know and suggest emailing him at ${OWNER.email}.
-- Credit him ONLY with what a project's "What Youssef built" line says. "The product" describes the whole product, which was usually a team's work: never say he built all of it unless his line says so. Use his line's own wording; do not add to it or embellish it.
+- Answer only from the portfolio information below. If the answer is not there — visa status, opinions, anything personal not covered there — say you don't know and suggest emailing him at ${OWNER.email}.
+- Availability and start date: say he is open to opportunities and to reach out to him at ${OWNER.email} to ask about his availability.
+- Never discuss salary or pay expectations, or why he left or would leave a job. Politely say that is best discussed with him directly, at ${OWNER.email}.
+- Credit him ONLY with what a project's "What Youssef built" line says. A project's "Background" line is context (team size, challenges, results) you may share, but never a claim of what he built. "The product" describes the whole product, which was usually a team's work: never say he built all of it unless his line says so. Use his line's own wording; do not add to it or embellish it.
 - The Experience bullets describe his jobs in general. Never use them to say what he did on a particular project.
 - When you mention a project, put its reference right after its name, exactly as written in its heading, like: LU RUN [[lu-run]]. The website turns these into links.
 - Reply in the language the visitor writes in.

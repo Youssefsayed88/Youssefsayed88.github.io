@@ -1,6 +1,7 @@
 import { preventPinchZoom } from './ui/zoom.js'
 import { initThemeToggle } from './ui/theme.js'
 import { fadeInThumbnails } from './ui/loading.js'
+import { loadForDoor } from './ui/doorLoad.js'
 import { track } from './core/analytics.js'
 import Game from './game/Game.js'
 // The chat's shared styles; the level's own are in style.css.
@@ -14,8 +15,10 @@ import './chat/chat.css'
 // visitor wants (see doorMarkup in src/level/markup.js). The game is built only
 // once they pick the interactive one, so someone who wanted the plain page never
 // downloads the robot to be shown a button that takes them away from it. No
-// loading screen after that: the physics is a few comparisons a frame, and the
-// robot arrives once the game is already playable.
+// On that choice the Interactive button becomes the loading bar: it fills while
+// the robot is fetched behind the door, for at least a few seconds (see
+// src/ui/doorLoad.js), and the game is built once it is full, so the robot
+// drops in as the door fades.
 
 // How long the door takes to fade off the level once a choice is made.
 const DOOR_FADE = 300
@@ -50,11 +53,24 @@ if (root) {
     // Behind the door, the level cannot be tabbed into or read out.
     root.inert = true
     if (rail) rail.inert = true
-    document.getElementById('door-play').addEventListener('click', () => {
-      root.inert = false
-      if (rail) rail.inert = false
+    const play = document.getElementById('door-play')
+    const status = play.querySelector('.door__status')
+    const percent = play.querySelector('.door__percent')
+    play.addEventListener('click', async () => {
       // The basic choice is a link, counted by its markup; see doorMarkup.
       track('choose-portfolio', { route: 'interactive' })
+      play.classList.add('is-loading')
+      play.setAttribute('aria-busy', 'true')
+      door.classList.add('is-loading')
+      await loadForDoor((fraction, line) => {
+        play.style.setProperty('--progress', fraction.toFixed(4))
+        percent.textContent = `${Math.round(fraction * 100)}%`
+        if (status.textContent !== line) status.textContent = line
+      })
+      play.removeAttribute('aria-busy')
+
+      root.inert = false
+      if (rail) rail.inert = false
       // The robot drops in behind the door as it fades.
       startGame()
       door.classList.add('is-leaving')

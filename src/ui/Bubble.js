@@ -7,7 +7,7 @@ import { placeBubble } from '../game/bubble.js'
 // of a thumbnail. It opens with a moment of typing dots, then the title, where
 // it was built, the role line, and an Open button. Opening is still one step
 // more than landing — E, the button, the touch Open button, or standing still
-// while the bar along the bottom fills (see DWELL in Game.js) — so dropping
+// while the Open button fills as a bar (see DWELL in Game.js) — so dropping
 // through a shelf on the way down never throws a panel in anyone's face.
 
 // How long the typing dots show, in game seconds. Short: it is a flourish, not

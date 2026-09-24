@@ -3,6 +3,7 @@ import ChatSession from '../chat/session.js'
 import { renderReply } from '../chat/render.js'
 import { GREETING } from '../chat/markup.js'
 import { track } from '../core/analytics.js'
+import ChatNudge from '../chat/nudge.js'
 
 // The chatbot on the level: the robot answers in a speech bubble over its
 // head, the way it talks about projects, and the visitor types into a bar
@@ -48,6 +49,12 @@ export default class Chat {
       suggestions: this.dock.querySelector('.chat__suggestions'),
     }
     this.session = new ChatSession({ onChange: () => this.render() })
+    // A few seconds in, a callout by the button offers the chat.
+    this.nudge = new ChatNudge(document.getElementById('chat-nudge'), {
+      open: (from) => this.open(from),
+      isOpen: () => this.isOpen,
+      blocked: isBlocked,
+    })
 
     this.button.addEventListener('click', () => {
       this.button.blur()
@@ -85,6 +92,7 @@ export default class Chat {
     // A phone's keyboard would cover the level the moment the bar opens; there
     // the visitor taps the field, or a suggestion, when they are ready.
     if (!window.matchMedia?.('(pointer: coarse)').matches) this.parts.input.focus()
+    this.nudge.chatOpened()
     this.onToggle?.(true)
     track('chat-open', { from })
   }

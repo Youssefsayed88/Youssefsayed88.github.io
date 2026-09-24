@@ -15,9 +15,10 @@ import { projects, WINGS } from '../data/projects.js'
 import { PROJECT_PARAM } from '../core/params.js'
 import { track } from '../core/analytics.js'
 
-// Standing still on a project for this long opens it. Long enough to read the
-// bubble and move on; short enough that waiting is a way in.
-export const DWELL = 1.4
+// Standing still on a project for this long opens it, while the bubble's Open
+// button fills as the bar. Long, so that stopping to read the bubble never
+// throws a panel open; E, the button or a click open it straight away.
+export const DWELL = 8
 
 // "Still", in px/s. The walk brakes to a stop in ~0.1 s, so this is only the
 // tail of it.
@@ -67,6 +68,8 @@ export default class Game {
       // every thumbnail someone stood on would be a worse back button.
       this.setUrlProject(open ? project.id : null)
       open ? this.audio.openPanel() : this.audio.closePanel()
+      // Just finished with a project: a good moment to offer the chat again.
+      if (!open) this.chat.nudge?.again()
     })
 
     this.projects = new Map(projects.map((p) => [p.id, p]))
@@ -229,6 +232,7 @@ export default class Game {
       && Math.abs(body.vx) < STILL && !this.input.move
     this.dwell = waiting ? this.dwell + delta : 0
     this.bubble.setDwell(this.dwell / DWELL)
+    this.input.touch.setDwell(this.dwell / DWELL)
 
     if (this.dwell >= DWELL) this.interact()
   }

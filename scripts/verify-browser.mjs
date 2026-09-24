@@ -541,14 +541,40 @@ await settleAt(1280)
       robot: performance.getEntriesByType('resource').some((e) => /Robot-/.test(e.name)),
     }
   })()`)
+  const clickedAt = Date.now()
   await click('#door-play')
+  await sleep(1000)
+  const loading = await cdp.eval(`(() => {
+    const play = document.getElementById('door-play')
+    const progress = Number(getComputedStyle(play).getPropertyValue('--progress'))
+    return {
+      bar: play.classList.contains('is-loading') && progress > 0 && progress < 1,
+      progress: progress.toFixed(2),
+      door: !!document.getElementById('door'),
+      game: !!window.game,
+    }
+  })()`)
   await waitFor(() => cdp.eval("!!window.game && !document.getElementById('door') && !document.documentElement.classList.contains('has-door')"),
-    'the door to open onto the level', 80)
+    'the door to open onto the level', 100)
+  const took = Date.now() - clickedAt
   await waitFor(() => cdp.eval("window.game.body.on === 'hero'"), 'the robot to land on the name', 120)
   check('the front door offers both portfolios and builds nothing until the interactive one is picked',
     asked.covers && asked.play && asked.basic && !asked.game && !asked.robot,
     `door covers the screen ${asked.covers}, interactive choice ${asked.play}, basic link ${asked.basic}; ` +
     `before choosing: game ${asked.game}, robot fetched ${asked.robot}; after: robot on the name`)
+  check('picking Interactive turns its button into the loading bar, and the door stays at least 2.5 s',
+    loading.bar && loading.door && !loading.game && took >= 2500,
+    `at 1 s: filling ${loading.bar} (${loading.progress}), door up ${loading.door}, game built ${loading.game}; opened after ${(took / 1000).toFixed(1)} s`)
+
+  // With a chat in the build, the robot offers it by the corner button.
+  if (await cdp.eval("!!document.getElementById('chat-nudge')")) {
+    await waitFor(() => cdp.eval("!document.getElementById('chat-nudge').hidden"), 'the chat nudge to show', 40)
+    await click('#chat-nudge .chat-nudge__body')
+    const opened = await cdp.eval("({ open: window.game.chat.isOpen, nudge: document.getElementById('chat-nudge').hidden })")
+    await cdp.eval('window.game.chat.close()')
+    check('a few seconds in, a callout by the chat button offers the chat, and opens it',
+      opened.open && opened.nudge, `chat open ${opened.open}, callout gone ${opened.nudge}`)
+  }
 }
 
 // 18. Nothing threw, nothing 404'd, and nothing left this origin — Plyr's

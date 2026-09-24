@@ -58,8 +58,31 @@ export const education = [
 ]
 
 export const skills = [
-  { group: 'Game Development', items: ['Unity', 'Unreal Engine', 'C#', 'C++', 'VR/AR SDKs', 'Shader Graph', 'Profiler', 'Animator', 'URP'] },
-  { group: 'AI / ML', items: ['PyTorch', 'TensorFlow', 'NumPy', 'Pandas'] },
-  { group: 'Tools', items: ['Git', 'Firebase', 'PlayFab', 'ClickUp', 'SQL'] },
+  { group: 'Game Development', items: ['Unity', 'Unreal Engine', 'C#', 'C++', 'VR/AR SDKs', 'Shader Graph', 'Profiler', 'Animator', 'URP', 'Addressables'] },
+  { group: 'Multiplayer', items: ['Netcode for GameObjects', 'Photon Fusion', 'Mirror', 'PUN'] },
+  { group: 'Platforms', items: ['Android', 'iOS', 'WebGL', 'Meta Quest', 'PC'] },
+  { group: 'AI / ML', items: ['PyTorch', 'TensorFlow', 'NumPy', 'Pandas', 'Python tooling'] },
+  { group: 'Tools', items: ['Git', 'Basic CI/CD', 'Firebase', 'PlayFab', 'ClickUp', 'SQL'] },
   { group: 'Ways of working', items: ['Agile development', 'Mentoring', 'Technical documentation'] },
+]
+
+// Who he is beyond the CV, from his own answers on 2026-09-24. In the first
+// person, as he would say it: shown as "About me" on the plain page, and given
+// to the chatbot, which retells it in the third person.
+export const aboutMe = [
+  { label: "Who I am", text: "I'm a gamer at heart with a lot of attention to detail, self-aware, and always looking for the next technology to learn." },
+  { label: "How I got here", text: 'I wanted to make games from a young age and started tinkering at around 15. What got me properly into it was entering the Ludum Dare game jam with a friend.' },
+  { label: "What I enjoy most", text: 'VR and AR, mastering game feel, and shaders.' },
+  { label: "Strengths", text: "I'm most confident building VR/AR experiences and multiplayer. Shaders are what I'm working on getting better at now." },
+  { label: "Shipped on", text: 'Android, iOS, WebGL, Meta Quest and PC, on Unity versions from 2022 to Unity 6.' },
+  { label: "What I'm looking for", text: "A new challenge: mentoring young talent and working on a large indie game. I'm open to any kind of company, remote or on-site, and to relocating." },
+  { label: "Long term", text: 'My own studio: a couple of small projects bringing in steady income while we work on the next hit.' },
+  { label: "How I work", text: 'Clear communication with the team, sharing my perspective cleanly, and reviewing work and giving feedback.' },
+  { label: "Optimisation", text: 'I reach for the Profiler and let the numbers answer: find the bottleneck, fix the small problems, and let the improvements add up.' },
+  { label: "Mentoring", text: "I mentored interns at Genesis Creations for a while, without being above them in the hierarchy. I enjoy it, and I want more practice at it." },
+  { label: "Hardest problem so far", text: 'Real-time hand-washing recognition in VR-Connect: I captured hand poses as point clouds of joint positions and rotations and matched them as a sequence.' },
+  { label: "A lesson learned", text: 'Biohazard Breakout taught me how much passion for the game matters to a team.' },
+  { label: "Outside work", text: "Sports and the gym. I play competitive games like Valorant and single-player ones like Dead Cells and Stardew Valley." },
+  { label: "Languages", text: 'Arabic (native), English, and a little French.' },
+  { label: "Not on this page", text: 'More game-jam games on my itch.io, and Unreal projects and cinematics in Unity and Unreal that are under NDA.' },
 ]

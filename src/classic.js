@@ -13,6 +13,7 @@
 import { track } from './core/analytics.js'
 import ChatSession from './chat/session.js'
 import { renderReply } from './chat/render.js'
+import ChatNudge from './chat/nudge.js'
 import { PROJECT_PARAM } from './core/params.js'
 
 const dialog = document.getElementById('video')
@@ -162,12 +163,13 @@ if ('IntersectionObserver' in window) {
       session.send(text)
     }
 
-    function open() {
+    function open(from = 'button') {
+      nudge.chatOpened()
       panel.hidden = false
       opener.setAttribute('aria-expanded', 'true')
       document.documentElement.classList.add('is-chatting')
       if (!matchMedia('(pointer: coarse)').matches) input.focus()
-      track('chat-open', { from: 'button' })
+      track('chat-open', { from })
     }
 
     function close() {
@@ -177,7 +179,23 @@ if ('IntersectionObserver' in window) {
       opener.focus({ preventScroll: true })
     }
 
-    opener.addEventListener('click', open)
+    // A few seconds in, a callout over the button offers the chat, and once
+    // more after a video is closed.
+    const nudge = new ChatNudge(document.getElementById('chat-nudge'), {
+      open,
+      isOpen: () => !panel.hidden,
+      blocked: () => !!document.querySelector('dialog[open]'),
+    })
+    document.getElementById('video')?.addEventListener('close', () => nudge.again())
+
+    opener.addEventListener('click', () => open())
+    // The same offer in the header, for a visitor who reads before scrolling.
+    // Hidden in the markup, since it does nothing without this script.
+    const headerAsk = document.getElementById('ask-robot')
+    if (headerAsk) {
+      headerAsk.hidden = false
+      headerAsk.addEventListener('click', () => open('header'))
+    }
     panel.querySelector('.chat__close').addEventListener('click', close)
     panel.addEventListener('keydown', (event) => { if (event.key === 'Escape') close() })
     form.addEventListener('submit', (event) => {

@@ -125,7 +125,38 @@ html.has-door .controls__btn--exit { display: none; }
 .door__arrow { color: var(--faint); transition: color 0.15s ease, transform 0.15s ease; }
 .door__card:hover .door__arrow, .door__card:focus-visible .door__arrow { color: var(--accent); transform: translateX(3px); }
 .door__desc { color: var(--muted); font-size: 0.93rem; line-height: 1.55; }
-.door__meta { margin-top: auto; padding-top: 0.4rem; color: var(--faint); font-size: 0.8rem; }
+.door__meta { margin-top: auto; padding-top: 0.4rem; color: var(--faint); font-size: 0.8rem; display: flex; justify-content: space-between; gap: 1rem; }
+
+/* Picked: the Interactive card is the loading bar (src/ui/doorLoad.js sets
+   --progress from 0 to 1). A tint fills it from the left, with a solid bar
+   along the bottom edge; the text stays above both. */
+.door__card--play > :not(.door__fill) { position: relative; }
+.door__fill {
+  position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none;
+  opacity: 0; transition: opacity 0.2s ease;
+}
+.door__fill::before, .door__fill::after {
+  content: ""; position: absolute; left: 0; width: 100%;
+  transform: scaleX(var(--progress, 0)); transform-origin: left;
+}
+.door__fill::before {
+  top: 0; bottom: 0;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  background-image: linear-gradient(110deg, transparent 35%, color-mix(in srgb, var(--accent) 22%, transparent) 50%, transparent 65%);
+  background-size: 200% 100%;
+  animation: door-shimmer 1.4s linear infinite;
+}
+.door__fill::after { bottom: 0; height: 5px; background: var(--accent); }
+@keyframes door-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+.door__card--play.is-loading { cursor: progress; border-color: var(--accent); }
+.door__card--play.is-loading .door__fill { opacity: 1; }
+.door__card--play.is-loading:hover { transform: none; box-shadow: none; }
+.door__card--play.is-loading .door__arrow { display: none; }
+.door__card--play.is-loading .door__status { color: var(--ink); font-weight: 600; }
+.door__percent { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 700; }
+/* While it loads, the other choice steps back but stays a way out. */
+.door.is-loading .door__card:not(.door__card--play) { opacity: 0.55; }
+.door.is-loading .door__card:not(.door__card--play):hover { opacity: 1; }
 
 /* While the game runs, the camera owns the scroll position: no wheel, no
    swipe, no pull-to-refresh halfway down a fall. Without `is-playing` — no
@@ -462,8 +493,8 @@ html:not(.is-playing) .avatar { display: none; }
 /* A quick reply, the way a chat offers one. */
 .bubble__open {
   appearance: none; font: inherit; cursor: pointer;
-  display: inline-flex; align-items: center; gap: 0.45rem;
-  margin-top: 0.65rem; padding: 0.35rem 0.55rem 0.35rem 0.85rem;
+  display: flex; width: 100%; justify-content: center; align-items: center; gap: 0.45rem;
+  margin-top: 0.65rem; padding: 0.45rem 0.85rem;
   background: var(--ink); color: var(--surface);
   border: 0; border-radius: 999px;
   font-size: 0.85rem; font-weight: 600;
@@ -471,10 +502,12 @@ html:not(.is-playing) .avatar { display: none; }
 }
 .bubble__open:hover { background: var(--ink-hover); }
 
-/* Standing still fills this; full, the project opens. Inside the rounded
-   corners, along the bottom edge. */
+/* The Open button is the loading bar: standing still fills it with the
+   accent from the left, and full, the project opens. */
+.bubble__open { position: relative; overflow: hidden; isolation: isolate; }
+.bubble__open > :not(.bubble__dwell) { position: relative; }
 .bubble__dwell {
-  position: absolute; left: 18px; right: 18px; bottom: 6px; height: 3px; border-radius: 2px;
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
   background: var(--accent);
   transform-origin: left center; transform: scaleX(var(--dwell, 0));
 }
@@ -815,6 +848,12 @@ html:not(.is-playing) #mute { display: none; }
 /* Lit only while standing on something that talks — the same signal as the
    bubble, so it is never a dead control. */
 .touch__btn--open.is-live { opacity: 1; background: var(--ink); color: var(--surface); }
+/* The same fill as the bubble's Open button, as a ring round this one. */
+.touch__btn--open.is-live {
+  background:
+    radial-gradient(closest-side, var(--ink) calc(100% - 5px), transparent calc(100% - 4px)),
+    conic-gradient(var(--accent) calc(var(--dwell, 0) * 360deg), var(--ink) 0);
+}
 .touch__btn:disabled { cursor: default; }
 
 /* Touch: the hint text is keyboard-specific. */
@@ -843,10 +882,37 @@ html:not(.is-playing) #mute { display: none; }
    of the screen. Only there when the build has a chat (src/chat/markup.js);
    the pieces both pages share are in src/chat/chat.css. */
 
-.controls__btn--chat { display: inline-flex; align-items: center; gap: 0.5rem; }
+/* The chat button is filled in the robot's accent, with a pulsing dot: of the
+   corner controls it is the one visitors missed. */
+.chat-cta { position: relative; display: flex; }
+.controls__btn--chat {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.controls__btn--chat:hover, .controls__btn--chat:focus-visible { background: color-mix(in srgb, var(--accent) 85%, #000); }
+.controls__btn--chat[aria-expanded="true"] { background: var(--ink); border-color: var(--ink); color: var(--surface); box-shadow: none; }
 .controls__btn--chat kbd { font-size: 0.62rem; min-width: 1.2rem; height: 1.2rem; }
-.controls__btn--chat[aria-expanded="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
-html:not(.is-playing) .controls__btn--chat { display: none; }
+.chat-cta__dot {
+  width: 0.55rem; height: 0.55rem; border-radius: 50%; background: #fff;
+  animation: cta-pulse 2.2s ease-in-out infinite;
+}
+.controls__btn--chat[aria-expanded="true"] .chat-cta__dot { display: none; }
+@keyframes cta-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7); }
+  50% { box-shadow: 0 0 0 5px rgba(255, 255, 255, 0); }
+}
+html:not(.is-playing) .chat-cta { display: none; }
+html.is-chatting .chat-nudge { display: none; }
+
+/* The callout sits to the left of the button, tail pointing at it. */
+.chat-cta .chat-nudge { right: calc(100% + 0.9rem); top: 50%; translate: 0 -50%; transform-origin: right center; }
+.chat-cta .chat-nudge::after { right: -8px; top: 50%; translate: 0 -50%; rotate: -45deg; }
+/* A phone: the controls are a row across the top, so it hangs below. */
+@media (max-width: 560px) {
+  .chat-cta .chat-nudge { right: 0; top: calc(100% + 0.8rem); translate: none; transform-origin: top right; width: min(17rem, calc(100vw - 2rem)); }
+  .chat-cta .chat-nudge::after { right: 1.4rem; top: -8px; translate: none; rotate: -135deg; }
+}
 .has-touch-controls .controls__btn--chat kbd, .has-touch-controls .chat-dock kbd { display: none; }
 
 .chat-bubble { z-index: 7; width: min(22rem, calc(100% - 2 * var(--gutter))); padding-bottom: 0.8rem; }

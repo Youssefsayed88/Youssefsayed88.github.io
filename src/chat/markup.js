@@ -45,10 +45,22 @@ function form(id) {
       <p class="chat__note">${esc(NOTE)}</p>`
 }
 
-// The level: the button in the corner controls.
+// The callout by the chat button that offers the chat (src/chat/nudge.js).
+function nudge() {
+  return `<div class="chat-nudge" id="chat-nudge" role="status" hidden>
+      <button class="chat-nudge__body" type="button"><strong>Got a question about ${esc(first)}?</strong> I can tell you about his projects, experience and skills. Ask me!</button>
+      <button class="chat-nudge__close" type="button" aria-label="Dismiss">&times;</button>
+    </div>`
+}
+
+// The level: the button in the corner controls, in the accent so it reads as
+// the robot's, with the callout beside it.
 export function chatButtonMarkup() {
   if (!CHAT_URL) return ''
-  return `<button class="controls__btn controls__btn--chat" id="chat-open" type="button" aria-expanded="false" aria-controls="chat-dock">Ask the robot<kbd>C</kbd></button>`
+  return `<div class="chat-cta">
+    <button class="controls__btn controls__btn--chat" id="chat-open" type="button" aria-expanded="false" aria-controls="chat-dock"><span class="chat-cta__dot" aria-hidden="true"></span>Ask the robot<kbd>C</kbd></button>
+    ${nudge()}
+  </div>`
 }
 
 // The level: the robot's side of the conversation, in the level so it scrolls
@@ -78,8 +90,9 @@ export function chatDockMarkup() {
 export function chatPanelMarkup() {
   if (!CHAT_URL) return ''
   return `<button class="chat-fab" id="chat-open" type="button" aria-expanded="false" aria-controls="chat-panel">
-  <span class="chat-fab__dot" aria-hidden="true"></span>Ask about ${esc(first)}
+  <span class="chat-fab__dot" aria-hidden="true"></span>Ask the robot about ${esc(first)}
 </button>
+${nudge()}
 <aside class="chat-panel chat" id="chat-panel" aria-labelledby="chat-panel-title" hidden>
   <header class="chat-panel__head">
     <p class="chat-panel__title" id="chat-panel-title">Ask the robot</p>

@@ -52,8 +52,11 @@ Actions, and the deploy is gated on `npm test`.
 - **`index.html`**: the platformer. The level markup is generated from the data at
   build time, so it is in the page before any script runs. A **front door** covers
   it first and asks which portfolio: Interactive or Basic. Nothing is built, and
-  the robot is not downloaded, until Interactive is picked; then the door fades
-  and the robot drops in. No loading screen. The door is skipped by `?play`
+  the robot is not downloaded, until Interactive is picked. Then that button
+  becomes the loading bar: it fills while the robot's code and model download,
+  for at least 2.5 s (`src/ui/doorLoad.js`), never running ahead of the bytes, and
+  the door opens after 25 s at most even if the robot never arrives. Then the
+  door fades and the robot drops in. The door is skipped by `?play`
   (what classic.html and the 404 page link with), `?project=`, and old
   `?showroom` links, and it never shows without JavaScript.
 - **`classic.html`**: the plain page, generated from the same data. It is reached
@@ -108,7 +111,8 @@ Opening the project takes one more step:
 - press **E**,
 - click the bubble's Open button (or the thumbnail itself, without playing at all),
 - tap **Open** on touch,
-- or **stand still** for `DWELL` (1.4 s), while a bar along the bubble fills.
+- or **stand still** for `DWELL` (8 s), while the Open button fills as a
+  loading bar (on touch, a ring fills round the Open button).
 
 Closing the panel does not re-open it while you are still standing on the same
 thumbnail. The panel plays video in **Plyr**, which is loaded the first time a
@@ -338,7 +342,7 @@ Gamepad: stick or d-pad, A jumps, X opens, down drops, L3 or left trigger sprint
 | Path | Purpose |
 |---|---|
 | `src/data/projects.js` | **Single source of truth.** Owner details, wings, all 14 projects |
-| `src/data/profile.js` | CV content: summary, experience, education, skills |
+| `src/data/profile.js` | CV content: summary, experience, education, skills, and `aboutMe` (his own words: goals, how he works, background; the plain page's About me section and the chatbot) |
 | `src/level/markup.js` | The level as HTML, from the data. Pure; injected by `vite.config.js` |
 | `src/game/movement.js` | The movement model and its constants, in px. Pure |
 | `src/game/physics.js` | One-way platforms, drop-through, swept landing. Pure |
@@ -383,6 +387,12 @@ on it, in its own wording, so write it the way it should be repeated.
   Cloudflare Worker on the free plan. The site finds it through the `CHAT_URL`
   repository variable; the Gemini key is a Worker secret
   (`npx wrangler secret put GEMINI_API_KEY`), never in the repo.
+- **Being found**: visitors were missing the chat, so its button is filled in
+  the accent with a pulsing dot, and 3 s in a callout by it offers the chat
+  (`src/chat/nudge.js`), once more after the first project panel or video
+  closes, never again once dismissed or opened. The plain page also has a
+  "Questions? Ask the robot" button in its header. PostHog's `chat-open` event
+  says which route opened it: `button`, `key`, `nudge` or `header`.
 - **Which model answers**: three free Gemini models are tried in order, listed
   at the top of `worker/src/index.js`, within an 8 s budget; a busy one is
   skipped for a minute, a retired one (404) for an hour; then Workers AI

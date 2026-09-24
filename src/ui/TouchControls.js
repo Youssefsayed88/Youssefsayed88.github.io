@@ -89,6 +89,14 @@ export default class TouchControls {
   }
 
   // Fed by the HUD: lit, and named, while the robot stands on something that
+  // 0..1, how close standing still is to opening it: the ring round Open.
+  setDwell(fraction) {
+    const value = Math.round(Math.min(1, Math.max(0, fraction)) * 100) / 100
+    if (value === this.dwellShown) return
+    this.dwellShown = value
+    this.openBtn?.style.setProperty('--dwell', String(value))
+  }
+
   // opens. `target` is the HUD card's description, or null.
   setPrompt(target) {
     this.openBtn.disabled = !target
