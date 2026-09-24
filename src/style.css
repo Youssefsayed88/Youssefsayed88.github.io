@@ -251,7 +251,7 @@ html.is-playing .level { touch-action: none; }
 .lv-chip--cv:hover { background: var(--ink-hover); border-color: var(--ink-hover); }
 
 /* Every button and link that changes on hover eases into it. */
-.lv-chip, .portal, .bubble__open, .modal__close, .modal__links a, .controls__btn, .lv-ground__info a {
+.lv-chip, .portal, .bubble__open, .modal__close, .modal__links a, .controls__btn, .lv-ground__info a:not(.social__link) {
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
@@ -357,6 +357,42 @@ html.is-playing .level { touch-action: none; }
   font-size: 0.88rem;
 }
 
+/* ---------- Testimonials ---------- */
+/* A quote per figure: an accent rule down its side and a big opening mark,
+   the sentences stacked like the summary's, then who said it. */
+.lv-quotes { display: flex; flex-direction: column; gap: 2.5rem; margin-top: 1.75rem; }
+.lv-quote { position: relative; margin: 0; padding-left: 1.5rem; max-width: min(40rem, 100%); }
+.lv-quote::before {
+  content: ""; position: absolute; left: 0; top: 0.55rem; bottom: 0;
+  width: 3px; border-radius: 2px; background: var(--accent);
+}
+.lv-quote__text {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1.1rem;
+  margin: 0; font-size: 1rem; line-height: 1.6; font-style: italic;
+}
+.lv-quote__text .lv-line:first-child { position: relative; }
+.lv-quote__text .lv-line:first-child::after {
+  content: "C"; position: absolute; left: -1.35rem; top: -0.35rem;
+  font: 700 2.6rem/1 Georgia, serif; font-style: normal; color: var(--accent); opacity: 0.35;
+  pointer-events: none;
+}
+.lv-quote__by { margin-top: 1.1rem; font-size: 0.95rem; }
+.lv-quote__by strong { font-weight: 600; }
+
+/* ---------- Contact icons and copyright (the ground) ---------- */
+.social { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0.4rem 0 1rem; padding: 0; list-style: none; }
+.social__link {
+  display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 50%;
+  background: var(--surface); border: 1px solid var(--rule); color: var(--ink);
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.social__link .icon { width: 1.05rem; height: 1.05rem; }
+.social__link:hover, .social__link:focus-visible {
+  background: var(--accent); border-color: var(--accent); color: #fff; transform: translateY(-2px);
+}
+.lv-ground__name { color: var(--ink); font-weight: 700; font-size: 1.05rem; }
+.copyright { margin: 1.1rem 0 0 !important; padding-top: 0.9rem; border-top: 1px solid var(--rule); color: var(--faint); font-size: 0.8rem; }
+
 /* ---------- The ground ---------- */
 /* Out through the gutter to the level's full width: the level's own box is
    the world, and the floor has to reach both of its walls or the robot could
@@ -367,7 +403,7 @@ html.is-playing .level { touch-action: none; }
   padding: 1.75rem var(--gutter) 3rem;
   background: var(--ground);
 }
-.lv-ground__info a:hover { color: var(--accent); }
+.lv-ground__info a:not(.social__link):hover { color: var(--accent); }
 .lv-ground__info { max-width: 26rem; color: var(--muted); font-size: 0.9rem; }
 .lv-ground__info p { margin: 0 0 0.45rem; }
 .lv-ground__info strong { color: var(--ink); font-weight: 600; }

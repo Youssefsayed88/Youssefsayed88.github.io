@@ -17,6 +17,7 @@ import { railProgress } from './src/ui/Rail.js'
 import { placeBubble, BUBBLE_GAP } from './src/game/bubble.js'
 import { projects } from './src/data/projects.js'
 import { skills, experience, summary } from './src/data/profile.js'
+import { testimonials } from './src/data/testimonials.js'
 
 const results = []
 const check = (name, pass, detail) => {
@@ -231,13 +232,16 @@ function run(body, platforms, { fps = 60, seconds = 1, intent = () => ({}) } = {
   const spawn = /data-platform="hero" data-spawn/.test(html)
   const portal = /id="portal"/.test(html)
   const bubble = /id="bubble"/.test(html)
+  // Every testimonial is its sentences and a name line, all platforms.
+  const quoteBys = ids.filter((id) => /^quote-\d+-by$/.test(id)).length
   check('the level markup has every project, tag, sentence and bullet as a platform, plus spawn, ground, portal and bubble',
     missing.length === 0 && projectIds.length === projects.length && tagIds.length === tagCount
       && bulletIds.length === bulletCount && sentenceIds.length === sentences(summary).length
-      && sentenceIds.length > 1 && unique.size === ids.length && ground && spawn && portal && bubble,
+      && sentenceIds.length > 1 && unique.size === ids.length && ground && spawn && portal && bubble
+      && quoteBys === testimonials.length,
     `${ids.length} platforms (${unique.size} unique): ${projectIds.length}/${projects.length} projects, ` +
     `${tagIds.length}/${tagCount} skill tags, ${bulletIds.length}/${bulletCount} job bullets, ` +
-    `${sentenceIds.length} summary sentences` +
+    `${sentenceIds.length} summary sentences, ${quoteBys}/${testimonials.length} testimonials` +
     (missing.length ? `, missing: ${missing.join(', ')}` : '') +
     `; spawn ${spawn}, solid ground ${ground}, portal ${portal}, bubble ${bubble}`)
 }

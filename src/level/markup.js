@@ -21,6 +21,8 @@ import { OWNER, WINGS, byWing } from '../data/projects.js'
 import { trackAttrs } from '../core/analytics.js'
 import { chatBubbleMarkup } from '../chat/markup.js'
 import { summary, experience, education, skills } from '../data/profile.js'
+import { testimonials } from '../data/testimonials.js'
+import { ICONS } from '../ui/icons.js'
 import { ROUTE_NAMES } from '../core/params.js'
 import { PLAYER_HEIGHT } from '../game/movement.js'
 
@@ -55,6 +57,58 @@ export function contactEvent(id, from) {
   return id === 'cv'
     ? trackAttrs('download-cv', { from })
     : trackAttrs('contact', { channel: id, from })
+}
+
+// ---------- The foot of both pages ----------
+
+// Every way to reach him, as icons. The same list, in the same order, on both
+// pages' footers.
+function contactLinks() {
+  return [
+    OWNER.email && { id: 'email', label: `Email ${OWNER.email}`, href: `mailto:${OWNER.email}` },
+    OWNER.phone && { id: 'phone', label: `Call ${OWNER.phone}`, href: `tel:${OWNER.phone.replace(/\s/g, '')}` },
+    OWNER.linkedin && { id: 'linkedin', label: 'LinkedIn', href: OWNER.linkedin, attrs: external },
+    OWNER.github && { id: 'github', label: 'GitHub', href: OWNER.github, attrs: external },
+    OWNER.itch && { id: 'itch', label: 'itch.io', href: OWNER.itch, attrs: external },
+    OWNER.cv && { id: 'cv', label: 'Download CV (PDF)', href: `./${OWNER.cv}`, attrs: external },
+  ].filter(Boolean)
+}
+
+// `from` is where on the page, for the analytics events.
+export function socialMarkup(from) {
+  return `<ul class="social" aria-label="Contact">${contactLinks().map((c) => `
+        <li><a class="social__link social__link--${c.id}" href="${esc(c.href)}" ${c.attrs ?? ''} aria-label="${esc(c.label)}" title="${esc(c.label)}" ${contactEvent(c.id, from)}>${ICONS[c.id]}</a></li>`).join('')}
+      </ul>`
+}
+
+// The year is the build's, so it never goes stale.
+export function copyrightMarkup() {
+  return `<p class="copyright">&copy; ${new Date().getFullYear()} ${esc(OWNER.name)}. All rights reserved.</p>`
+}
+
+// Who said it, on one line: "Name, Role · Company".
+export function attribution(t) {
+  return [t.role, t.company].filter(Boolean).join(' · ')
+}
+
+// The level's testimonials. Like the summary, a quote is one platform per
+// sentence, and the name under it one more: a paragraph would be a wall to
+// climb. Nothing at all when the list is empty.
+function testimonialsSection() {
+  if (!testimonials.length) return ''
+  return `
+    <section class="lv-section lv-testimonials" id="testimonials" data-section="Testimonials">
+      <h2 class="lv-heading" data-platform="heading-testimonials">Testimonials</h2>
+      <div class="lv-quotes">${testimonials.map((t, i) => `
+        <figure class="lv-quote">
+          <blockquote class="lv-quote__text">${sentences(t.quote).map((s, j) => `
+            <p class="lv-line" data-platform="quote-${i}-${j}">${esc(s)}</p>`).join('')}
+          </blockquote>
+          <figcaption class="lv-line lv-quote__by" data-platform="quote-${i}-by"><strong>${esc(t.name)}</strong>${attribution(t) ? `<span class="lv-meta">${esc(attribution(t))}</span>` : ''}</figcaption>
+        </figure>`).join('')}
+      </div>
+    </section>
+`
 }
 
 // A project is its thumbnail and nothing else on the page — it says the rest in
@@ -93,16 +147,19 @@ export const SECTIONS = [
   { id: 'experience', label: 'Experience' },
   { id: 'education', label: 'Education' },
   { id: 'skills', label: 'Skills' },
+  ...(testimonials.length ? [{ id: 'testimonials', label: 'Testimonials' }] : []),
 ]
 
 // The rail: a dot per section on a track, with a fill that runs down it as the
 // page goes by. Script on either page (src/ui/Rail.js, and its inline copy in
 // build-classic.mjs) moves the fill and marks the current section; on the level
 // a click teleports the robot, on the plain page it scrolls there.
-export function railMarkup() {
-  return `<nav class="rail" id="rail" aria-label="Sections" style="--rail-count:${SECTIONS.length}">
+// The plain page passes its own list: it has an About me section the level
+// does not (its paragraphs would be too tall to climb).
+export function railMarkup(sections = SECTIONS) {
+  return `<nav class="rail" id="rail" aria-label="Sections" style="--rail-count:${sections.length}">
     <span class="rail__track" aria-hidden="true"><span class="rail__fill"></span></span>
-    <ol class="rail__list">${SECTIONS.map((s, i) => `
+    <ol class="rail__list">${sections.map((s, i) => `
       <li style="--i:${i}"><a class="rail__item" href="#${esc(s.id)}" data-section-id="${esc(s.id)}"><span class="rail__label">${esc(s.label)}</span><span class="rail__dot" aria-hidden="true"></span></a></li>`).join('')}
     </ol>
   </nav>`
@@ -190,15 +247,17 @@ ${WINGS.map(wing).join('')}
       <div class="lv-skills">${skillGroups}
       </div>
     </section>
-
+${testimonialsSection()}
     <footer class="lv-ground" data-platform="ground" data-solid data-section="Portal">
       <button class="portal" id="portal" type="button">
         <span class="portal__arrow" aria-hidden="true">&uarr;</span>
         <span class="portal__label">Back to the top</span>
       </button>
       <div class="lv-ground__info">
-        <p><strong>${esc(OWNER.name)}</strong> &middot; <a href="mailto:${esc(OWNER.email)}" ${contactEvent('email', 'footer')}>${esc(OWNER.email)}</a></p>
+        <p class="lv-ground__name">${esc(OWNER.name)}</p>
+        ${socialMarkup('footer')}
         <p>In a hurry? <a href="./classic.html" ${trackAttrs('switch-route', { to: 'basic', from: 'footer' })}>${esc(ROUTE_NAMES.basic)}</a> has every project on one page.</p>
+        ${copyrightMarkup()}
       </div>
     </footer>
 

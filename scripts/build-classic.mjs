@@ -12,7 +12,9 @@ import fs from 'node:fs'
 import { OWNER, OG_IMAGE, WINGS, projects, byWing } from '../src/data/projects.js'
 import { PROJECT_PARAM, PLAY_PARAM, ROUTE_NAMES } from '../src/core/params.js'
 import { summary, experience, education, skills, aboutMe } from '../src/data/profile.js'
-import { railMarkup, contactEvent } from '../src/level/markup.js'
+import { railMarkup, contactEvent, SECTIONS, socialMarkup, copyrightMarkup, attribution } from '../src/level/markup.js'
+import { testimonials } from '../src/data/testimonials.js'
+import { ICONS } from '../src/ui/icons.js'
 import { analyticsTag, trackAttrs } from '../src/core/analytics.js'
 import { CHAT_URL, chatMeta } from '../src/chat/config.js'
 import { chatPanelMarkup } from '../src/chat/markup.js'
@@ -332,7 +334,30 @@ section,header{scroll-margin-top:3.3rem}
 @media (max-width:620px){.video .plyr__volume input[type="range"],.video .plyr__controls [data-plyr="pip"]{display:none}}
 footer{padding:2.5rem 0 3.5rem;border-top:1px solid var(--rule);color:var(--faint);font-size:.85rem}
 footer a{transition:color .15s ease}
-footer a:hover{color:var(--accent)}
+footer a:not(.social__link):hover{color:var(--accent)}
+footer p{margin:0 0 .5rem}
+.footer__name{color:var(--ink);font-weight:700;font-size:1rem}
+.social{display:flex;flex-wrap:wrap;gap:.6rem;margin:.6rem 0 1.1rem;padding:0;list-style:none}
+.social__link{display:grid;place-items:center;width:2.6rem;height:2.6rem;border-radius:50%;background:var(--surface);
+  border:1px solid var(--rule);color:var(--ink);transition:background-color .15s ease,border-color .15s ease,color .15s ease,transform .15s ease}
+.social__link .icon{width:1.05rem;height:1.05rem}
+.social__link:hover,.social__link:focus-visible{background:var(--accent);border-color:var(--accent);color:#fff;transform:translateY(-2px)}
+.copyright{margin:1.25rem 0 0!important;padding-top:1rem;border-top:1px solid var(--rule);font-size:.8rem}
+.quotes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),1fr));gap:1rem}
+.quote{position:relative;margin:0;display:flex;flex-direction:column;gap:1rem;padding:1.5rem 1.4rem 1.2rem;
+  background:var(--surface);border:1px solid var(--rule);border-top:3px solid var(--accent);border-radius:10px}
+.quote::before{content:"\\201C";position:absolute;top:.35rem;right:1rem;font:700 3.5rem/1 Georgia,serif;color:var(--accent);opacity:.25}
+.quote blockquote{margin:0;flex:1}
+.quote blockquote p{margin:0;font-size:.95rem;line-height:1.65;font-style:italic;color:var(--ink)}
+.quote figcaption{display:flex;align-items:center;gap:.75rem;padding-top:.9rem;border-top:1px solid var(--rule)}
+.quote__avatar{flex:none;display:grid;place-items:center;width:2.4rem;height:2.4rem;border-radius:50%;
+  background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent);font-weight:700;font-size:.85rem}
+.quote__who{display:flex;flex-direction:column;line-height:1.35;min-width:0;flex:1}
+.quote__who strong{font-size:.92rem}
+.quote__who span{font-size:.8rem;color:var(--faint)}
+.quote__link{flex:none;display:grid;place-items:center;width:2rem;height:2rem;border-radius:50%;color:var(--muted)}
+.quote__link .icon{width:.95rem;height:.95rem}
+.quote__link:hover,.quote__link:focus-visible{color:var(--accent)}
 main:focus{outline:none}
 ${CHAT_CSS}
 @media print{
@@ -365,7 +390,7 @@ ${CHAT_CSS}
     <p class="role">${esc(OWNER.title)} &middot; ${esc(OWNER.location)}</p>
     <p class="summary">${esc(summary)}</p>
     <a class="more-about" href="#about-me">More about me &darr;</a>
-    ${CHAT_URL ? `<button class="ask-robot" id="ask-robot" type="button" hidden><span class="chat-fab__dot" aria-hidden="true"></span>Questions? Ask the robot</button>` : ''}
+    ${CHAT_URL ? `<button class="ask-robot" id="ask-robot" type="button" hidden><span class="chat-fab__dot" aria-hidden="true"></span>Questions? Ask the chatbot</button>` : ''}
     <ul class="contact">
       ${OWNER.cv ? `<li class="cv"><a href="${esc(OWNER.cv)}" target="_blank" rel="noopener noreferrer" ${contactEvent('cv', 'header')}>Download CV (PDF)</a></li>` : ''}
       <li><a href="mailto:${esc(OWNER.email)}" ${contactEvent('email', 'header')}>${esc(OWNER.email)}</a></li>
@@ -422,14 +447,31 @@ ${skills.map((s) => `      <div>
     </div>
   </section>
 
-  <footer>
-    <p>${esc(OWNER.name)} &middot; ${esc(OWNER.email)}</p>
+${testimonials.length ? `  <section id="testimonials">
+    <h2>Testimonials</h2>
+    <p class="wing-note">From people I've worked with</p>
+    <div class="quotes">${testimonials.map((t) => `
+      <figure class="quote">
+        <blockquote><p>${esc(t.quote)}</p></blockquote>
+        <figcaption>
+          <span class="quote__avatar" aria-hidden="true">${esc(t.name.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase())}</span>
+          <span class="quote__who"><strong>${esc(t.name)}</strong>${attribution(t) ? `<span>${esc(attribution(t))}</span>` : ''}${t.relation ? `<span>${esc(t.relation)}</span>` : ''}</span>
+          ${t.linkedin ? `<a class="quote__link" href="${esc(t.linkedin)}" target="_blank" rel="noopener noreferrer" aria-label="${esc(t.name)} on LinkedIn" title="${esc(t.name)} on LinkedIn">${ICONS.linkedin}</a>` : ''}
+        </figcaption>
+      </figure>`).join('')}
+    </div>
+  </section>
+
+` : ''}  <footer>
+    <p class="footer__name">${esc(OWNER.name)}</p>
+    ${socialMarkup('footer')}
     <p>Prefer to play through it? <a href="./index.html?${PLAY_PARAM}" ${trackAttrs('switch-route', { to: 'interactive', from: 'footer' })}>${esc(ROUTE_NAMES.showroom)}</a>.</p>
+    ${copyrightMarkup()}
   </footer>
 
 </main>
 
-${railMarkup()}
+${railMarkup(SECTIONS.flatMap((s) => (s.id === 'experience' ? [{ id: 'about-me', label: 'About me' }, s] : [s])))}
 
 <dialog class="video" id="video" aria-label="Project video">
   <button class="video__close" type="button" aria-label="Close">&times;</button>

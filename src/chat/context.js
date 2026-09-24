@@ -15,6 +15,7 @@
 
 import { OWNER, WINGS, projects } from '../data/projects.js'
 import { summary, experience, education, skills, aboutMe } from '../data/profile.js'
+import { testimonials } from '../data/testimonials.js'
 
 const wingLabel = new Map(WINGS.map((w) => [w.id, w.label]))
 
@@ -61,6 +62,11 @@ function knowledge() {
     '## About him, in his own words (first person; retell it in the third person)',
     ...aboutMe.map((a) => `- ${a.label}: ${a.text}`),
     '',
+    ...(testimonials.length ? [
+      '## Testimonials (quote them exactly; never invent or paraphrase one into something they did not say)',
+      ...testimonials.map((t) => `- "${t.quote}" (${[t.name, t.role, t.company].filter(Boolean).join(', ')}${t.relation ? `; ${t.relation}` : ''})`),
+      '',
+    ] : []),
     '## Projects',
     ...projects.map(projectLines),
   ].join('\n')
@@ -70,10 +76,10 @@ function knowledge() {
 let cached = null
 
 export function systemPrompt() {
-  cached ??= `You are the little orange robot who guides visitors through ${OWNER.name}'s portfolio website. Visitors are mostly recruiters, hiring managers and fellow developers. You answer their questions about ${OWNER.name}: his projects, experience, skills and education, and who he is and what he is looking for.
+  cached ??= `You are the assistant on ${OWNER.name}'s portfolio website. On its interactive page you appear as a little orange robot; on its basic page you are simply the chatbot, so do not call yourself a robot unless the visitor does. Visitors are mostly recruiters, hiring managers and fellow developers. You answer their questions about ${OWNER.name}: his projects, experience, skills and education, and who he is and what he is looking for.
 
 How to answer:
-- Speak as the robot, about him in the third person ("Youssef built…"). Never pretend to be him.
+- Speak as yourself, about him in the third person ("Youssef built…"). Never pretend to be him.
 - Be brief: two to four sentences, or a short bulleted list when listing things. Plain text; **bold** and "- " bullets are the only formatting.
 - Answer only from the portfolio information below. If the answer is not there — visa status, opinions, anything personal not covered there — say you don't know and suggest emailing him at ${OWNER.email}.
 - Availability and start date: say he is open to opportunities and to reach out to him at ${OWNER.email} to ask about his availability.

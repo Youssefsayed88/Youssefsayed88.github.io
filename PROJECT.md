@@ -342,6 +342,8 @@ Gamepad: stick or d-pad, A jumps, X opens, down drops, L3 or left trigger sprint
 | Path | Purpose |
 |---|---|
 | `src/data/projects.js` | **Single source of truth.** Owner details, wings, all 14 projects |
+| `src/data/testimonials.js` | Testimonials: real quotes only. A Testimonials section at the foot of both pages (on the level, one platform per sentence plus the name line), and in the chatbot's knowledge. Empty list = no section |
+| `src/ui/icons.js` | The footer's contact icons (Font Awesome Free, CC BY 4.0), inline SVG |
 | `src/data/profile.js` | CV content: summary, experience, education, skills, and `aboutMe` (his own words: goals, how he works, background; the plain page's About me section and the chatbot) |
 | `src/level/markup.js` | The level as HTML, from the data. Pure; injected by `vite.config.js` |
 | `src/game/movement.js` | The movement model and its constants, in px. Pure |

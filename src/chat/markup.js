@@ -19,6 +19,9 @@ const first = OWNER.name.split(' ')[0]
 
 export const GREETING = `Hi! I'm the robot who runs this place. Ask me anything about ${first}'s work: his projects, what he built on them, his experience or his skills.`
 
+// The plain page has no robot on it, so there it is simply the chatbot.
+const PANEL_GREETING = `Hi! I'm ${first}'s portfolio assistant. Ask me anything about his work: his projects, what he built on them, his experience, his skills, or what he's looking for next.`
+
 export const SUGGESTIONS = [
   `What did ${first} build in multiplayer?`,
   'Which project should I look at first?',
@@ -46,9 +49,9 @@ function form(id) {
 }
 
 // The callout by the chat button that offers the chat (src/chat/nudge.js).
-function nudge() {
+function nudge(who = 'robot') {
   return `<div class="chat-nudge" id="chat-nudge" role="status" hidden>
-      <button class="chat-nudge__body" type="button"><strong>Got a question about ${esc(first)}?</strong> I can tell you about his projects, experience and skills. Ask me!</button>
+      <button class="chat-nudge__body" type="button"><strong>Got a question about ${esc(first)}?</strong> ${who === 'robot' ? 'I can tell you about his projects, experience and skills. Ask me!' : 'The chatbot can tell you about his projects, experience and skills. Ask it!'}</button>
       <button class="chat-nudge__close" type="button" aria-label="Dismiss">&times;</button>
     </div>`
 }
@@ -90,16 +93,16 @@ export function chatDockMarkup() {
 export function chatPanelMarkup() {
   if (!CHAT_URL) return ''
   return `<button class="chat-fab" id="chat-open" type="button" aria-expanded="false" aria-controls="chat-panel">
-  <span class="chat-fab__dot" aria-hidden="true"></span>Ask the robot about ${esc(first)}
+  <span class="chat-fab__dot" aria-hidden="true"></span>Ask the chatbot about ${esc(first)}
 </button>
-${nudge()}
+${nudge('chatbot')}
 <aside class="chat-panel chat" id="chat-panel" aria-labelledby="chat-panel-title" hidden>
   <header class="chat-panel__head">
-    <p class="chat-panel__title" id="chat-panel-title">Ask the robot</p>
+    <p class="chat-panel__title" id="chat-panel-title">Ask the chatbot</p>
     <button class="chat__close" type="button" aria-label="Close the chat">&times;</button>
   </header>
   <div class="chat-panel__log" aria-live="polite">
-    <div class="chat-msg chat-msg--bot"><p>${esc(GREETING)}</p></div>
+    <div class="chat-msg chat-msg--bot"><p>${esc(PANEL_GREETING)}</p></div>
   </div>
   <p class="chat__error" role="alert" hidden></p>
   <div class="chat-panel__foot">${form('chat-panel')}
