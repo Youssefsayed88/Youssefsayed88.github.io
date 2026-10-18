@@ -92,8 +92,8 @@ export const projects = [
     wing: 'games',
     title: 'Football is Life',
     blurb: 'First-person striker game: swipe to set aim, power and curl on free kicks, penalties and one-on-ones through a nineteen-match league season.',
-    role: 'Built the entire game end to end — the swipe shooting model, the career mode and its stat progression — and published it to CrazyGames.',
-    notes: 'Designed the swipe shooting with Score! Hero in mind. Its basic launch on CrazyGames reached 20k plays and an 8.7 rating; the full launch is still to come.',
+    role: 'Built the entire game end to end — the swipe shooting model, the career mode and its stat progression — and launched it fully, solo, on CrazyGames.',
+    notes: 'Designed the swipe shooting with Score! Hero in mind. Fully launched on CrazyGames: over 200k players, an 8.9 rating from 7k ratings, and 3k+ active players daily.',
     // No cvHint: this postdates the CV, and the attribution came from Youssef
     // directly rather than being matched to a bullet on it.
     cvHint: null,
